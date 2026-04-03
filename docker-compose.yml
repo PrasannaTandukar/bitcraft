@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    container_name: agenticai-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  frontend:
+    build: ./frontend
+    container_name: agenticai-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

@@ -1,0 +1,57 @@
+# =========================
+# JetBrains IDEs (Rider, IntelliJ, WebStorm)
+# =========================
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Rider specific
+*.sln.iml
+
+# =========================
+# .NET
+# =========================
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.pdb
+
+# Logs
+*.log
+
+# =========================
+# Node / React
+# =========================
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# Package managers
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files (be careful if you need them)
+.env
+.env.local
+.env.*.local
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Misc
+# =========================
+coverage/
+.vscode/
