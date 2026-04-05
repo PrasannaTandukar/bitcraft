@@ -1,11 +1,38 @@
 services:
+  ollama:
+    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  db:
+    image: postgres:18
+    container_name: agenticai-db
+    environment:
+      POSTGRES_DB: agenticai
+      POSTGRES_USER: agenticai_user
+      POSTGRES_PASSWORD: agenticai_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+
   backend:
     build: ./backend
     container_name: agenticai-backend
     ports:
       - "8000:8000"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      ASPNETCORE_ENVIRONMENT: Development
+      OLLAMA_BASE_URL: http://ollama:11434
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+    depends_on:
+      - ollama
+      - db
 
   frontend:
     build: ./frontend
@@ -14,3 +41,7 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+
+volumes:
+  ollama: {}
+  postgres_data: {}

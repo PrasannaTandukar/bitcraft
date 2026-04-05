@@ -1,3 +1,5 @@
+using Npgsql;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -32,6 +34,34 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
+
+app.MapGet("/db-test", async (IConfiguration config) =>
+{
+    var connectionString = config.GetConnectionString("DefaultConnection");
+
+    try
+    {
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = new NpgsqlCommand("SELECT version();", conn);
+        var result = await cmd.ExecuteScalarAsync();
+
+        return Results.Ok(new
+        {
+            success = true,
+            message = "Database connection successful",
+            databaseVersion = result?.ToString()
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            title: "Database connection failed",
+            detail: ex.Message
+        );
+    }
+});
 
 app.Run();
 
