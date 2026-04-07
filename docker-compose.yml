@@ -21,6 +21,29 @@ services:
       - postgres_data:/var/lib/postgresql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U agenticai_user -d agenticai" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      
+  migrator:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    container_name: agenticai-migrator
+    working_dir: /src
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/src
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+    command: >
+      sh -c "dotnet restore &&
+             dotnet tool restore &&
+             dotnet ef database update"
+    restart: "no"
 
   backend:
     build: ./backend
@@ -32,8 +55,12 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
     depends_on:
-      - ollama
-      - db
+      ollama:
+        condition: service_started
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
 
   frontend:
     build: ./frontend
