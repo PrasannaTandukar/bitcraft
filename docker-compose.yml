@@ -1,34 +1,4 @@
 services:
-  ollama:
-    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama:/root/.ollama
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-
-  ollama-pull-embed:
-    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
-    container_name: ollama-pull-embed
-    volumes:
-      - ollama:/root/.ollama
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "sleep 3 && ollama pull qwen3-embedding:0.6b"
-    restart: "no"
-    depends_on:
-      ollama:
-        condition: service_healthy
-
   db:
     build: ./db
     container_name: agenticai-db
@@ -43,7 +13,7 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U agenticai_user -d agenticai" ]
+      test: ["CMD-SHELL", "pg_isready -U agenticai_user -d agenticai"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -73,17 +43,15 @@ services:
       - "8000:8000"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_EMBED_MODEL: qwen3-embedding:0.6b
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
       migrator:
-        condition: service_completed_successfully
-      ollama:
-        condition: service_healthy
-      ollama-pull-embed:
         condition: service_completed_successfully
 
   frontend:
@@ -95,5 +63,4 @@ services:
       - backend
 
 volumes:
-  ollama: {}
   postgres_data: {}
