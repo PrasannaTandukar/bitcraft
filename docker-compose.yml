@@ -56,9 +56,9 @@ services:
       migrator:
         condition: service_completed_successfully
 
-  frontend:
-    build: ./frontend
-    container_name: agenticai-frontend
+  admin:
+    build: ./admin
+    container_name: agenticai-admin
     ports:
       - "5173:5173"
     depends_on:

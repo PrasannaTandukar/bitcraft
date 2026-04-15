@@ -53,7 +53,7 @@ venv/
 .env.*
 
 # =========================
-# Node / React (Next.js frontend)
+# Node / React admin app
 # =========================
 node_modules/
 .next/
