@@ -1,6 +1,6 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Infrastructure.Persistence;
-using Bitcraft.Infrastructure.Persistence.Repositories;
+using Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +16,7 @@ public static class DependencyInjection
                 configuration.GetConnectionString("DefaultConnection"),
                 o => o.UseVector()));
 
-        services.AddScoped<IChunkRepository, ChunkRepository>();
+        services.AddScoped<IKnowledgeRepository, KnowledgeRepository>();
 
         return services;
     }

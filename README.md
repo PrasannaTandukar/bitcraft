@@ -100,12 +100,18 @@ Examples: `feature/login/BC-11`, `fix/chunk-search/BC-42`, `chore/clean-arch/BC-
 
 ```
 src/
-├── Bitcraft.Api/              # ASP.NET Core — thin controllers, composition root
-├── Bitcraft.Application/      # Use cases, interfaces, DTOs (feature-based)
-├── Bitcraft.Domain/           # Pure entities, value objects — zero dependencies
-└── Bitcraft.Infrastructure/   # EF Core, Npgsql, pgvector, external integrations
+├── Bitcraft.Api/              # HTTP entry point, controllers, composition root
+├── Bitcraft.Application/      # Use cases organized by business capability
+├── Bitcraft.Domain/           # Core business concepts and rules
+└── Bitcraft.Infrastructure/   # EF Core, pgvector, persistence and integrations
 tests/
 └── Bitcraft.UnitTests/
 ```
+
+### Current capability grouping
+
+- **Knowledge** — document storage, chunk creation, semantic search
+- **Infrastructure/Persistence** — database mappings, repository implementations, migrations
+- **Api** — thin endpoints calling application handlers
 
 **Dependency direction:** Api → Application + Infrastructure, Infrastructure → Application + Domain, Application → Domain. Core (Domain + Application) never references Infrastructure or Api.

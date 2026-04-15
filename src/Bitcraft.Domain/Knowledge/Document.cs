@@ -1,4 +1,4 @@
-namespace Bitcraft.Domain.Entities;
+namespace Bitcraft.Domain.Knowledge;
 
 public class Document
 {

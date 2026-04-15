@@ -1,14 +1,14 @@
 using Bitcraft.Application.Common.Interfaces;
-using Bitcraft.Domain.Entities;
+using Bitcraft.Domain.Knowledge;
 using Bitcraft.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Pgvector.EntityFrameworkCore;
 
-namespace Bitcraft.Infrastructure.Persistence.Repositories;
+namespace Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
 
-public class ChunkRepository(AppDbContext db) : IChunkRepository
+public class KnowledgeRepository(AppDbContext db) : IKnowledgeRepository
 {
-    public async Task<DocumentChunk> AddAsync(
+    public async Task<DocumentChunk> AddChunkAsync(
         int documentId,
         int chunkIndex,
         string content,
@@ -28,7 +28,7 @@ public class ChunkRepository(AppDbContext db) : IChunkRepository
         return chunk;
     }
 
-    public async Task<List<DocumentChunk>> SearchNearestAsync(
+    public async Task<List<DocumentChunk>> SearchNearestChunksAsync(
         float[] queryEmbedding,
         int topK = 5,
         CancellationToken cancellationToken = default)

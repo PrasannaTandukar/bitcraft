@@ -1,4 +1,4 @@
-using Bitcraft.Domain.Entities;
+using Bitcraft.Domain.Knowledge;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bitcraft.Infrastructure.Persistence;
