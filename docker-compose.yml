@@ -51,23 +51,25 @@ services:
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     container_name: agenticai-migrator
-    working_dir: /src
+    working_dir: /repo
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/src
+      - ./src:/repo/src
+      - ./.config:/repo/.config
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
     command: >
-      sh -c "dotnet restore &&
-             dotnet tool restore &&
-             dotnet ef database update"
+      sh -c "dotnet tool restore &&
+             dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api"
     restart: "no"
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: src/Bitcraft.Api/Dockerfile
     container_name: agenticai-backend
     ports:
       - "8000:8000"

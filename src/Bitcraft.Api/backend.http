@@ -1,0 +1,23 @@
+@backend_HostAddress = http://localhost:5260
+
+POST {{backend_HostAddress}}/api/chunks
+Content-Type: application/json
+
+{
+  "documentId": 1,
+  "chunkIndex": 0,
+  "content": "Sample chunk content",
+  "embedding": []
+}
+
+###
+
+POST {{backend_HostAddress}}/api/chunks/search
+Content-Type: application/json
+
+{
+  "queryEmbedding": [],
+  "topK": 5
+}
+
+###

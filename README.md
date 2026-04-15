@@ -1,29 +1,111 @@
-# README #
+# Bitcraft
 
-This README would normally document whatever steps are necessary to get your application up and running.
+Agentic AI platform with document embeddings, vector search, and RAG capabilities.
 
-### What is this repository for? ###
+## Tech Stack
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+- **Backend:** ASP.NET Core (.NET 10), Entity Framework Core, PostgreSQL + pgvector
+- **Frontend:** React + Vite
+- **AI:** Ollama (local inference)
+- **Architecture:** Clean Architecture (screaming, feature-based)
 
-### How do I get set up? ###
+## Getting Started with Development
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+### Prerequisites
 
-### Contribution guidelines ###
+| Tool | Version | Notes |
+|---|---|---|
+| .NET SDK | 10.0+ | [Download](https://dotnet.microsoft.com/download) |
+| Docker Desktop | Latest | Required for local infrastructure |
+| Node.js | 20+ | Frontend only |
 
-* Writing tests
-* Code review
-* Other guidelines
+### Quick Start (Full Stack)
 
-### Who do I talk to? ###
+```bash
+docker compose up
+```
 
-* Repo owner or admin
-* Other community or team contact
+This starts: PostgreSQL + pgvector, Ollama + embedding model, backend API (port 8000), frontend (port 5173), and runs EF Core migrations automatically.
+
+### Backend-Only Development
+
+```bash
+# Ensure DB is running
+docker compose up db -d
+
+# Restore tools (EF Core CLI)
+dotnet tool restore
+
+# Apply migrations
+dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api
+
+# Run the API
+dotnet run --project src/Bitcraft.Api
+```
+
+The API will be available at `http://localhost:5260` with Swagger UI at `/swagger`.
+
+### EF Core Migration Cheatsheet
+
+```bash
+# Add a new migration
+dotnet ef migrations add <MigrationName> --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api
+
+# Apply pending migrations
+dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api
+
+# Remove last migration (if not applied)
+dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api
+```
+
+### VS Code Extensions
+
+Open this project in VS Code and accept the workspace extension recommendations, or install manually:
+
+**Required**
+
+| Extension | ID | Purpose |
+|---|---|---|
+| C# Dev Kit | `ms-dotnettools.csdevkit` | IntelliSense, build, debug, solution explorer |
+| C# | `ms-dotnettools.csharp` | Language engine (required by Dev Kit) |
+| .NET Install Tool | `ms-dotnettools.vscode-dotnet-runtime` | Runtime support for Dev Kit |
+| Docker | `ms-azuretools.vscode-docker` | Compose management, container logs |
+
+**Recommended**
+
+| Extension | ID | Purpose |
+|---|---|---|
+| REST Client | `humao.rest-client` | Run `.http` files directly in editor |
+| PostgreSQL | `ms-ossdata.vscode-postgresql` | Browse DB, run ad-hoc queries |
+| YAML | `redhat.vscode-yaml` | docker-compose syntax + validation |
+| Error Lens | `usernamehw.errorlens` | Inline diagnostics on same line |
+| EditorConfig | `editorconfig.editorconfig` | Consistent formatting across team |
+
+**Optional**
+
+| Extension | ID | Purpose |
+|---|---|---|
+| GitLens | `eamodio.gitlens` | Enhanced git blame and history |
+| DotENV | `mikestead.dotenv` | `.env` file syntax highlighting |
+
+### Branch Convention
+
+```
+[type]/[name]/[ticket_id]
+```
+
+Examples: `feature/login/BC-11`, `fix/chunk-search/BC-42`, `chore/clean-arch/BC-15`
+
+## Project Structure
+
+```
+src/
+├── Bitcraft.Api/              # ASP.NET Core — thin controllers, composition root
+├── Bitcraft.Application/      # Use cases, interfaces, DTOs (feature-based)
+├── Bitcraft.Domain/           # Pure entities, value objects — zero dependencies
+└── Bitcraft.Infrastructure/   # EF Core, Npgsql, pgvector, external integrations
+tests/
+└── Bitcraft.UnitTests/
+```
+
+**Dependency direction:** Api → Application + Infrastructure, Infrastructure → Application + Domain, Application → Domain. Core (Domain + Application) never references Infrastructure or Api.
