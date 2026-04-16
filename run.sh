@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-PROJECT="agenticai"
+PROJECT="bitcraft"
 
 BASE_FILE="docker-compose.yml"
 AI_FILE="docker-compose.ai.yml"
@@ -22,7 +22,7 @@ NC="\033[0m"
 print_header() {
   clear
   echo -e "${CYAN}======================================${NC}"
-  echo -e "${CYAN}         AGENTIC AI LAUNCHER          ${NC}"
+  echo -e "${CYAN}          BITCRAFT LAUNCHER           ${NC}"
   echo -e "${CYAN}======================================${NC}"
   echo
 }

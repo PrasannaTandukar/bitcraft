@@ -1,11 +1,11 @@
 services:
   db:
     build: ./db
-    container_name: agenticai-db
+    container_name: bitcraft-db
     environment:
-      POSTGRES_DB: agenticai
-      POSTGRES_USER: agenticai_user
-      POSTGRES_PASSWORD: agenticai_password
+      POSTGRES_DB: bitcraft
+      POSTGRES_USER: bitcraft_user
+      POSTGRES_PASSWORD: bitcraft_password
     ports:
       - "5432:5432"
     volumes:
@@ -13,14 +13,14 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agenticai_user -d agenticai"]
+      test: ["CMD-SHELL", "pg_isready -U bitcraft_user -d bitcraft"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    container_name: agenticai-migrator
+    container_name: bitcraft-migrator
     working_dir: /repo
     depends_on:
       db:
@@ -30,7 +30,7 @@ services:
       - ./.config:/repo/.config
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password
     command: >
       sh -c "dotnet tool restore &&
              dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api"
@@ -40,12 +40,12 @@ services:
     build:
       context: .
       dockerfile: src/Bitcraft.Api/Dockerfile
-    container_name: agenticai-backend
+    container_name: bitcraft-backend
     ports:
       - "8000:8000"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
     extra_hosts:
@@ -58,7 +58,7 @@ services:
 
   admin:
     build: ./admin
-    container_name: agenticai-admin
+    container_name: bitcraft-admin
     ports:
       - "5173:5173"
     depends_on:
