@@ -21,9 +21,9 @@ function App() {
       <section className="hero-panel">
         <div>
           <p className="eyebrow">Bitcraft</p>
-          <h1>Admin</h1>
+          <h1>Tutor Studio</h1>
           <p className="lead">
-            Internal control panel for knowledge ingestion, search operations,
+            Internal control panel for tutor configuration, knowledge ingestion,
             and platform monitoring.
           </p>
         </div>
@@ -32,12 +32,12 @@ function App() {
           <span className="status-dot" aria-hidden="true" />
           <div>
             <strong>Environment ready</strong>
-            <p>Backend, database, and admin client are wired for development.</p>
+            <p>Backend, database, and Tutor Studio are wired for development.</p>
           </div>
         </div>
       </section>
 
-      <section className="stats-grid" aria-label="Admin overview">
+      <section className="stats-grid" aria-label="Tutor Studio overview">
         <article>
           <span>Modules</span>
           <strong>3</strong>
@@ -47,7 +47,7 @@ function App() {
           <strong>:8000</strong>
         </article>
         <article>
-          <span>Admin UI</span>
+          <span>Tutor Studio</span>
           <strong>:5173</strong>
         </article>
       </section>

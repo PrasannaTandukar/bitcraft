@@ -5,7 +5,7 @@ Agentic AI platform with document embeddings, vector search, and RAG capabilitie
 ## Tech Stack
 
 - **Backend:** ASP.NET Core (.NET 10), Entity Framework Core, PostgreSQL + pgvector
-- **Admin:** React + Vite admin client
+- **Tutor Studio:** React + Vite frontend for tutor configuration and management
 - **AI:** Ollama (local inference)
 - **Architecture:** Clean Architecture (screaming, feature-based)
 
@@ -17,7 +17,7 @@ Agentic AI platform with document embeddings, vector search, and RAG capabilitie
 |---|---|---|
 | .NET SDK | 10.0+ | [Download](https://dotnet.microsoft.com/download) |
 | Docker Desktop | Latest | Required for local infrastructure |
-| Node.js | 20+ | Admin client only |
+| Node.js | 20+ | Frontend development |
 
 ### Quick Start (Full Stack)
 
@@ -25,7 +25,7 @@ Agentic AI platform with document embeddings, vector search, and RAG capabilitie
 docker compose up
 ```
 
-This starts: PostgreSQL + pgvector, Ollama + embedding model, backend API (port 8000), admin client (port 5173), and runs EF Core migrations automatically.
+This starts: PostgreSQL + pgvector, Ollama + embedding model, backend API (port 8000), Tutor Studio (port 5173), and runs EF Core migrations automatically.
 
 ### Backend-Only Development
 
@@ -99,7 +99,7 @@ Examples: `feature/login/BC-11`, `fix/chunk-search/BC-42`, `chore/clean-arch/BC-
 ## Project Structure
 
 ```
-admin/                         # React + Vite admin client
+tutor-studio/                  # React + Vite frontend
 src/
 ├── Bitcraft.Api/              # HTTP entry point, controllers, composition root
 ├── Bitcraft.Application/      # Use cases organized by business capability
