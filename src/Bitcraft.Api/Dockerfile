@@ -1,6 +1,6 @@
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+WORKDIR /bitcraft
 
 # Copy all project files for restore
 COPY src/Bitcraft.Domain/Bitcraft.Domain.csproj src/Bitcraft.Domain/

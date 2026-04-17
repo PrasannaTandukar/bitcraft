@@ -21,13 +21,13 @@ services:
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     container_name: bitcraft-migrator
-    working_dir: /repo
+    working_dir: /bitcraft
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./src:/repo/src
-      - ./.config:/repo/.config
+      - ./src:/bitcraft/src
+      - ./.config:/bitcraft/.config
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password
