@@ -1,0 +1,37 @@
+# Version control
+.git
+.gitignore
+
+# IDE / editor
+.vscode/
+.vs/
+.idea/
+*.iml
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Node
+**/node_modules/
+tutor-studio/dist/
+
+# Docker compose files (not needed in build context)
+docker-compose*.yml
+
+# Environment
+.env
+.env.*
+
+# Tests
+tests/
+
+# Docs
+*.md
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

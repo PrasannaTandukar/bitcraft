@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-PROJECT="agenticai"
+PROJECT="bitcraft"
 
 BASE_FILE="docker-compose.yml"
 AI_FILE="docker-compose.ai.yml"
@@ -22,7 +22,7 @@ NC="\033[0m"
 print_header() {
   clear
   echo -e "${CYAN}======================================${NC}"
-  echo -e "${CYAN}         AGENTIC AI LAUNCHER          ${NC}"
+  echo -e "${CYAN}          BITCRAFT LAUNCHER           ${NC}"
   echo -e "${CYAN}======================================${NC}"
   echo
 }
@@ -103,7 +103,7 @@ show_logs() {
   echo
   echo "1) All services"
   echo "2) Backend"
-  echo "3) Frontend"
+  echo "3) Tutor Studio"
   echo "4) Database"
   echo "5) Ollama"
   echo "6) Back"
@@ -113,7 +113,7 @@ show_logs() {
   case "$log_choice" in
     1) docker compose "${BASE_ARGS[@]}" "${AI_ARGS[@]}" -p "$PROJECT" logs -f ;;
     2) docker compose "${BASE_ARGS[@]}" "${AI_ARGS[@]}" -p "$PROJECT" logs -f backend ;;
-    3) docker compose "${BASE_ARGS[@]}" "${AI_ARGS[@]}" -p "$PROJECT" logs -f frontend ;;
+    3) docker compose "${BASE_ARGS[@]}" "${AI_ARGS[@]}" -p "$PROJECT" logs -f tutor-studio ;;
     4) docker compose "${BASE_ARGS[@]}" -p "$PROJECT" logs -f db ;;
     5) docker compose "${BASE_ARGS[@]}" "${AI_ARGS[@]}" -p "$PROJECT" logs -f ollama ;;
     6) return ;;
@@ -125,7 +125,7 @@ rebuild_service() {
   echo
   echo "Available services:"
   echo "1) backend"
-  echo "2) frontend"
+  echo "2) tutor-studio"
   echo "3) db"
   echo "4) ollama"
   echo "5) Back"
@@ -137,7 +137,7 @@ rebuild_service() {
 
   case "$service_choice" in
     1) service="backend"; files=("${BASE_ARGS[@]}" "${AI_ARGS[@]}") ;;
-    2) service="frontend"; files=("${BASE_ARGS[@]}") ;;
+    2) service="tutor-studio"; files=("${BASE_ARGS[@]}") ;;
     3) service="db"; files=("${BASE_ARGS[@]}") ;;
     4) service="ollama"; files=("${BASE_ARGS[@]}" "${AI_ARGS[@]}") ;;
     5) return ;;

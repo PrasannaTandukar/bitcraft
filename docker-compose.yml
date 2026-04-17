@@ -1,49 +1,60 @@
 services:
   db:
     build: ./db
-    container_name: agenticai-db
+    container_name: bitcraft-db
     environment:
-      POSTGRES_DB: agenticai
-      POSTGRES_USER: agenticai_user
-      POSTGRES_PASSWORD: agenticai_password
+      POSTGRES_DB: ${POSTGRES_DB:-bitcraft}
+      POSTGRES_USER: ${POSTGRES_USER:-bitcraft_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bitcraft_password}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agenticai_user -d agenticai"]
+      test: ["CMD-SHELL", "pg_isready -U bitcraft_user -d bitcraft"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
-    container_name: agenticai-migrator
-    working_dir: /src
+    container_name: bitcraft-migrator
+    working_dir: /bitcraft
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/src
+      - ./src:/bitcraft/src
+      - ./.config:/bitcraft/.config
+      - nuget-packages:/root/.nuget/packages
+
+      # Shadow host obj/dirs so container never sees host build artifacts
+      - /bitcraft/src/Bitcraft.Domain/obj
+      - /bitcraft/src/Bitcraft.Application/obj
+      - /bitcraft/src/Bitcraft.Infrastructure/obj
+      - /bitcraft/src/Bitcraft.Api/obj
+      
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
     command: >
-      sh -c "dotnet restore &&
-             dotnet tool restore &&
-             dotnet ef database update"
+      sh -c "dotnet tool restore &&
+             dotnet restore src/Bitcraft.Api/Bitcraft.Api.csproj &&
+             dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api"
     restart: "no"
 
   backend:
-    build: ./backend
-    container_name: agenticai-backend
+    build:
+      context: .
+      dockerfile: src/Bitcraft.Api/Dockerfile
+    container_name: bitcraft-backend
     ports:
       - "8000:8000"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=agenticai;Username=agenticai_user;Password=agenticai_password
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
     extra_hosts:
@@ -54,9 +65,9 @@ services:
       migrator:
         condition: service_completed_successfully
 
-  frontend:
-    build: ./frontend
-    container_name: agenticai-frontend
+  tutor-studio:
+    build: ./tutor-studio
+    container_name: bitcraft-tutor-studio
     ports:
       - "5173:5173"
     depends_on:
@@ -64,3 +75,4 @@ services:
 
 volumes:
   postgres_data: {}
+  nuget-packages: {}

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Bitcraft.Api/Bitcraft.Api.csproj" />
+    <Project Path="src/Bitcraft.Application/Bitcraft.Application.csproj" />
+    <Project Path="src/Bitcraft.Domain/Bitcraft.Domain.csproj" />
+    <Project Path="src/Bitcraft.Infrastructure/Bitcraft.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bitcraft.UnitTests/Bitcraft.UnitTests.csproj" />
+  </Folder>
+</Solution>
