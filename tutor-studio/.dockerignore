@@ -4,3 +4,4 @@ dist
 .env
 .env.*
 *.md
+npm-debug.log
