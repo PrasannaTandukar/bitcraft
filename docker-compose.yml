@@ -3,9 +3,9 @@ services:
     build: ./db
     container_name: bitcraft-db
     environment:
-      POSTGRES_DB: bitcraft
-      POSTGRES_USER: bitcraft_user
-      POSTGRES_PASSWORD: bitcraft_password
+      POSTGRES_DB: ${POSTGRES_DB:-bitcraft}
+      POSTGRES_USER: ${POSTGRES_USER:-bitcraft_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bitcraft_password}
     ports:
       - "5432:5432"
     volumes:
@@ -30,7 +30,7 @@ services:
       - ./.config:/bitcraft/.config
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
     command: >
       sh -c "dotnet tool restore &&
              dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api"
@@ -45,7 +45,7 @@ services:
       - "8000:8000"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
     extra_hosts:
