@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-bitcraft_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bitcraft_password}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -28,11 +28,20 @@ services:
     volumes:
       - ./src:/bitcraft/src
       - ./.config:/bitcraft/.config
+      - nuget-packages:/root/.nuget/packages
+
+      # Shadow host obj/dirs so container never sees host build artifacts
+      - /bitcraft/src/Bitcraft.Domain/obj
+      - /bitcraft/src/Bitcraft.Application/obj
+      - /bitcraft/src/Bitcraft.Infrastructure/obj
+      - /bitcraft/src/Bitcraft.Api/obj
+      
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
     command: >
       sh -c "dotnet tool restore &&
+             dotnet restore src/Bitcraft.Api/Bitcraft.Api.csproj &&
              dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api"
     restart: "no"
 
@@ -66,3 +75,4 @@ services:
 
 volumes:
   postgres_data: {}
+  nuget-packages: {}
