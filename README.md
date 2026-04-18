@@ -19,13 +19,42 @@ Agentic AI platform with document embeddings, vector search, and RAG capabilitie
 | Docker Desktop | Latest | Required for local infrastructure |
 | Node.js | 20+ | Frontend development |
 
+### Configuration
+
+Copy `.env.example` to `.env` and edit environment variables as needed:
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — PostgreSQL credentials
+- `OLLAMA_BASE_URL` — Ollama service endpoint (default: `http://host.docker.internal:11434` — assumes Ollama running on host)
+- `OLLAMA_EMBED_MODEL` — Embedding model to use (default: `qwen3-embedding:0.6b`)
+
 ### Quick Start (Full Stack)
 
 ```bash
 docker compose up
 ```
 
-This starts: PostgreSQL + pgvector, Ollama + embedding model, backend API (port 8000), Tutor Studio (port 5173), and runs EF Core migrations automatically.
+This starts:
+- PostgreSQL + pgvector (port 5433 for local client access)
+- Backend API (port 8000) with Swagger at `http://localhost:8000/swagger`
+- Tutor Studio frontend (port 5173)
+- Runs EF Core migrations automatically
+
+**Note:** By default, this expects Ollama running on your host machine at `http://localhost:11434`. To run Ollama in Docker instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ai.yml up
+```
+
+For GPU acceleration:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ai.gpu.yml up
+```
 
 ### Backend-Only Development
 
@@ -43,7 +72,12 @@ dotnet ef database update --project src/Bitcraft.Infrastructure --startup-projec
 dotnet run --project src/Bitcraft.Api
 ```
 
-The API will be available at `http://localhost:5260` with Swagger UI at `/swagger`.
+The API will be available at `http://localhost:8000` with Swagger UI at `http://localhost:8000/swagger`.
+
+**Database connection string (local client tools):**
+```
+Host=localhost;Port=5433;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password
+```
 
 ### EF Core Migration Cheatsheet
 
@@ -57,6 +91,15 @@ dotnet ef database update --project src/Bitcraft.Infrastructure --startup-projec
 # Remove last migration (if not applied)
 dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api
 ```
+
+### API Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/knowledge/chunks` | Create a document chunk with embedding |
+| `POST` | `/api/knowledge/search` | Semantic search across chunks |
+
+See Swagger UI (`/swagger`) for full request/response schemas.
 
 ### VS Code Extensions
 

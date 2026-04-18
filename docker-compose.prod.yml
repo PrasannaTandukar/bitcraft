@@ -1,0 +1,7 @@
+services:
+  tutor-studio:
+    build:
+      context: ./tutor-studio
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8080:80"
