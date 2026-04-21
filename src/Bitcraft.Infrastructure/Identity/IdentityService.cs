@@ -12,13 +12,12 @@ namespace Bitcraft.Infrastructure.Identity;
 
 public class IdentityService(UserManager<AppUser> userManager, IConfiguration configuration) : IIdentityService
 {
-    public async Task<AuthResult> RegisterAsync(string email, string password, Guid? institutionId)
+    public async Task<AuthResult> RegisterAsync(string email, string password)
     {
         var user = new AppUser
         {
             UserName = email,
-            Email = email,
-            InstitutionId = institutionId
+            Email = email
         };
 
         var result = await userManager.CreateAsync(user, password);
@@ -32,8 +31,7 @@ public class IdentityService(UserManager<AppUser> userManager, IConfiguration co
         {
             Succeeded = true,
             Token = GenerateJwtToken(user),
-            Email = user.Email!,
-            InstitutionId = user.InstitutionId
+            Email = user.Email!
         };
     }
 
@@ -49,8 +47,7 @@ public class IdentityService(UserManager<AppUser> userManager, IConfiguration co
         {
             Succeeded = true,
             Token = GenerateJwtToken(user),
-            Email = user.Email!,
-            InstitutionId = user.InstitutionId
+            Email = user.Email!
         };
     }
 
@@ -65,11 +62,6 @@ public class IdentityService(UserManager<AppUser> userManager, IConfiguration co
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email!)
         };
-
-        if (user.InstitutionId.HasValue)
-        {
-            claims.Add(new Claim("InstitutionId", user.InstitutionId.Value.ToString()));
-        }
 
         var token = new JwtSecurityToken(
             claims: claims,

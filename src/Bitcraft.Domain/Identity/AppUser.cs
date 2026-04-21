@@ -4,5 +4,4 @@ namespace Bitcraft.Domain.Identity;
 
 public class AppUser : IdentityUser<Guid>
 {
-    public Guid? InstitutionId { get; set; }
 }

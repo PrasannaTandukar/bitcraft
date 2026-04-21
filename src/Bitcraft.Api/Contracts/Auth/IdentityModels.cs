@@ -15,10 +15,6 @@ public class RegisterRequest
     /// </summary>
     public string Password { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Optional assigned institution identifier.
-    /// </summary>
-    public Guid? InstitutionId { get; set; }
 }
 
 /// <summary>
@@ -44,5 +40,4 @@ public class AuthResponse
 {
     public string Token { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    public Guid? InstitutionId { get; set; }
 }

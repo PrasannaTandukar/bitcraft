@@ -16,7 +16,7 @@ public class AuthController(IIdentityService identityService) : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
-        var result = await identityService.RegisterAsync(request.Email, request.Password, request.InstitutionId);
+        var result = await identityService.RegisterAsync(request.Email, request.Password);
 
         if (!result.Succeeded)
         {
@@ -26,8 +26,7 @@ public class AuthController(IIdentityService identityService) : ControllerBase
         return Ok(new AuthResponse
         {
             Token = result.Token,
-            Email = result.Email,
-            InstitutionId = result.InstitutionId
+            Email = result.Email
         });
     }
 
@@ -49,8 +48,7 @@ public class AuthController(IIdentityService identityService) : ControllerBase
         return Ok(new AuthResponse
         {
             Token = result.Token,
-            Email = result.Email,
-            InstitutionId = result.InstitutionId
+            Email = result.Email
         });
     }
 }
