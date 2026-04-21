@@ -1,9 +1,11 @@
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bitcraft.Infrastructure.Persistence;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentChunk> DocumentChunks => Set<DocumentChunk>();
