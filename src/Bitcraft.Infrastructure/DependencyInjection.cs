@@ -1,5 +1,6 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Domain.Identity;
+using Bitcraft.Infrastructure.Identity;
 using Bitcraft.Infrastructure.Persistence;
 using Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,6 +44,7 @@ public static class DependencyInjection
             };
         });
 
+        services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IKnowledgeRepository, KnowledgeRepository>();
 
         return services;
