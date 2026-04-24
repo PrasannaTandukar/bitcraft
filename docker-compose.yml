@@ -13,7 +13,7 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bitcraft_user -d bitcraft"]
+      test: [ "CMD-SHELL", "pg_isready -U bitcraft_user -d bitcraft" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -35,7 +35,7 @@ services:
       - /bitcraft/src/Bitcraft.Application/obj
       - /bitcraft/src/Bitcraft.Infrastructure/obj
       - /bitcraft/src/Bitcraft.Api/obj
-      
+
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
