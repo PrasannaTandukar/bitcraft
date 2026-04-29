@@ -1,8 +1,14 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Domain.Identity;
+using Bitcraft.Infrastructure.ExternalServices;
+using Bitcraft.Infrastructure.ExternalServices.Embeddings;
+using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.Identity;
 using Bitcraft.Infrastructure.Persistence;
+using Bitcraft.Infrastructure.Persistence.Interceptors;
+using Bitcraft.Infrastructure.Persistence.Repositories.Documents;
 using Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
+using Bitcraft.Infrastructure.Persistence.Repositories.Tutoring;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -17,10 +23,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<AppDbContext>(options =>
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserContext, HttpContextCurrentUserContext>();
+        services.AddScoped<AuditableEntitySaveChangesInterceptor>();
+
+        services.AddDbContext<AppDbContext>((serviceProvider, options) =>
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
-                o => o.UseVector()));
+                o => o.UseVector())
+                .AddInterceptors(serviceProvider.GetRequiredService<AuditableEntitySaveChangesInterceptor>()));
 
         services.AddIdentity<AppUser, AppRole>()
             .AddEntityFrameworkStores<AppDbContext>()
@@ -45,8 +56,36 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IIdentityService, IdentityService>();
-        services.AddScoped<IKnowledgeRepository, KnowledgeRepository>();
+        services.AddScoped<IDocumentStore, DocumentStore>();
+        services.AddScoped<IEmbeddingProvider, NotImplementedEmbeddingProvider>();
+        services.AddKnowledgePersistence(configuration);
+
+        // Tutoring
+        services.AddScoped<ITutorRepository, TutorRepository>();
+        services.AddScoped<IModelCatalogRepository, ModelCatalogRepository>();
+
+        // External model providers
+        var ollamaTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:HealthCheckTimeoutSeconds") ?? 5;
+        services.AddHttpClient(nameof(OllamaHealthCheck), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaTimeoutSeconds);
+        });
+        services.AddScoped<OllamaHealthCheck>();
+        services.AddScoped<IModelConnectionHealthCheck, ModelConnectionHealthCheckDispatcher>();
 
         return services;
+    }
+
+    private static IServiceCollection AddKnowledgePersistence(this IServiceCollection services, IConfiguration configuration)
+    {
+        var backend = configuration["Knowledge:VectorBackend"]?.Trim();
+        if (string.IsNullOrWhiteSpace(backend) || string.Equals(backend, "pgvector", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IVectorStore, PgvectorVectorStore>();
+            services.AddScoped<IKnowledgeRetriever, PgvectorKnowledgeRetriever>();
+            return services;
+        }
+
+        throw new NotImplementedException("Filled in Phase B");
     }
 }

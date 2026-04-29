@@ -1,5 +1,4 @@
-using Bitcraft.Application.Features.Knowledge.Commands;
-using Bitcraft.Application.Features.Knowledge.Queries;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitcraft.Application;
@@ -8,8 +7,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<CreateDocumentChunkHandler>();
-        services.AddScoped<SearchKnowledgeHandler>();
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
         return services;
     }
