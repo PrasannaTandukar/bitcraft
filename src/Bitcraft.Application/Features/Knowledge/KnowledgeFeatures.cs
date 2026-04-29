@@ -86,6 +86,12 @@ public static class KnowledgeFeatures
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingProviderRequired", "Embedding provider is required."));
             }
 
+            var embeddingProviderName = EmbeddingProviders.Normalize(request.EmbeddingProvider);
+            if (embeddingProviderName is null)
+            {
+                return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingProviderUnsupported", "Only the Ollama embedding provider is implemented."));
+            }
+
             if (string.IsNullOrWhiteSpace(request.EmbeddingModel))
             {
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingModelRequired", "Embedding model is required."));
@@ -124,7 +130,7 @@ public static class KnowledgeFeatures
                     content,
                     embedding,
                     request.EmbeddingModel.Trim(),
-                    request.EmbeddingProvider.Trim()));
+                    embeddingProviderName));
             }
 
             await vectorStore.ReplaceDocumentChunksAsync(document.Id, writes, cancellationToken);

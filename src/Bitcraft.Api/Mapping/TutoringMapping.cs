@@ -79,6 +79,11 @@ internal static class TutoringMapping
     public static ModelHealthResponse ToResponse(this ModelHealthStatus s) => new(
         s.IsReachable, s.ProviderType, s.Endpoint, s.ModelName, s.ModelAvailable, s.LatencyMs, s.Detail);
 
+    public static UserRoleMembershipResponse ToResponse(this UserRoleMembership membership) => new(
+        membership.UserId,
+        membership.Email,
+        membership.Roles);
+
     public static KnowledgeSourceLinkResponse ToResponse(this KnowledgeSourceLink k) => new(
         k.Id, k.TutorId, k.DocumentId, k.LinkedUtc);
 

@@ -8,8 +8,8 @@ namespace Bitcraft.Application.Features.Tutoring;
 
 /// <summary>
 /// Configuration snapshot use-cases. A snapshot captures the immutable
-/// configuration state of a tutor at a point in time, used by Phase C
-/// benchmarking to reproduce evaluation runs.
+/// configuration state of a tutor at a point in time, used by benchmarking
+/// to reproduce evaluation runs.
 /// </summary>
 public static class ConfigurationSnapshotFeatures
 {

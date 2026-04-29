@@ -1,5 +1,6 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
 using Bitcraft.Domain.Tutoring;
@@ -11,7 +12,75 @@ internal sealed class FakeCurrentUserContext(Guid userId, bool isAdmin = false) 
     public bool IsAuthenticated => userId != Guid.Empty;
     public Guid UserId => IsAuthenticated ? userId : throw new UnauthorizedAccessException("Current user is not authenticated.");
     public Guid? UserIdOrNull => IsAuthenticated ? userId : null;
-    public bool IsInRole(string role) => role == "Admin" && isAdmin;
+    public bool IsInRole(string role) => role == AppRoles.Admin && isAdmin;
+}
+
+internal sealed class FakeRoleManagementService : IRoleManagementService
+{
+    public List<string> Roles { get; } = [AppRoles.Admin, AppRoles.Editor, AppRoles.Viewer];
+    public Dictionary<Guid, UserRoleMembership> Memberships { get; } = new();
+    public int ListCalls { get; private set; }
+    public int GetCalls { get; private set; }
+    public int AssignCalls { get; private set; }
+    public int RevokeCalls { get; private set; }
+
+    public Task<Result<IReadOnlyList<string>>> ListRolesAsync(CancellationToken cancellationToken = default)
+    {
+        ListCalls++;
+        return Task.FromResult(Result.Success<IReadOnlyList<string>>(Roles));
+    }
+
+    public Task<Result<UserRoleMembership>> GetUserRolesAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        GetCalls++;
+        return Task.FromResult(Memberships.TryGetValue(userId, out var membership)
+            ? Result.Success(membership)
+            : Result.Failure<UserRoleMembership>(new Error("User.NotFound", $"User '{userId}' not found.")));
+    }
+
+    public Task<Result<UserRoleMembership>> AssignRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default)
+    {
+        AssignCalls++;
+
+        var normalizedRole = AppRoles.Normalize(role);
+        if (normalizedRole is null)
+        {
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer.")));
+        }
+
+        var existing = Memberships.TryGetValue(userId, out var membership)
+            ? membership
+            : new UserRoleMembership(userId, "user@example.com", []);
+
+        if (existing.Roles.Contains(normalizedRole))
+        {
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.AlreadyAssigned", $"User already has role '{normalizedRole}'.")));
+        }
+
+        var updated = existing with { Roles = existing.Roles.Append(normalizedRole).OrderBy(x => x).ToArray() };
+        Memberships[userId] = updated;
+        return Task.FromResult(Result.Success(updated));
+    }
+
+    public Task<Result<UserRoleMembership>> RevokeRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default)
+    {
+        RevokeCalls++;
+
+        var normalizedRole = AppRoles.Normalize(role);
+        if (normalizedRole is null)
+        {
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer.")));
+        }
+
+        if (!Memberships.TryGetValue(userId, out var membership) || !membership.Roles.Contains(normalizedRole))
+        {
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.NotAssigned", $"User does not have role '{normalizedRole}'.")));
+        }
+
+        var updated = membership with { Roles = membership.Roles.Where(x => x != normalizedRole).ToArray() };
+        Memberships[userId] = updated;
+        return Task.FromResult(Result.Success(updated));
+    }
 }
 
 internal sealed class FakeTutorRepository : ITutorRepository

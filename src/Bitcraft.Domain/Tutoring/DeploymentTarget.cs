@@ -5,6 +5,6 @@ public enum DeploymentTarget
 {
     /// <summary>Local Docker Compose stack.</summary>
     Local = 0,
-    /// <summary>Public cloud (Phase A: configuration only; runtime in later phases).</summary>
+    /// <summary>Public cloud deployment target.</summary>
     Server = 1
 }

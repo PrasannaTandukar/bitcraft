@@ -1,4 +1,5 @@
 using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Identity;
 using Bitcraft.Infrastructure.ExternalServices;
 using Bitcraft.Infrastructure.ExternalServices.Embeddings;
@@ -51,13 +52,22 @@ public static class DependencyInjection
                 ValidateAudience = false,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role
             };
         });
 
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(AppRoles.Admin));
+            options.AddPolicy(AuthorizationPolicies.EditorOrAdmin, policy => policy.RequireRole(AppRoles.Editor, AppRoles.Admin));
+            options.AddPolicy(AuthorizationPolicies.ViewerOrAbove, policy => policy.RequireRole(AppRoles.Viewer, AppRoles.Editor, AppRoles.Admin));
+        });
+
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IRoleManagementService, IdentityService>();
         services.AddScoped<IDocumentStore, DocumentStore>();
-        services.AddScoped<IEmbeddingProvider, NotImplementedEmbeddingProvider>();
+        services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
         services.AddKnowledgePersistence(configuration);
 
         // Tutoring
@@ -69,6 +79,11 @@ public static class DependencyInjection
         services.AddHttpClient(nameof(OllamaHealthCheck), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaTimeoutSeconds);
+        });
+        var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 30;
+        services.AddHttpClient(nameof(OllamaEmbeddingProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
         });
         services.AddScoped<OllamaHealthCheck>();
         services.AddScoped<IModelConnectionHealthCheck, ModelConnectionHealthCheckDispatcher>();
@@ -86,6 +101,6 @@ public static class DependencyInjection
             return services;
         }
 
-        throw new NotImplementedException("Filled in Phase B");
+        throw new NotSupportedException($"Knowledge vector backend '{backend}' is not implemented. Configure 'pgvector' to use the current backend.");
     }
 }
