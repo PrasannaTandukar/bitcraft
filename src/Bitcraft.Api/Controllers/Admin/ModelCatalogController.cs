@@ -1,6 +1,7 @@
 using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Admin;
 using Bitcraft.Api.Mapping;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Application.Features.Admin;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Admin;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 [Route("api/admin/model-catalog")]
 [Produces("application/json")]
 public class ModelCatalogController(ISender sender) : ControllerBase

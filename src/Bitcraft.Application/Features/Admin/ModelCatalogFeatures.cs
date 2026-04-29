@@ -1,5 +1,6 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Tutoring;
 using MediatR;
 
@@ -23,7 +24,7 @@ public static class ModelCatalogFeatures
     {
         public async Task<Result<ModelCatalogEntry>> Handle(CreateModelCatalogEntryCommand request, CancellationToken cancellationToken)
         {
-            if (!currentUser.IsInRole("Admin"))
+            if (!currentUser.IsInRole(AppRoles.Admin))
             {
                 return Result.Failure<ModelCatalogEntry>(new Error("ModelCatalog.Forbidden", "Only administrators can manage model catalog entries."));
             }
@@ -59,7 +60,7 @@ public static class ModelCatalogFeatures
     {
         public async Task<Result<List<ModelCatalogEntry>>> Handle(ListModelCatalogEntriesQuery request, CancellationToken cancellationToken)
         {
-            if (!currentUser.IsInRole("Admin"))
+            if (!currentUser.IsInRole(AppRoles.Admin))
             {
                 return Result.Failure<List<ModelCatalogEntry>>(new Error("ModelCatalog.Forbidden", "Only administrators can view model catalog entries."));
             }
@@ -79,7 +80,7 @@ public static class ModelCatalogFeatures
     {
         public async Task<Result<ModelHealthStatus>> Handle(CheckModelCatalogEntryHealthQuery request, CancellationToken cancellationToken)
         {
-            if (!currentUser.IsInRole("Admin"))
+            if (!currentUser.IsInRole(AppRoles.Admin))
             {
                 return Result.Failure<ModelHealthStatus>(new Error("ModelCatalog.Forbidden", "Only administrators can probe model catalog entries."));
             }

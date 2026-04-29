@@ -1,5 +1,6 @@
 using Bitcraft.Application;
 using Bitcraft.Infrastructure;
+using Bitcraft.Infrastructure.Identity;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +19,7 @@ builder.Services.AddSwaggerGen(c =>
         Description =
             "REST surface for managing AI tutors: prompts, model connections, knowledge sources, " +
             "tools, deployment profiles, and reproducible configuration snapshots used for benchmarking. " +
-            "Phase A requires authenticated access for management endpoints; Phase B adds role policies."
+            "Management endpoints require authenticated access and role policies."
     });
 
     // Include XML docs from Api, Domain (enums/value types surface in contracts) so the
@@ -54,6 +55,11 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    await IdentityRoleSeeder.SeedAsync(scope.ServiceProvider);
+}
 
 if (app.Environment.IsDevelopment())
 {

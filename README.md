@@ -96,8 +96,16 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/knowledge/chunks` | Create a document chunk with embedding |
-| `POST` | `/api/knowledge/search` | Semantic search across chunks |
+| `POST` | `/api/auth/register` | Register a Tutor Studio user |
+| `POST` | `/api/auth/login` | Authenticate and receive a JWT with role claims |
+| `GET` | `/api/admin/roles` | List seeded authorization roles |
+| `GET/POST/DELETE` | `/api/admin/users/{userId}/roles` | View, assign, and revoke user roles |
+| `GET/POST` | `/api/admin/model-catalog` | Manage Admin-owned model catalog entries |
+| `GET/POST/PUT/DELETE` | `/api/documents` | Manage source documents owned by the current user |
+| `POST` | `/api/documents/{id}/vectorize` | Rebuild knowledge chunks for an owned source document |
+| `POST` | `/api/knowledge/search` | Search tutor-scoped knowledge chunks |
+| `GET/POST/PUT` | `/api/tutors` | Manage owned tutors |
+| `POST/PUT` | `/api/tutors/{tutorId}/...` | Manage tutor prompts, tools, knowledge sources, model connection, deployment profile, and snapshots |
 
 See Swagger UI (`/swagger`) for full request/response schemas.
 
@@ -154,8 +162,11 @@ tests/
 
 ### Current capability grouping
 
-- **Knowledge** — document storage, chunk creation, semantic search
-- **Infrastructure/Persistence** — database mappings, repository implementations, migrations
-- **Api** — thin endpoints calling application handlers
+- **Documents** — source-of-truth source artifacts owned by users
+- **Knowledge** — vectorized retrieval derived from documents and scoped through tutors
+- **Tutoring** — tutor configuration, prompts, tools, model connections, knowledge links, deployment profiles, and snapshots
+- **Admin** — model catalog management and Admin/Editor/Viewer role management
+- **Infrastructure/Persistence** — database mappings, repository implementations, migrations, pgvector, Identity, and Ollama adapters
+- **Api** — thin controllers using request/response contracts, Swagger metadata, JWT auth, and role policies
 
 **Dependency direction:** Api → Application + Infrastructure, Infrastructure → Application + Domain, Application → Domain. Core (Domain + Application) never references Infrastructure or Api.

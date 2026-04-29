@@ -27,7 +27,8 @@ public class AuthController(IIdentityService identityService) : ControllerBase
         return Ok(new AuthResponse
         {
             Token = result.Token,
-            Email = result.Email
+            Email = result.Email,
+            Roles = result.Roles
         });
     }
 
@@ -47,7 +48,8 @@ public class AuthController(IIdentityService identityService) : ControllerBase
         return Ok(new AuthResponse
         {
             Token = result.Token,
-            Email = result.Email
+            Email = result.Email,
+            Roles = result.Roles
         });
     }
 }

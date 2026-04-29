@@ -1,6 +1,7 @@
 using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Api.Mapping;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Application.Features.Tutoring;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Tutoring;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
 [Route("api/tutors/{tutorId:guid}/knowledge-sources")]
 [Produces("application/json")]
 public class TutorKnowledgeSourcesController(ISender sender) : ControllerBase

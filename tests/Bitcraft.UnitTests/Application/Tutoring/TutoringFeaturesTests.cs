@@ -448,7 +448,7 @@ public class KnowledgeFeaturesTests
             vectorStore,
             embeddingProvider,
             new FakeCurrentUserContext(ownerId));
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "TestProvider", "test-model", MaxChunkLength: 3);
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 3);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -475,7 +475,7 @@ public class KnowledgeFeaturesTests
             new FakeVectorStore(),
             new FakeEmbeddingProvider(),
             new FakeCurrentUserContext(ownerId));
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "TestProvider", "test-model");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -499,7 +499,7 @@ public class KnowledgeFeaturesTests
             vectorStore,
             new FakeEmbeddingProvider(),
             new FakeCurrentUserContext(Guid.NewGuid()));
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "TestProvider", "test-model");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -508,5 +508,58 @@ public class KnowledgeFeaturesTests
         Assert.True(result.IsFailure);
         Assert.Equal("Document.Forbidden", result.Error.Code);
         Assert.Empty(vectorStore.ReplacedDocumentIds);
+    }
+
+    [Fact]
+    public async Task VectorizeDocumentHandler_WithUnsupportedEmbeddingProvider_ReturnsUnsupportedProvider()
+    {
+        // Arrange
+        var documentStore = new FakeDocumentStore();
+        var ownerId = Guid.NewGuid();
+        var document = new Document { Name = "Doc", RawText = "abcdef" };
+        document.UpdateMetadata(ownerId);
+        documentStore.Documents[document.Id] = document;
+        var vectorStore = new FakeVectorStore();
+        var handler = new KnowledgeFeatures.VectorizeDocumentHandler(
+            documentStore,
+            vectorStore,
+            new FakeEmbeddingProvider(),
+            new FakeCurrentUserContext(ownerId));
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "OpenAI", "text-embedding-3-small");
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Knowledge.EmbeddingProviderUnsupported", result.Error.Code);
+        Assert.Empty(vectorStore.ReplacedDocumentIds);
+    }
+
+    [Fact]
+    public async Task VectorizeDocumentHandler_WithProviderCaseAndWhitespace_WritesCanonicalProviderAndTrimmedModel()
+    {
+        // Arrange
+        var documentStore = new FakeDocumentStore();
+        var ownerId = Guid.NewGuid();
+        var document = new Document { Name = "Doc", RawText = "abcdef" };
+        document.UpdateMetadata(ownerId);
+        documentStore.Documents[document.Id] = document;
+        var vectorStore = new FakeVectorStore();
+        var handler = new KnowledgeFeatures.VectorizeDocumentHandler(
+            documentStore,
+            vectorStore,
+            new FakeEmbeddingProvider(),
+            new FakeCurrentUserContext(ownerId));
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, " ollama ", " test-model ", MaxChunkLength: 6);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var chunk = Assert.Single(vectorStore.Chunks);
+        Assert.Equal(EmbeddingProviders.Ollama, chunk.EmbeddingProvider);
+        Assert.Equal("test-model", chunk.EmbeddingModel);
     }
 }

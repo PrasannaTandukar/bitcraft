@@ -1,6 +1,7 @@
 using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Mapping;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Application.Features.Documents;
 using Bitcraft.Application.Features.Knowledge;
 using MediatR;
@@ -10,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Documents;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
 [Route("api/documents")]
 [Produces("application/json")]
 public class DocumentsController(ISender sender) : ControllerBase
@@ -41,6 +42,7 @@ public class DocumentsController(ISender sender) : ControllerBase
 
     /// <summary>Creates a source document for later vectorization.</summary>
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
     [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
@@ -65,6 +67,7 @@ public class DocumentsController(ISender sender) : ControllerBase
 
     /// <summary>Updates a source document owned by the authenticated user.</summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
     [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
@@ -89,6 +92,7 @@ public class DocumentsController(ISender sender) : ControllerBase
 
     /// <summary>Deletes a source document owned by the authenticated user.</summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
@@ -103,6 +107,7 @@ public class DocumentsController(ISender sender) : ControllerBase
 
     /// <summary>Rebuilds knowledge chunks for a source document owned by the authenticated user.</summary>
     [HttpPost("{id:guid}/vectorize")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
     [ProducesResponseType(typeof(VectorizeDocumentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]

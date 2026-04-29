@@ -1,6 +1,7 @@
 using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Knowledge;
 using Bitcraft.Api.Mapping;
+using Bitcraft.Application.Common.Security;
 using Bitcraft.Application.Features.Knowledge;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Knowledge;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
 [Route("api/knowledge")]
 [Produces("application/json")]
 public class KnowledgeController(ISender sender) : ControllerBase
