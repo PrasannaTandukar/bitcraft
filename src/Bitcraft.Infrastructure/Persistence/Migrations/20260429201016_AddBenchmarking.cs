@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -25,8 +25,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: false),
-                    EditedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    EditedById = table.Column<Guid>(type: "uuid", nullable: true)
+                    ModifiedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedById = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -38,8 +38,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_BenchmarkTemplates_AspNetUsers_EditedById",
-                        column: x => x.EditedById,
+                        name: "FK_BenchmarkTemplates_AspNetUsers_ModifiedById",
+                        column: x => x.ModifiedById,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -87,8 +87,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     FailureDescription = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
                     CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: false),
-                    EditedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    EditedById = table.Column<Guid>(type: "uuid", nullable: true)
+                    ModifiedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedById = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -100,8 +100,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_BenchmarkRuns_AspNetUsers_EditedById",
-                        column: x => x.EditedById,
+                        name: "FK_BenchmarkRuns_AspNetUsers_ModifiedById",
+                        column: x => x.ModifiedById,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -139,8 +139,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     ResourceJson = table.Column<string>(type: "jsonb", nullable: true),
                     CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: false),
-                    EditedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    EditedById = table.Column<Guid>(type: "uuid", nullable: true)
+                    ModifiedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedById = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -152,8 +152,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_BenchmarkRunCases_AspNetUsers_EditedById",
-                        column: x => x.EditedById,
+                        name: "FK_BenchmarkRunCases_AspNetUsers_ModifiedById",
+                        column: x => x.ModifiedById,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -177,9 +177,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                 column: "CreatedById");
 
             migrationBuilder.CreateIndex(
-                name: "IX_BenchmarkRunCases_EditedById",
+                name: "IX_BenchmarkRunCases_ModifiedById",
                 table: "BenchmarkRunCases",
-                column: "EditedById");
+                column: "ModifiedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BenchmarkRuns_BenchmarkTemplateId",
@@ -192,9 +192,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                 column: "CreatedById");
 
             migrationBuilder.CreateIndex(
-                name: "IX_BenchmarkRuns_EditedById",
+                name: "IX_BenchmarkRuns_ModifiedById",
                 table: "BenchmarkRuns",
-                column: "EditedById");
+                column: "ModifiedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BenchmarkRuns_Status",
@@ -212,9 +212,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                 column: "CreatedById");
 
             migrationBuilder.CreateIndex(
-                name: "IX_BenchmarkTemplates_EditedById",
+                name: "IX_BenchmarkTemplates_ModifiedById",
                 table: "BenchmarkTemplates",
-                column: "EditedById");
+                column: "ModifiedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BenchmarkTemplates_OwnerId_Key",
