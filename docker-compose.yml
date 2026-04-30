@@ -57,13 +57,36 @@ services:
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
+      Benchmarking__DeepEval__Transport: uds
+      Benchmarking__DeepEval__SocketPath: /var/run/bitcraft/sidecar.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - benchmark_sidecar_socket:/var/run/bitcraft
     depends_on:
       db:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
+      benchmark-sidecar:
+        condition: service_healthy
+
+  benchmark-sidecar:
+    build:
+      context: .
+      dockerfile: sidecar/Dockerfile
+    container_name: bitcraft-benchmark-sidecar
+    environment:
+      DEEPEVAL_DISABLE_DOTENV: "1"
+    volumes:
+      - benchmark_sidecar_socket:/var/run/bitcraft
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock'); s.close()\""]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
 
   tutor-studio:
     build: ./tutor-studio
@@ -74,3 +97,4 @@ services:
 volumes:
   postgres_data: {}
   nuget-packages: {}
+  benchmark_sidecar_socket: {}

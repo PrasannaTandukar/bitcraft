@@ -66,5 +66,10 @@ public class TutorConfiguration : IEntityTypeConfiguration<Tutor>
             .WithOne()
             .HasForeignKey(s => s.TutorId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasMany(x => x.BenchmarkRuns)
+            .WithOne(r => r.Tutor!)
+            .HasForeignKey(r => r.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

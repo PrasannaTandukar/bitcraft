@@ -110,6 +110,7 @@ internal sealed class FakeTutorRepository : ITutorRepository
         tutor.Tools = Tools.Where(t => t.TutorId == id).ToList();
         tutor.DeploymentProfile = Profiles.TryGetValue(id, out var p) ? p : null;
         tutor.TutorModelConnection = TutorModelConnections.TryGetValue(id, out var connection) ? connection : null;
+        tutor.Snapshots = Snapshots.Where(s => s.TutorId == id).ToList();
         tutor.ActivePromptVersion = tutor.ActivePromptVersionId is Guid pid
             ? tutor.PromptVersions.FirstOrDefault(v => v.Id == pid) : null;
         return Task.FromResult<Tutor?>(tutor);

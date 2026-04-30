@@ -1,4 +1,5 @@
 using Bitcraft.Domain.Identity;
+using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
 using Bitcraft.Domain.Tutoring;
@@ -21,6 +22,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<ToolDefinition> ToolDefinitions => Set<ToolDefinition>();
     public DbSet<DeploymentProfile> DeploymentProfiles => Set<DeploymentProfile>();
     public DbSet<TutorConfigurationSnapshot> TutorConfigurationSnapshots => Set<TutorConfigurationSnapshot>();
+    public DbSet<BenchmarkTemplate> BenchmarkTemplates => Set<BenchmarkTemplate>();
+    public DbSet<BenchmarkRun> BenchmarkRuns => Set<BenchmarkRun>();
+    public DbSet<BenchmarkRunCase> BenchmarkRunCases => Set<BenchmarkRunCase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

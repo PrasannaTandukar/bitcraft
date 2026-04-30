@@ -29,9 +29,14 @@ public class AuditableEntitySaveChangesInterceptor(ICurrentUserContext currentUs
             return;
         }
 
-        var userId = currentUser.UserId;
         foreach (var entry in context.ChangeTracker.Entries<BaseModel>())
         {
+            var userId = currentUser.UserIdOrNull ?? entry.Entity.CreatedById;
+            if (userId == Guid.Empty)
+            {
+                continue;
+            }
+
             if (entry.State == EntityState.Added)
             {
                 entry.Entity.UpdateMetadata(userId);

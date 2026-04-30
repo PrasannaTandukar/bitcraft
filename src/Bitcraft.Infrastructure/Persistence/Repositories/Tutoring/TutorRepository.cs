@@ -25,6 +25,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             .Include(x => x.KnowledgeSources)
             .Include(x => x.Tools)
             .Include(x => x.DeploymentProfile)
+            .Include(x => x.Snapshots)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 

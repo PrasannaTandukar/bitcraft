@@ -5,6 +5,7 @@ using Bitcraft.Api.Contracts.Knowledge;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Knowledge;
+using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
 using Bitcraft.Domain.Tutoring;
@@ -100,4 +101,83 @@ internal static class TutoringMapping
         s.Id, s.TutorId, s.TutorName, s.PromptVersionId, s.PromptContent,
         s.TutorModelConnectionId, s.ModelCatalogEntryId, s.ProviderType, s.ModelName, s.ModelSettingsJson,
         s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById);
+
+    public static BenchmarkTemplateResponse ToResponse(this BenchmarkTemplate template) => new(
+        template.Id,
+        template.OwnerId,
+        template.Key,
+        template.Name,
+        template.Description,
+        template.GuidancePath,
+        template.MetricsJson,
+        template.IsEnabled,
+        template.CreatedUtc,
+        template.EditedUtc);
+
+    public static TutorBenchmarkRunSummaryResponse ToSummaryResponse(this BenchmarkRun run) => new(
+        run.Id,
+        run.TutorId,
+        run.BenchmarkTemplateId,
+        run.TutorConfigurationSnapshotId,
+        run.ModelCatalogEntryId,
+        run.ModelAlias,
+        run.ConsistencyRuns,
+        run.Status.ToString(),
+        run.QueuedUtc,
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.TotalCaseCount,
+        run.CompletedCaseCount,
+        run.ProgressPercent,
+        run.ProgressStage,
+        run.ProgressMessage,
+        run.LastProgressUtc,
+        run.EngineName,
+        run.EngineVersion,
+        run.AverageScore,
+        run.PassRate,
+        run.TotalLatencyMs,
+        run.TotalTokens,
+        run.TokensPerSecond,
+        run.EstimatedCo2Grams,
+        run.FailureCode,
+        run.FailureDescription);
+
+    public static TutorBenchmarkRunProgressResponse ToProgressResponse(this BenchmarkRun run) => new(
+        run.Id,
+        run.TutorId,
+        run.Status.ToString(),
+        run.TotalCaseCount,
+        run.CompletedCaseCount,
+        run.ProgressPercent,
+        run.ProgressStage,
+        run.ProgressMessage,
+        run.QueuedUtc,
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.LastProgressUtc,
+        run.FailureCode,
+        run.FailureDescription);
+
+    public static TutorBenchmarkRunCaseResponse ToResponse(this BenchmarkRunCase runCase) => new(
+        runCase.Id,
+        runCase.CaseIndex,
+        runCase.InputText,
+        runCase.ActualOutput,
+        runCase.ExpectedOutput,
+        runCase.ContextText,
+        runCase.MetadataJson,
+        runCase.Passed,
+        runCase.Score,
+        runCase.Reason,
+        runCase.MetricsJson,
+        runCase.PerformanceJson,
+        runCase.ResourceJson);
+
+    public static TutorBenchmarkRunResponse ToResponse(this BenchmarkRun run) => new(
+        run.ToSummaryResponse(),
+        run.Cases.OrderBy(x => x.CaseIndex).Select(x => x.ToResponse()).ToList(),
+        run.SummaryJson,
+        run.SystemMetricsJson,
+        run.RawResultJson);
 }

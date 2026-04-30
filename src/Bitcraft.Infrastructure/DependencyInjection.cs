@@ -2,11 +2,13 @@ using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Identity;
 using Bitcraft.Infrastructure.ExternalServices;
+using Bitcraft.Infrastructure.ExternalServices.Benchmarking;
 using Bitcraft.Infrastructure.ExternalServices.Embeddings;
 using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.Identity;
 using Bitcraft.Infrastructure.Persistence;
 using Bitcraft.Infrastructure.Persistence.Interceptors;
+using Bitcraft.Infrastructure.Persistence.Repositories.Benchmarking;
 using Bitcraft.Infrastructure.Persistence.Repositories.Documents;
 using Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
 using Bitcraft.Infrastructure.Persistence.Repositories.Tutoring;
@@ -69,10 +71,18 @@ public static class DependencyInjection
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
         services.AddKnowledgePersistence(configuration);
+        services.Configure<DeepEvalBenchmarkOptions>(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName));
 
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();
         services.AddScoped<IModelCatalogRepository, ModelCatalogRepository>();
+
+        // Benchmarking
+        services.AddScoped<IBenchmarkTemplateRepository, BenchmarkTemplateRepository>();
+        services.AddScoped<IBenchmarkRunRepository, BenchmarkRunRepository>();
+        services.AddScoped<IBenchmarkEngine, DeepEvalBenchmarkEngine>();
+        services.AddSingleton<IBenchmarkRunQueue, InMemoryBenchmarkRunQueue>();
+        services.AddHostedService<BenchmarkRunWorker>();
 
         // External model providers
         var ollamaTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:HealthCheckTimeoutSeconds") ?? 5;
@@ -84,6 +94,11 @@ public static class DependencyInjection
         services.AddHttpClient(nameof(OllamaEmbeddingProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
+        });
+        var deepEvalTimeoutSeconds = configuration.GetValue<int?>("Benchmarking:DeepEval:TimeoutSeconds") ?? 120;
+        services.AddHttpClient(nameof(DeepEvalBenchmarkEngine), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(deepEvalTimeoutSeconds);
         });
         services.AddScoped<OllamaHealthCheck>();
         services.AddScoped<IModelConnectionHealthCheck, ModelConnectionHealthCheckDispatcher>();
