@@ -18,7 +18,11 @@ RUN dotnet publish src/Bitcraft.Api/Bitcraft.Api.csproj -c Release -o /app/publi
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends libkrb5-3
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libkrb5-3 \
+    libgssapi-krb5-2 && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 

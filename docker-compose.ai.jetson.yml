@@ -1,6 +1,65 @@
 services:
   ollama:
+    image: dustynv/ollama:r36.2.0
+    container_name: ollama
     runtime: nvidia
+    network_mode: host
+
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_MODELS: /ollama
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+
+    volumes:
+      - ollama:/ollama
+
+    restart: unless-stopped
+
+    # 🚨 HARD OVERRIDE
+    entrypoint: [ "/usr/bin/ollama" ]
+    command: [ "serve" ]
+
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  ollama-pull-embed:
+    image: dustynv/ollama:r36.2.0
+    container_name: ollama-pull-embed
+    network_mode: host
+
+    environment:
+      OLLAMA_HOST: http://127.0.0.1:11434
+      OLLAMA_MODELS: /ollama
+
+    volumes:
+      - ollama:/ollama
+
+    # 🚀 no shell = no bug
+    entrypoint: [ "ollama" ]
+    command: [ "pull", "${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}" ]
+
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  backend:
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull-embed:
+        condition: service_completed_successfully
+
+volumes:
+  ollama: {}
+  ollama-data: {}
