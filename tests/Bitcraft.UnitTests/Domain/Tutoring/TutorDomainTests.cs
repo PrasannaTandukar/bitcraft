@@ -29,8 +29,29 @@ public class TutorTests
         // Assert
         Assert.Equal(userId, tutor.CreatedById);
         Assert.NotEqual(default, tutor.CreatedUtc);
-        Assert.Equal(userId, tutor.EditedById);
-        Assert.NotNull(tutor.EditedUtc);
+        Assert.Equal(userId, tutor.ModifiedById);
+        Assert.NotNull(tutor.ModifiedUtc);
+    }
+
+    [Fact]
+    public void UpdateMetadata_WithExistingCreator_PreservesCreatedMetadataAndUpdatesModifiedMetadata()
+    {
+        // Arrange
+        var tutor = new Tutor();
+        var creatorId = Guid.NewGuid();
+        var modifierId = Guid.NewGuid();
+        tutor.UpdateMetadata(creatorId);
+        var createdUtc = tutor.CreatedUtc;
+        var firstModifiedUtc = tutor.ModifiedUtc;
+
+        // Act
+        tutor.UpdateMetadata(modifierId);
+
+        // Assert
+        Assert.Equal(creatorId, tutor.CreatedById);
+        Assert.Equal(createdUtc, tutor.CreatedUtc);
+        Assert.Equal(modifierId, tutor.ModifiedById);
+        Assert.True(tutor.ModifiedUtc >= firstModifiedUtc);
     }
 }
 

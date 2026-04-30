@@ -6,6 +6,8 @@
     <Project Path="src/Bitcraft.Infrastructure/Bitcraft.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Bitcraft.ApiIntegrationTests/Bitcraft.ApiIntegrationTests.csproj" />
+    <Project Path="tests/Bitcraft.InfrastructureIntegrationTests/Bitcraft.InfrastructureIntegrationTests.csproj" />
     <Project Path="tests/Bitcraft.UnitTests/Bitcraft.UnitTests.csproj" />
   </Folder>
 </Solution>
