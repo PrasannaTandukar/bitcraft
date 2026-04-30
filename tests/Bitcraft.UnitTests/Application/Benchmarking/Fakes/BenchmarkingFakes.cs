@@ -78,9 +78,12 @@ internal sealed class FakeBenchmarkRunRepository : IBenchmarkRunRepository
 internal sealed class FakeBenchmarkRunQueue : IBenchmarkRunQueue
 {
     public List<Guid> QueuedRunIds { get; } = [];
+    public List<CancellationToken> QueueCancellationTokens { get; } = [];
 
     public ValueTask QueueAsync(Guid runId, CancellationToken cancellationToken = default)
     {
+        QueueCancellationTokens.Add(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         QueuedRunIds.Add(runId);
         return ValueTask.CompletedTask;
     }

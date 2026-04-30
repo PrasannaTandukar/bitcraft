@@ -1,5 +1,6 @@
 using Bitcraft.Application.Features.Benchmarking;
 using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Domain.Benchmarking;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,6 +13,10 @@ public sealed class BenchmarkRunWorker(
     IServiceScopeFactory scopeFactory,
     ILogger<BenchmarkRunWorker> logger) : BackgroundService
 {
+    // Client-safe terminal failure used only when the worker infrastructure fails outside normal Result flow.
+    private const string WorkerFailureCode = "Benchmark.WorkerException";
+    private const string WorkerFailureDescription = "Benchmark worker failed while processing the run.";
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await RecoverPersistedRunsAsync(stoppingToken);
@@ -29,7 +34,7 @@ public sealed class BenchmarkRunWorker(
         var recoverableRunIds = await runs.ListRecoverableRunIdsAsync(stoppingToken);
         foreach (var runId in recoverableRunIds)
         {
-            await queue.QueueAsync(runId, stoppingToken);
+            await ProcessRunAsync(runId, stoppingToken);
         }
     }
 
@@ -47,6 +52,35 @@ public sealed class BenchmarkRunWorker(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to process benchmark run {BenchmarkRunId}", runId);
+            await MarkRunFailedAsync(runId, stoppingToken);
+        }
+    }
+
+    private async Task MarkRunFailedAsync(Guid runId, CancellationToken stoppingToken)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var runs = scope.ServiceProvider.GetRequiredService<IBenchmarkRunRepository>();
+            var run = await runs.GetByIdAsync(runId, stoppingToken);
+            if (run is null || run.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed)
+            {
+                return;
+            }
+
+            run.Status = BenchmarkRunStatus.Failed;
+            run.CompletedUtc = DateTime.UtcNow;
+            run.FailureCode = WorkerFailureCode;
+            run.FailureDescription = WorkerFailureDescription;
+            run.UpdateProgress(run.CompletedCaseCount, run.TotalCaseCount, "Failed", WorkerFailureDescription);
+            await runs.UpdateAsync(run, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to mark benchmark run {BenchmarkRunId} as failed after worker exception", runId);
         }
     }
 }

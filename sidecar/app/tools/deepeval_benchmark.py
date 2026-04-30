@@ -13,12 +13,16 @@ from app.schemas import SidecarCaseResult, SidecarRequest, SidecarResponse, Side
 from app.tools.base import SidecarTool
 
 
+# Starter scoring profile used when no template metrics are supplied.
 _DEFAULT_METRICS = [
     {"key": "faithfulness", "enabled": True, "threshold": 0.85},
     {"key": "answer_relevancy", "enabled": True, "threshold": 0.75},
     {"key": "hallucination", "enabled": True, "threshold": 0.85},
 ]
+# Supported keys mirror the Application-layer template validation list.
 _SUPPORTED_METRIC_KEYS = {"faithfulness", "answer_relevancy", "hallucination", "correctness"}
+
+# Conservative local estimate for reporting relative environmental impact until provider telemetry is available.
 _DEFAULT_CO2_GRAMS_PER_SECOND = 0.0002
 
 
@@ -153,6 +157,7 @@ class DeepEvalBenchmarkTool(SidecarTool):
             "timing_notes": "Network transport latency is measured outside the sidecar; summary timing covers sidecar-local preparation, verification, and packaging.",
         }
 
+        summary_payload["timing_breakdown_ms"]["result_packaging_ms"] = round((time.perf_counter() - serialization_started) * 1000.0, 3)
         raw_result_json = json.dumps(
             {
                 "template_key": request.template_key,
@@ -163,7 +168,6 @@ class DeepEvalBenchmarkTool(SidecarTool):
                 "summary": summary_payload,
             }
         )
-        summary_payload["timing_breakdown_ms"]["result_packaging_ms"] = round((time.perf_counter() - serialization_started) * 1000.0, 3)
 
         return SidecarResponse(
             engine_name="deepeval-deterministic",

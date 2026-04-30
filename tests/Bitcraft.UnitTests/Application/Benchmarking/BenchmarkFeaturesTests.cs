@@ -185,6 +185,98 @@ public class BenchmarkTemplateFeaturesTests
     }
 
     [Fact]
+    public async Task CreateBenchmarkTemplateHandler_WithOversizedKey_ReturnsTemplateKeyTooLong()
+    {
+        // Arrange
+        var handler = new BenchmarkFeatures.CreateBenchmarkTemplateHandler(
+            new FakeBenchmarkTemplateRepository(),
+            new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new BenchmarkFeatures.CreateBenchmarkTemplateCommand(
+            new string('k', 121),
+            "Benchmark Name",
+            null,
+            null,
+            "[{\"key\":\"faithfulness\",\"enabled\":true,\"threshold\":0.85}]",
+            true);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Benchmark.TemplateKeyTooLong", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task CreateBenchmarkTemplateHandler_WithOversizedName_ReturnsTemplateNameTooLong()
+    {
+        // Arrange
+        var handler = new BenchmarkFeatures.CreateBenchmarkTemplateHandler(
+            new FakeBenchmarkTemplateRepository(),
+            new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new BenchmarkFeatures.CreateBenchmarkTemplateCommand(
+            "benchmark-key",
+            new string('n', 201),
+            null,
+            null,
+            "[{\"key\":\"faithfulness\",\"enabled\":true,\"threshold\":0.85}]",
+            true);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Benchmark.TemplateNameTooLong", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task CreateBenchmarkTemplateHandler_WithOversizedDescription_ReturnsTemplateDescriptionTooLong()
+    {
+        // Arrange
+        var handler = new BenchmarkFeatures.CreateBenchmarkTemplateHandler(
+            new FakeBenchmarkTemplateRepository(),
+            new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new BenchmarkFeatures.CreateBenchmarkTemplateCommand(
+            "benchmark-key",
+            "Benchmark Name",
+            new string('d', 2_001),
+            null,
+            "[{\"key\":\"faithfulness\",\"enabled\":true,\"threshold\":0.85}]",
+            true);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Benchmark.TemplateDescriptionTooLong", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task CreateBenchmarkTemplateHandler_WithOversizedGuidancePath_ReturnsTemplateGuidancePathTooLong()
+    {
+        // Arrange
+        var handler = new BenchmarkFeatures.CreateBenchmarkTemplateHandler(
+            new FakeBenchmarkTemplateRepository(),
+            new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new BenchmarkFeatures.CreateBenchmarkTemplateCommand(
+            "benchmark-key",
+            "Benchmark Name",
+            null,
+            new string('g', 501),
+            "[{\"key\":\"faithfulness\",\"enabled\":true,\"threshold\":0.85}]",
+            true);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Benchmark.TemplateGuidancePathTooLong", result.Error.Code);
+    }
+
+    [Fact]
     public async Task CreateBenchmarkTemplateHandler_WithNullMetricsJson_ReturnsTemplateMetricsInvalid()
     {
         // Arrange
@@ -342,6 +434,87 @@ public class BenchmarkRunFeaturesTests
         var queuedRunId = Assert.Single(queue.QueuedRunIds);
         Assert.Equal(result.Value.Id, queuedRunId);
         Assert.Contains(result.Value.Id, runRepository.Runs.Keys);
+    }
+
+    [Fact]
+    public async Task CreateTutorBenchmarkRunHandler_WhenRequestTokenCanceledAfterSave_QueuesRunWithIndependentToken()
+    {
+        // Arrange
+        var ownerId = Guid.NewGuid();
+        var tutorRepository = new FakeTutorRepository();
+        var tutor = new Tutor { Name = "Benchmark Tutor", OwnerId = ownerId };
+        tutorRepository.Tutors[tutor.Id] = tutor;
+
+        var templateRepository = new FakeBenchmarkTemplateRepository();
+        var template = new BenchmarkTemplate
+        {
+            OwnerId = ownerId,
+            Key = "benchmark-key",
+            Name = "Benchmark Name",
+            MetricsJson = "[]",
+            IsEnabled = true
+        };
+        templateRepository.Templates[template.Id] = template;
+
+        var queue = new FakeBenchmarkRunQueue();
+        var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
+            tutorRepository,
+            templateRepository,
+            new FakeModelCatalogRepository(),
+            new FakeBenchmarkRunRepository(),
+            queue,
+            new FakeCurrentUserContext(ownerId));
+        var command = new BenchmarkFeatures.CreateTutorBenchmarkRunCommand(
+            tutor.Id,
+            template.Id,
+            null,
+            null,
+            null,
+            1,
+            [new BenchmarkFeatures.BenchmarkCaseInput("Question", "Answer", null, null, null)]);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act
+        var result = await handler.Handle(command, cts.Token);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var queuedRunId = Assert.Single(queue.QueuedRunIds);
+        Assert.Equal(result.Value.Id, queuedRunId);
+        Assert.False(Assert.Single(queue.QueueCancellationTokens).CanBeCanceled);
+    }
+
+    [Fact]
+    public async Task CreateTutorBenchmarkRunHandler_WithOversizedModelAlias_ReturnsModelAliasTooLongAndDoesNotQueueRun()
+    {
+        // Arrange
+        var runRepository = new FakeBenchmarkRunRepository();
+        var queue = new FakeBenchmarkRunQueue();
+        var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
+            new FakeTutorRepository(),
+            new FakeBenchmarkTemplateRepository(),
+            new FakeModelCatalogRepository(),
+            runRepository,
+            queue,
+            new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new BenchmarkFeatures.CreateTutorBenchmarkRunCommand(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            null,
+            null,
+            new string('m', 201),
+            1,
+            [new BenchmarkFeatures.BenchmarkCaseInput("Question", "Answer", null, null, null)]);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Benchmark.ModelAliasTooLong", result.Error.Code);
+        Assert.Empty(runRepository.Runs);
+        Assert.Empty(queue.QueuedRunIds);
     }
 
     [Fact]

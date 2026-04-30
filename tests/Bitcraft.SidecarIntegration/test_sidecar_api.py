@@ -98,6 +98,8 @@ def test_execute_tool_with_deepeval_benchmark_returns_summary_and_case_metrics()
     summary = json.loads(payload["summary"]["summary_json"])
     assert summary["quality_gate_threshold"] == 0.8167
     assert "timing_breakdown_ms" in summary
+    raw_result = json.loads(payload["raw_result_json"])
+    assert raw_result["summary"]["timing_breakdown_ms"]["result_packaging_ms"] == summary["timing_breakdown_ms"]["result_packaging_ms"]
     assert json.loads(payload["summary"]["summary_json"])["template_key"] == "single-turn-llm-eval-v1"
 
 

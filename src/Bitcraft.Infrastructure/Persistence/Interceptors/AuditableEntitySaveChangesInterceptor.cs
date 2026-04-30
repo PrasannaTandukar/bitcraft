@@ -31,21 +31,26 @@ public class AuditableEntitySaveChangesInterceptor(ICurrentUserContext currentUs
 
         foreach (var entry in context.ChangeTracker.Entries<BaseModel>())
         {
-            var userId = currentUser.UserIdOrNull ?? entry.Entity.CreatedById;
-            if (userId == Guid.Empty)
-            {
-                continue;
-            }
-
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.UpdateMetadata(userId);
+                var creatorId = currentUser.UserIdOrNull ?? entry.Entity.CreatedById;
+                if (creatorId != Guid.Empty)
+                {
+                    entry.Entity.UpdateMetadata(creatorId);
+                }
+
                 continue;
             }
 
             if (entry.State == EntityState.Modified)
             {
-                entry.Entity.UpdateMetadata(userId);
+                var userId = currentUser.UserIdOrNull;
+                if (userId is null || userId == Guid.Empty)
+                {
+                    continue;
+                }
+
+                entry.Entity.UpdateMetadata(userId.Value);
             }
         }
     }

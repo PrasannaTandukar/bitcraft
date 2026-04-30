@@ -8,8 +8,13 @@ namespace Bitcraft.Application.Features.Benchmarking;
 
 public static class BenchmarkFeatures
 {
-    private const int MaxCaseTextLength = 20_000;
-    private const int MaxMetadataJsonLength = 10_000;
+    private const int MaxTemplateKeyLength = 120; // EF BenchmarkTemplate.Key; owner-scoped identity.
+    private const int MaxTemplateNameLength = 200; // EF BenchmarkTemplate.Name; editor-facing label.
+    private const int MaxTemplateDescriptionLength = 2_000; // EF BenchmarkTemplate.Description; profile summary.
+    private const int MaxTemplateGuidancePathLength = 500; // EF BenchmarkTemplate.GuidancePath; guidance artifact reference.
+    private const int MaxModelAliasLength = 200; // EF BenchmarkRun.ModelAlias; captured model label.
+    private const int MaxCaseTextLength = 20_000; // API/sidecar payload guard for case text fields.
+    private const int MaxMetadataJsonLength = 10_000; // API/sidecar payload guard for case metadata JSON.
     private const string SafeSidecarFailureDescription = "Benchmark sidecar evaluation failed.";
     private static readonly HashSet<string> SupportedMetricKeys = new(StringComparer.Ordinal)
     {
@@ -60,9 +65,29 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkTemplate>(new Error("Benchmark.TemplateKeyRequired", "Template key is required."));
             }
 
+            if (request.Key.Trim().Length > MaxTemplateKeyLength)
+            {
+                return Result.Failure<BenchmarkTemplate>(new Error("Benchmark.TemplateKeyTooLong", $"Template key cannot exceed {MaxTemplateKeyLength} characters."));
+            }
+
             if (string.IsNullOrWhiteSpace(request.Name))
             {
                 return Result.Failure<BenchmarkTemplate>(new Error("Benchmark.TemplateNameRequired", "Template name is required."));
+            }
+
+            if (request.Name.Trim().Length > MaxTemplateNameLength)
+            {
+                return Result.Failure<BenchmarkTemplate>(new Error("Benchmark.TemplateNameTooLong", $"Template name cannot exceed {MaxTemplateNameLength} characters."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Description) && request.Description.Trim().Length > MaxTemplateDescriptionLength)
+            {
+                return Result.Failure<BenchmarkTemplate>(new Error("Benchmark.TemplateDescriptionTooLong", $"Template description cannot exceed {MaxTemplateDescriptionLength} characters."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.GuidancePath) && request.GuidancePath.Trim().Length > MaxTemplateGuidancePathLength)
+            {
+                return Result.Failure<BenchmarkTemplate>(new Error("Benchmark.TemplateGuidancePathTooLong", $"Template guidance path cannot exceed {MaxTemplateGuidancePathLength} characters."));
             }
 
             if (!TryValidateMetricsJson(request.MetricsJson, out var metricsJson))
@@ -176,6 +201,11 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.ConsistencyRunsInvalid", "Consistency runs must be between 1 and 10."));
             }
 
+            if (!string.IsNullOrWhiteSpace(request.ModelAlias) && request.ModelAlias.Trim().Length > MaxModelAliasLength)
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.ModelAliasTooLong", $"Model alias cannot exceed {MaxModelAliasLength} characters."));
+            }
+
             var tutor = await tutors.GetByIdWithDetailsAsync(request.TutorId, cancellationToken);
             if (tutor is null)
             {
@@ -261,7 +291,7 @@ public static class BenchmarkFeatures
             };
 
             var created = await runs.AddAsync(run, cancellationToken);
-            await queue.QueueAsync(created.Id, cancellationToken);
+            await queue.QueueAsync(created.Id, CancellationToken.None);
             return Result.Success(created);
         }
     }
