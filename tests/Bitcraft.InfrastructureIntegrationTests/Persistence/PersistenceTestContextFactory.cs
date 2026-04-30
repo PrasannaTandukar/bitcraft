@@ -22,7 +22,7 @@ internal static class PersistenceTestContextFactory
 {
     public static AppDbContext Create(MutableCurrentUserContext currentUser)
     {
-        var interceptor = new AuditableEntitySaveChangesInterceptor(currentUser);
+        var interceptor = new EntitySaveChangesInterceptor(currentUser);
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase($"bitcraft-integration-{Guid.NewGuid()}")
             .AddInterceptors(interceptor)

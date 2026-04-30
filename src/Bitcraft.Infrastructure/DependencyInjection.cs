@@ -28,13 +28,13 @@ public static class DependencyInjection
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserContext, HttpContextCurrentUserContext>();
-        services.AddScoped<AuditableEntitySaveChangesInterceptor>();
+        services.AddScoped<EntitySaveChangesInterceptor>();
 
         services.AddDbContext<AppDbContext>((serviceProvider, options) =>
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
                 o => o.UseVector())
-                .AddInterceptors(serviceProvider.GetRequiredService<AuditableEntitySaveChangesInterceptor>()));
+                .AddInterceptors(serviceProvider.GetRequiredService<EntitySaveChangesInterceptor>()));
 
         services.AddIdentity<AppUser, AppRole>()
             .AddEntityFrameworkStores<AppDbContext>()

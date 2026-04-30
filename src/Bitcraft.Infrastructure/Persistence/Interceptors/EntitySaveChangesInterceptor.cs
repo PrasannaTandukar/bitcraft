@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Bitcraft.Infrastructure.Persistence.Interceptors;
 
-public class AuditableEntitySaveChangesInterceptor(ICurrentUserContext currentUser) : SaveChangesInterceptor
+public class EntitySaveChangesInterceptor(ICurrentUserContext currentUser) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
-        ApplyAudit(eventData.Context);
+        SetEditor(eventData.Context);
         return base.SavingChanges(eventData, result);
     }
 
@@ -18,11 +18,11 @@ public class AuditableEntitySaveChangesInterceptor(ICurrentUserContext currentUs
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        ApplyAudit(eventData.Context);
+        SetEditor(eventData.Context);
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private void ApplyAudit(DbContext? context)
+    private void SetEditor(DbContext? context)
     {
         if (context is null)
         {

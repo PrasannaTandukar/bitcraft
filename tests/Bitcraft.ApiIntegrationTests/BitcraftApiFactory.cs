@@ -42,7 +42,7 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             {
                 var options = new DbContextOptionsBuilder<AppDbContext>()
                     .UseInMemoryDatabase(databaseName, databaseRoot)
-                    .AddInterceptors(serviceProvider.GetRequiredService<AuditableEntitySaveChangesInterceptor>());
+                    .AddInterceptors(serviceProvider.GetRequiredService<EntitySaveChangesInterceptor>());
 
                 return new TestAppDbContext(options.Options);
             });
