@@ -22,9 +22,9 @@ builder.Services.AddSwaggerGen(c =>
             "Management endpoints require authenticated access and role policies."
     });
 
-    // Include XML docs from Api, Domain (enums/value types surface in contracts) so the
-    // generated schemas carry descriptions for the front-end / AI clients.
-    foreach (var assemblyName in new[] { "Bitcraft.Api", "Bitcraft.Domain" })
+    // Include XML docs from Api plus referenced backend layers so generated schemas
+    // can surface descriptions from shared enums/value types and service models.
+    foreach (var assemblyName in new[] { "Bitcraft.Api", "Bitcraft.Application", "Bitcraft.Domain" })
     {
         var xmlPath = Path.Combine(AppContext.BaseDirectory, $"{assemblyName}.xml");
         if (File.Exists(xmlPath))

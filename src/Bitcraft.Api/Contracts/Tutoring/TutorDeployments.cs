@@ -14,4 +14,4 @@ public sealed record DeploymentProfileResponse(
     DeploymentTarget Target,
     string? ConfigurationJson,
     DateTime CreatedUtc,
-    DateTime? LastModifiedUtc);
+    DateTime? ModifiedUtc);

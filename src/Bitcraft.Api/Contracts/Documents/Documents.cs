@@ -23,8 +23,8 @@ public sealed record DocumentResponse(
     string? RawText,
     DateTime CreatedUtc,
     Guid CreatedById,
-    DateTime? LastModifiedUtc,
-    Guid? LastModifiedById);
+    DateTime? ModifiedUtc,
+    Guid? ModifiedById);
 
 /// <summary>Request to re-create knowledge chunks for a source document using the selected embedding model.</summary>
 public sealed record VectorizeDocumentRequest(

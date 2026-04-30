@@ -32,8 +32,8 @@ internal static class TutoringMapping
         document.RawText,
         document.CreatedUtc,
         document.CreatedById,
-        document.EditedUtc,
-        document.EditedById);
+        document.ModifiedUtc,
+        document.ModifiedById);
 
     public static VectorizeDocumentResponse ToResponse(this KnowledgeFeatures.VectorizeDocumentResult result) => new(
         result.DocumentId,
@@ -59,8 +59,8 @@ internal static class TutoringMapping
         entry.IsEnabled,
         entry.CreatedUtc,
         entry.CreatedById,
-        entry.EditedUtc,
-        entry.EditedById);
+        entry.ModifiedUtc,
+        entry.ModifiedById);
 
     public static TutorResponse ToResponse(this Tutor tutor) => new(
         tutor.Id,
@@ -72,7 +72,7 @@ internal static class TutoringMapping
         tutor.ActivePromptVersionId,
         tutor.DeploymentProfile?.Id,
         tutor.CreatedUtc,
-        tutor.EditedUtc);
+        tutor.ModifiedUtc);
 
     public static PromptVersionResponse ToResponse(this PromptVersion v) => new(
         v.Id, v.TutorId, v.VersionNumber, v.Name, v.Content, v.Notes, v.CreatedUtc);
@@ -92,10 +92,10 @@ internal static class TutoringMapping
         t.Id, t.TutorId, t.Name, t.Description, t.JsonSchema, t.ExecutionUrl, t.CreatedUtc);
 
     public static DeploymentProfileResponse ToResponse(this DeploymentProfile d) => new(
-        d.Id, d.TutorId, d.Target, d.ConfigurationJson, d.CreatedUtc, d.EditedUtc);
+        d.Id, d.TutorId, d.Target, d.ConfigurationJson, d.CreatedUtc, d.ModifiedUtc);
 
     public static TutorModelConnectionResponse ToResponse(this TutorModelConnection c) => new(
-        c.Id, c.TutorId, c.ModelCatalogEntryId, c.OverrideSettingsJson, c.CreatedUtc, c.EditedUtc);
+        c.Id, c.TutorId, c.ModelCatalogEntryId, c.OverrideSettingsJson, c.CreatedUtc, c.ModifiedUtc);
 
     public static TutorConfigurationSnapshotResponse ToResponse(this TutorConfigurationSnapshot s) => new(
         s.Id, s.TutorId, s.TutorName, s.PromptVersionId, s.PromptContent,
@@ -112,7 +112,7 @@ internal static class TutoringMapping
         template.MetricsJson,
         template.IsEnabled,
         template.CreatedUtc,
-        template.EditedUtc);
+        template.ModifiedUtc);
 
     public static TutorBenchmarkRunSummaryResponse ToSummaryResponse(this BenchmarkRun run) => new(
         run.Id,

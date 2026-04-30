@@ -20,4 +20,4 @@ public sealed record BenchmarkTemplateResponse(
     string MetricsJson,
     bool IsEnabled,
     DateTime CreatedUtc,
-    DateTime? LastModifiedUtc);
+    DateTime? ModifiedUtc);

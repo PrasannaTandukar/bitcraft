@@ -33,7 +33,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         db.Set<Tutor>()
             .Where(x => x.OwnerId == ownerId)
             .Include(x => x.TutorModelConnection)
-            .OrderByDescending(x => x.EditedUtc ?? x.CreatedUtc)
+            .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
 
     public async Task UpdateAsync(Tutor tutor, CancellationToken cancellationToken = default)

@@ -24,8 +24,8 @@ public sealed record ModelCatalogEntryResponse(
     bool IsEnabled,
     DateTime CreatedUtc,
     Guid CreatedById,
-    DateTime? LastModifiedUtc,
-    Guid? LastModifiedById);
+    DateTime? ModifiedUtc,
+    Guid? ModifiedById);
 
 /// <summary>Health probe result for a configured model catalog entry.</summary>
 public sealed record ModelHealthResponse(

@@ -12,4 +12,4 @@ public sealed record TutorModelConnectionResponse(
     Guid ModelCatalogEntryId,
     string? OverrideSettingsJson,
     DateTime CreatedUtc,
-    DateTime? LastModifiedUtc);
+    DateTime? ModifiedUtc);
