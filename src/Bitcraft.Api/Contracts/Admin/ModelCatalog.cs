@@ -23,7 +23,7 @@ public sealed record ModelCatalogEntryResponse(
     string? SettingsJson,
     bool IsEnabled,
     DateTime CreatedUtc,
-    Guid CreatedById,
+    Guid? CreatedById,
     DateTime? LastModifiedUtc,
     Guid? LastModifiedById);
 

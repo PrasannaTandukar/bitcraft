@@ -6,7 +6,7 @@ public abstract class BaseModel
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public DateTime CreatedUtc { get; private set; } = DateTime.UtcNow;
-    public Guid CreatedById { get; private set; }
+    public Guid? CreatedById { get; private set; }
     public AppUser? CreatedBy { get; private set; }
     public DateTime? EditedUtc { get; private set; }
     public Guid? EditedById { get; private set; }
@@ -14,20 +14,20 @@ public abstract class BaseModel
 
 
 
-    public void UpdateMetadata(Guid userId)
+    public void UpdateMetadata(Guid? userId)
     {
         var utcNow = DateTime.UtcNow;
         if (CreatedById == Guid.Empty) SetCreator(userId, utcNow);
         SetEditor(userId, utcNow);
     }
 
-    private void SetCreator(Guid userId, DateTime utcNow)
+    private void SetCreator(Guid? userId, DateTime utcNow)
     {
         CreatedUtc = utcNow;
         CreatedById = userId;
     }
 
-    private void SetEditor(Guid userId, DateTime utcNow)
+    private void SetEditor(Guid? userId, DateTime utcNow)
     {
         EditedUtc = utcNow;
         EditedById = userId;

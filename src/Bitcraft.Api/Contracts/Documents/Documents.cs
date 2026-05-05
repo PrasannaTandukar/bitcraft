@@ -22,7 +22,7 @@ public sealed record DocumentResponse(
     string? MimeType,
     string? RawText,
     DateTime CreatedUtc,
-    Guid CreatedById,
+    Guid? CreatedById,
     DateTime? LastModifiedUtc,
     Guid? LastModifiedById);
 
