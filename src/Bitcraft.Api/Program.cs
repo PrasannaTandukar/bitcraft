@@ -58,7 +58,15 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    await IdentityRoleSeeder.SeedAsync(scope.ServiceProvider);
+    try
+    {
+        await IdentityRoleSeeder.SeedAsync(scope.ServiceProvider);
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Role seeding failed — continuing startup.");
+    }
 }
 
 if (app.Environment.IsDevelopment())
