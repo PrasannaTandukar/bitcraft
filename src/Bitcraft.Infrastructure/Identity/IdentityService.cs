@@ -15,6 +15,16 @@ namespace Bitcraft.Infrastructure.Identity;
 public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, IConfiguration configuration)
     : IIdentityService, IRoleManagementService
 {
+    public async Task<Result<IReadOnlyList<UserRoleMembership>>> ListUsersAsync(CancellationToken cancellationToken = default)
+    {
+        var users = await userManager.Users.ToListAsync(cancellationToken);
+        var memberships = new List<UserRoleMembership>();
+        foreach (var user in users)
+        {
+            memberships.Add(await BuildMembershipAsync(user));
+        }
+        return Result.Success<IReadOnlyList<UserRoleMembership>>(memberships);
+    }
     public async Task<AuthResult> RegisterAsync(string email, string password)
     {
         var user = new AppUser
