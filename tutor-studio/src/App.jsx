@@ -1,49 +1,85 @@
-import React from 'react';
-import BaseManager from './BaseManager.jsx'
+import React, { useEffect } from 'react';
+import BaseManager from './BaseManager.jsx';
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
-import NavDropdown from 'react-bootstrap/NavDropdown';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Settings from './Settings.jsx';
 import Benchmarking from './Benchmarking.jsx';
 import LoginForm from './Login.jsx';
-import { useState } from 'react'
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import store from './store';
+import { logout } from './store/authSlice';
 
-function App() {
+// ✅ Blocks pages if not logged in
+function ProtectedRoute({ children }) {
+  const { token } = useSelector((state) => state.auth);
+  if (!token) return <Navigate to="/login" />;
+  return children;
+}
 
-    const [page, setPage] = useState("home");
-    return (
-        <div style={{ height: "100%", flexDirection: "column", display: "flex" }}>
+function AppContent() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { token, user } = useSelector((state) => state.auth);
+
+useEffect(() => {
+  if (!token) navigate('/login');
+}, [token]);
+  useEffect(() => {
+  if (user) console.log('User updated:', user);
+}, [user]);
+  return (
+    <div style={{ height: "100%", flexDirection: "column", display: "flex" }}>
       <Navbar expand="lg" className="bg-body-tertiary" style={{ height: "10vh" }}>
-            <Container>
-                <Navbar.Brand onClick={() => {
-                                setPage("home");
-                        }} >
-                    Agentic Tutor
-                </Navbar.Brand>
-                <Navbar.Toggle aria-controls="basic-navbar-nav" />
-                <Navbar.Collapse id="basic-navbar-nav">
-                    <Nav className="me-auto">
-                        <Nav.Link onClick={() => {
-                                    setPage("settings");
-                            }} >Settings</Nav.Link>
-                        <Nav.Link onClick={() => {
-                                    setPage("benchmarking");
-                            }} >Benchmarking</Nav.Link>
-                        <Nav.Link onClick={() => {
-                                    setPage("login");
-                            }} >Login</Nav.Link>
-                    </Nav>
-                </Navbar.Collapse>
-            </Container>
-        </Navbar>
-        {page === "home" && <BaseManager />}
-        {page === "settings" && <Settings />}
-        {page === "benchmarking" && <Benchmarking />}
-        {page === "login" && <LoginForm />}
-        </div>
+        <Container>
+          <Navbar.Brand onClick={() => navigate('/')}>
+            Agentic Tutor
+          </Navbar.Brand>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="me-auto">
+              {token && <>
+                <Nav.Link onClick={() => navigate('/settings')}>Settings</Nav.Link>
+                <Nav.Link onClick={() => navigate('/benchmarking')}>Benchmarking</Nav.Link>
+                <Nav.Link onClick={() => dispatch(logout())}>
+                  Logout ({user})
+                </Nav.Link>
+              </>}
+              {!token && (
+                <Nav.Link onClick={() => navigate('/login')}>Login</Nav.Link>
+              )}
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
+
+      {/* ✅ All pages defined here */}
+      <Routes>
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/" element={
+          <ProtectedRoute><BaseManager /></ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute><Settings /></ProtectedRoute>
+        } />
+        <Route path="/benchmarking" element={
+          <ProtectedRoute><Benchmarking /></ProtectedRoute>
+        } />
+        {/* Catch all unknown routes */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </div>
   );
 }
 
-export default App;
+function AppRouter() {
+  return (
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+  );
+}
+
+export default AppRouter;

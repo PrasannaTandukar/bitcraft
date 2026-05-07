@@ -28,7 +28,8 @@ public class AuthController(IIdentityService identityService) : ControllerBase
         {
             Token = result.Token,
             Email = result.Email,
-            Roles = result.Roles
+            Roles = result.Roles,
+            UserId = result.UserId
         });
     }
 
@@ -49,7 +50,8 @@ public class AuthController(IIdentityService identityService) : ControllerBase
         {
             Token = result.Token,
             Email = result.Email,
-            Roles = result.Roles
+            Roles = result.Roles,
+            UserId = result.UserId
         });
     }
 }
