@@ -53,7 +53,15 @@ builder.Services.AddSwaggerGen(c =>
 
     c.SupportNonNullableReferenceTypes();
 });
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -78,6 +86,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.UseCors("AllowFrontend");
 app.UseAuthorization();
 
 app.MapControllers();

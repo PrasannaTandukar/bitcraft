@@ -34,6 +34,7 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
 
         return new AuthResult
         {
+            UserId = user.Id.ToString(),
             Succeeded = true,
             Token = GenerateJwtToken(user, roles),
             Email = user.Email!,
@@ -53,6 +54,7 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
 
         return new AuthResult
         {
+            UserId = user.Id.ToString(),
             Succeeded = true,
             Token = GenerateJwtToken(user, roles),
             Email = user.Email!,
