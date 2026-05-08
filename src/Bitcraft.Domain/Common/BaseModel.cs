@@ -17,7 +17,7 @@ public abstract class BaseModel
     public void UpdateMetadata(Guid? userId)
     {
         var utcNow = DateTime.UtcNow;
-        if (CreatedById == Guid.Empty) SetCreator(userId, utcNow);
+        if (CreatedById == null) SetCreator(userId, utcNow);
         SetEditor(userId, utcNow);
     }
 

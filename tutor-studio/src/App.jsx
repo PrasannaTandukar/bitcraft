@@ -12,6 +12,7 @@ import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-route
 import store from './store';
 import { logout } from './store/authSlice';
 import UsersPage from './Users.jsx';
+import FilesPage from './FilesPage.jsx';
 
 // ✅ Blocks pages if not logged in
 function ProtectedRoute({ children }) {
@@ -61,7 +62,7 @@ useEffect(() => {
       <Routes>
         <Route path="/login" element={<LoginForm />} />
         <Route path="/" element={
-          <ProtectedRoute><BaseManager /></ProtectedRoute>
+          <ProtectedRoute><FilesPage /></ProtectedRoute>
         } />
         <Route path="/settings" element={
           <ProtectedRoute><Settings /></ProtectedRoute>
