@@ -11,6 +11,7 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import store from './store';
 import { logout } from './store/authSlice';
+import UsersPage from './Users.jsx';
 
 // ✅ Blocks pages if not logged in
 function ProtectedRoute({ children }) {
@@ -42,7 +43,8 @@ useEffect(() => {
             <Nav className="me-auto">
               {token && <>
                 <Nav.Link onClick={() => navigate('/settings')}>Settings</Nav.Link>
-                <Nav.Link onClick={() => navigate('/benchmarking')}>Benchmarking</Nav.Link>
+                              <Nav.Link onClick={() => navigate('/benchmarking')}>Benchmarking</Nav.Link>
+                              <Nav.Link onClick={() => navigate('/role-management')}>Role Management</Nav.Link>
                 <Nav.Link onClick={() => dispatch(logout())}>
                   Logout ({user})
                 </Nav.Link>
@@ -63,6 +65,9 @@ useEffect(() => {
         } />
         <Route path="/settings" element={
           <ProtectedRoute><Settings /></ProtectedRoute>
+        } />
+              <Route path="/role-management" element={
+          <ProtectedRoute><UsersPage /></ProtectedRoute>
         } />
         <Route path="/benchmarking" element={
           <ProtectedRoute><Benchmarking /></ProtectedRoute>
