@@ -23,9 +23,9 @@ public sealed record ModelCatalogEntryResponse(
     string? SettingsJson,
     bool IsEnabled,
     DateTime CreatedUtc,
-    Guid CreatedById,
-    DateTime? ModifiedUtc,
-    Guid? ModifiedById);
+    Guid? CreatedById, // TODO: Initial user must be seeded, no nulls allowed in these fields.
+    DateTime? LastModifiedUtc,
+    Guid? LastModifiedById);
 
 /// <summary>Health probe result for a configured model catalog entry.</summary>
 public sealed record ModelHealthResponse(

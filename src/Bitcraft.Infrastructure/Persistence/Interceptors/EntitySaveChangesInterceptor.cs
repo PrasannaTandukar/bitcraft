@@ -29,6 +29,7 @@ public class EntitySaveChangesInterceptor(ICurrentUserContext currentUser) : Sav
             return;
         }
 
+        var userId = currentUser.UserIdOrNull ?? Guid.Empty;
         foreach (var entry in context.ChangeTracker.Entries<BaseModel>())
         {
             if (entry.State == EntityState.Added)

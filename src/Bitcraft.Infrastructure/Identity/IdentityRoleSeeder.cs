@@ -25,5 +25,21 @@ public static class IdentityRoleSeeder
                 throw new InvalidOperationException($"Failed to seed role '{roleName}': {errors}");
             }
         }
+        // Seed default admin user
+        var userManager = serviceProvider.GetRequiredService<UserManager<AppUser>>();
+        const string adminEmail = "admin@bitcraft.com";
+        const string adminPassword = "Admin1234!";
+
+        if (await userManager.FindByEmailAsync(adminEmail) is null)
+        {
+            var admin = new AppUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
+            var result = await userManager.CreateAsync(admin, adminPassword);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(" ", result.Errors.Select(e => e.Description));
+                throw new InvalidOperationException($"Failed to seed admin user: {errors}");
+            }
+            await userManager.AddToRoleAsync(admin, AppRoles.Admin);
+        }
     }
 }
