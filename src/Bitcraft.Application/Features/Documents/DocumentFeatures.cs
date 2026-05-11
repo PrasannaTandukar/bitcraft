@@ -24,6 +24,7 @@ public static class DocumentFeatures
         public async Task<Result<Document>> Handle(CreateDocumentCommand request, CancellationToken cancellationToken)
         {
             _ = currentUser.UserId;
+            var userId = currentUser.UserId;
 
             if (string.IsNullOrWhiteSpace(request.Name))
             {
@@ -37,7 +38,7 @@ public static class DocumentFeatures
                 MimeType = string.IsNullOrWhiteSpace(request.MimeType) ? null : request.MimeType.Trim(),
                 RawText = request.RawText
             };
-
+            document.UpdateMetadata(userId);
             var created = await documentStore.AddAsync(document, cancellationToken);
             return Result.Success(created);
         }

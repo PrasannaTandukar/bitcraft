@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Admin;
 using Bitcraft.Api.Mapping;
@@ -22,7 +23,8 @@ public class AdminUsersController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<UserResponse>>> List(CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new UserManagementFeatures.ListUsersQuery(), cancellationToken);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var result = await sender.Send(new UserManagementFeatures.ListUsersQuery(currentUserId), cancellationToken);
         return result.IsSuccess
             ? Ok(result.Value.Select(u => new UserResponse(u)).ToList())
             : TutoringMapping.ToActionResult(result.Error);
