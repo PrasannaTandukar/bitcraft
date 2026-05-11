@@ -7,31 +7,50 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Settings from './Settings.jsx';
 import Benchmarking from './Benchmarking.jsx';
 import LoginForm from './Login.jsx';
-import { Provider, useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
-import store from './store';
 import { logout } from './store/authSlice';
 import UsersPage from './Users.jsx';
 import FilesPage from './FilesPage.jsx';
+import ModelCatalogPage from './ModelCatalogPage.jsx';
+import TutorsPage from './TutorsPage.jsx';
 
-// ✅ Blocks pages if not logged in
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);
   if (!token) return <Navigate to="/login" />;
   return children;
 }
 
+function AdminRoute({ children }) {
+  const { token, roles } = useSelector((state) => state.auth);
+  if (!token) return <Navigate to="/login" />;
+  if (!roles.includes("Admin")) return <Navigate to="/" />;
+  return children;
+}
+
+function EditorRoute({ children }) {
+  const { token, roles } = useSelector((state) => state.auth);
+  if (!token) return <Navigate to="/login" />;
+  if (roles.includes("Admin")) return <Navigate to="/model-catalog" />;  // 👈 changed
+  if (!roles.includes("Editor")) return <Navigate to="/" />;
+  return children;
+}
+
 function AppContent() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { token, user } = useSelector((state) => state.auth);
+  const { token, user, roles } = useSelector((state) => state.auth);
+  const isAdmin = roles?.includes("Admin");
+  const isEditor = roles?.includes("Editor") && !isAdmin;
 
-useEffect(() => {
-  if (!token) navigate('/login');
-}, [token]);
   useEffect(() => {
-  if (user) console.log('User updated:', user);
-}, [user]);
+    if (!token) navigate('/login');
+  }, [token]);
+
+  useEffect(() => {
+    if (user) console.log('User updated:', user);
+  }, [user]);
+
   return (
     <div style={{ height: "100%", flexDirection: "column", display: "flex" }}>
       <Navbar expand="lg" className="bg-body-tertiary" style={{ height: "10vh" }}>
@@ -44,8 +63,15 @@ useEffect(() => {
             <Nav className="me-auto">
               {token && <>
                 <Nav.Link onClick={() => navigate('/settings')}>Settings</Nav.Link>
-                              <Nav.Link onClick={() => navigate('/benchmarking')}>Benchmarking</Nav.Link>
-                              <Nav.Link onClick={() => navigate('/role-management')}>Role Management</Nav.Link>
+                <Nav.Link onClick={() => navigate('/benchmarking')}>Benchmarking</Nav.Link>
+                {isEditor && <>
+                  <Nav.Link onClick={() => navigate('/')}>Files</Nav.Link>
+                  <Nav.Link onClick={() => navigate('/tutors')}>Tutors</Nav.Link>
+                </>}
+                {isAdmin && <>
+                  <Nav.Link onClick={() => navigate('/role-management')}>Role Management</Nav.Link>
+                  <Nav.Link onClick={() => navigate('/model-catalog')}>Model Catalog</Nav.Link>
+                </>}
                 <Nav.Link onClick={() => dispatch(logout())}>
                   Logout ({user})
                 </Nav.Link>
@@ -58,22 +84,26 @@ useEffect(() => {
         </Container>
       </Navbar>
 
-      {/* ✅ All pages defined here */}
       <Routes>
         <Route path="/login" element={<LoginForm />} />
         <Route path="/" element={
-          <ProtectedRoute><FilesPage /></ProtectedRoute>
+          <EditorRoute><FilesPage /></EditorRoute>
         } />
         <Route path="/settings" element={
           <ProtectedRoute><Settings /></ProtectedRoute>
         } />
-              <Route path="/role-management" element={
-          <ProtectedRoute><UsersPage /></ProtectedRoute>
+        <Route path="/tutors" element={
+          <EditorRoute><TutorsPage /></EditorRoute>
+        } />
+        <Route path="/model-catalog" element={
+          <AdminRoute><ModelCatalogPage /></AdminRoute>
+        } />
+        <Route path="/role-management" element={
+          <AdminRoute><UsersPage /></AdminRoute>
         } />
         <Route path="/benchmarking" element={
           <ProtectedRoute><Benchmarking /></ProtectedRoute>
         } />
-        {/* Catch all unknown routes */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
@@ -82,9 +112,9 @@ useEffect(() => {
 
 function AppRouter() {
   return (
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
 

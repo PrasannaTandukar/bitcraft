@@ -227,7 +227,7 @@ export default function FilesPage() {
         />
       )}
 
-      <div style={{ height: "100%", background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
+      <div style={{ background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
         <div style={{ maxWidth: "860px", margin: "0 auto" }}>
 
           {/* Toolbar */}
