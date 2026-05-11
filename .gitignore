@@ -33,6 +33,12 @@ build/
 .next/
 out/
 
+# =========================
+# Python
+# =========================
+
+*.pyc
+
 # Package managers
 npm-debug.log*
 yarn-debug.log*
