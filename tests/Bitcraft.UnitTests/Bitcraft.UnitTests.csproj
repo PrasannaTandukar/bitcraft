@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bitcraft.Application\Bitcraft.Application.csproj" />
     <ProjectReference Include="..\..\src\Bitcraft.Domain\Bitcraft.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Bitcraft.Infrastructure\Bitcraft.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

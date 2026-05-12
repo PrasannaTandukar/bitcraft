@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleManagementService, IdentityService>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
+        services.AddScoped<ILlmGenerationProvider, OllamaGenerationProvider>();
         services.AddKnowledgePersistence(configuration);
 
         // Tutoring
@@ -84,6 +85,11 @@ public static class DependencyInjection
         services.AddHttpClient(nameof(OllamaEmbeddingProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
+        });
+        var ollamaGenerateTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
+        services.AddHttpClient(nameof(OllamaGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
         });
         services.AddScoped<OllamaHealthCheck>();
         services.AddScoped<IModelConnectionHealthCheck, ModelConnectionHealthCheckDispatcher>();
