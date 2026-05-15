@@ -1,0 +1,237 @@
+.ollama-page {
+    flex: 1;
+    min-height: calc(100vh - 10vh);
+    padding: clamp(1.25rem, 4vw, 2.75rem) 0 clamp(2rem, 5vw, 3.5rem);
+    background:
+            radial-gradient(circle at 86% 4%, rgba(156, 114, 126, 0.18), transparent 24rem),
+            #f6f4f5;
+}
+
+.ollama-container {
+    max-width: 1180px;
+}
+
+.ollama-header {
+    margin-bottom: clamp(1.4rem, 3vw, 2rem);
+}
+
+.ollama-badge.badge {
+    margin-bottom: 0.8rem;
+    border-radius: 999px;
+    padding: 0.55rem 0.85rem;
+    color: #8d6571;
+    background: rgba(156, 114, 126, 0.14) !important;
+}
+
+.ollama-header h1 {
+    margin-bottom: 0.55rem;
+    color: #231d21;
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+}
+
+.ollama-header p {
+    max-width: 48rem;
+    margin-bottom: 0;
+    color: #6d6670;
+}
+
+.ollama-chat-card.card,
+.ollama-response-card.card {
+    border: 1px solid rgba(42, 34, 39, 0.06);
+    border-radius: 1.35rem;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 18px 42px rgba(55, 39, 47, 0.08);
+}
+
+.ollama-chat-card .card-body,
+.ollama-response-card .card-body {
+    padding: clamp(1.2rem, 3vw, 1.6rem);
+}
+
+.ollama-chat-card .form-label {
+    color: #40373d;
+    font-weight: 600;
+}
+
+.ollama-chat-card .form-control {
+    border: 1px solid rgba(42, 34, 39, 0.1);
+    border-radius: 1rem;
+    color: #231d21;
+    background: #fff;
+}
+
+.ollama-chat-card textarea.form-control {
+    min-height: 12rem;
+    padding: 1rem;
+    resize: vertical;
+}
+
+.ollama-chat-card input.form-control {
+    min-height: 3rem;
+}
+
+.ollama-chat-card .form-control:focus {
+    border-color: rgba(156, 114, 126, 0.45);
+    box-shadow: 0 0 0 0.22rem rgba(156, 114, 126, 0.16);
+}
+
+.ollama-chat-card .form-text {
+    color: #756d76;
+}
+
+.prompt-examples {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-top: 1.4rem;
+}
+
+.prompt-examples span {
+    color: #756d76;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.prompt-examples button {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.6rem 0.8rem;
+    color: #6d6670;
+    background: rgba(156, 114, 126, 0.1);
+    font-size: 0.9rem;
+    text-align: left;
+    transition: background 160ms ease, color 160ms ease;
+}
+
+.prompt-examples button:hover:not(:disabled) {
+    color: #8d6571;
+    background: rgba(156, 114, 126, 0.17);
+}
+
+.prompt-examples button:disabled {
+    opacity: 0.6;
+}
+
+.ollama-alert.alert {
+    margin: 1.2rem 0 0;
+    border-radius: 1rem;
+}
+
+.ollama-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.3rem;
+}
+
+.ask-button.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.72rem 1.15rem;
+    background: #9c727e;
+    box-shadow: 0 12px 22px rgba(156, 114, 126, 0.2);
+    font-weight: 600;
+}
+
+.ask-button.btn:hover,
+.ask-button.btn:focus-visible,
+.ask-button.btn:active {
+    background: #8d6571 !important;
+}
+
+.clear-button.btn {
+    border: 1px solid rgba(42, 34, 39, 0.12);
+    border-radius: 999px;
+    padding: 0.72rem 1.15rem;
+    color: #6d6670;
+    background: #fff;
+    font-weight: 600;
+}
+
+.clear-button.btn:hover,
+.clear-button.btn:focus-visible,
+.clear-button.btn:active {
+    border-color: rgba(156, 114, 126, 0.35) !important;
+    color: #8d6571 !important;
+    background: rgba(156, 114, 126, 0.08) !important;
+}
+
+.ollama-response-card {
+    margin-top: 1.25rem;
+}
+
+.response-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.response-heading h2 {
+    margin: 0;
+    color: #231d21;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.response-heading div {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.response-heading span {
+    color: #756d76;
+    font-size: 0.9rem;
+}
+
+.response-heading .badge {
+    border-radius: 999px;
+    color: #49705a;
+    background: rgba(73, 112, 90, 0.14) !important;
+}
+
+.response-copy {
+    margin: 0;
+    color: #332d31;
+    line-height: 1.75;
+    white-space: pre-wrap;
+}
+
+.response-empty {
+    display: flex;
+    min-height: 8rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed rgba(156, 114, 126, 0.28);
+    border-radius: 1rem;
+    color: #756d76;
+    background: rgba(156, 114, 126, 0.05);
+    text-align: center;
+}
+
+.response-empty.generating {
+    gap: 0.8rem;
+}
+
+@media (max-width: 767px) {
+    .ollama-actions {
+        flex-direction: column;
+    }
+
+    .ask-button.btn,
+    .clear-button.btn {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .response-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

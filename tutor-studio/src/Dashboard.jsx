@@ -36,7 +36,7 @@ const actions = [
     description:
       'Ask questions, generate explanations, and interact with the local AI tutor.',
     buttonLabel: 'Open Tutor',
-    route: '/tutors',
+    route: '/ai-tutor',
   },
   {
     title: 'Upload Documents',

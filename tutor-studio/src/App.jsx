@@ -16,6 +16,7 @@ import FilesPage from './FilesPage.jsx';
 import ModelCatalogPage from './ModelCatalogPage.jsx';
 import TutorsPage from './TutorsPage.jsx';
 import Dashboard from './Dashboard.jsx';
+import OllamaChat from "./OllamaChat.jsx";
 
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);
@@ -109,6 +110,9 @@ function AppContent() {
         } />
         <Route path="/files" element={
           <EditorRoute><FilesPage /></EditorRoute>
+        } />
+        <Route path="/ai-tutor" element={
+          <ProtectedRoute><OllamaChat /></ProtectedRoute>
         } />
         <Route path="/tutors" element={
           <EditorRoute><TutorsPage /></EditorRoute>
