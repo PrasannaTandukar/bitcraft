@@ -7,8 +7,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Settings from './Settings.jsx';
 import Benchmarking from './Benchmarking.jsx';
 import LoginForm from './Login.jsx';
+import RegisterForm from './Register.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { logout } from './store/authSlice';
 import UsersPage from './Users.jsx';
 import FilesPage from './FilesPage.jsx';
@@ -32,20 +33,22 @@ function EditorRoute({ children }) {
   const { token, roles } = useSelector((state) => state.auth);
   if (!token) return <Navigate to="/login" />;
   if (roles.includes("Admin")) return <Navigate to="/model-catalog" />;  // 👈 changed
-  if (!roles.includes("Editor")) return <Navigate to="/" />;
+  if (!roles.includes("Editor")) return <Navigate to="/settings" />;
   return children;
 }
 
 function AppContent() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, user, roles } = useSelector((state) => state.auth);
   const isAdmin = roles?.includes("Admin");
   const isEditor = roles?.includes("Editor") && !isAdmin;
 
   useEffect(() => {
-    if (!token) navigate('/login');
-  }, [token]);
+    const isPublicAuthRoute = location.pathname === '/login' || location.pathname === '/register';
+    if (!token && !isPublicAuthRoute) navigate('/login');
+  }, [token, location.pathname, navigate]);
 
   useEffect(() => {
     if (user) console.log('User updated:', user);
@@ -86,6 +89,7 @@ function AppContent() {
 
       <Routes>
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/register" element={<RegisterForm />} />
         <Route path="/" element={
           <EditorRoute><FilesPage /></EditorRoute>
         } />
