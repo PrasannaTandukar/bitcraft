@@ -1,0 +1,99 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f6f4f5;
+}
+
+.app-navbar.navbar {
+  min-height: 5.25rem;
+  border-bottom: 1px solid rgba(42, 34, 39, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 32px rgba(55, 39, 47, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.app-navbar-container {
+  gap: 1rem;
+}
+
+.app-brand.navbar-brand {
+  margin-right: clamp(1rem, 3vw, 2.5rem);
+  color: #231d21;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+}
+
+.app-nav-links {
+  gap: 0.25rem;
+}
+
+.app-nav-links .nav-link {
+  position: relative;
+  border-radius: 999px;
+  color: #6d6670;
+  font-weight: 500;
+  padding: 0.65rem 0.95rem;
+}
+
+.app-nav-links .nav-link:hover,
+.app-nav-links .nav-link.active {
+  color: #8d6571;
+  background: rgba(156, 114, 126, 0.12);
+}
+
+.app-account {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.app-user-email {
+  max-width: 15rem;
+  overflow: hidden;
+  color: #6d6670;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-logout-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  color: #fff;
+  background: #9c727e;
+  box-shadow: 0 12px 22px rgba(156, 114, 126, 0.18);
+  font-weight: 600;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.app-logout-button:hover {
+  background: #8d6571;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 991px) {
+  .app-navbar.navbar {
+    min-height: auto;
+    padding-block: 0.8rem;
+  }
+
+  .app-navbar .navbar-collapse {
+    padding-top: 1rem;
+  }
+
+  .app-nav-links {
+    gap: 0.15rem;
+  }
+
+  .app-account {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-top: 0.8rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(42, 34, 39, 0.08);
+  }
+}
