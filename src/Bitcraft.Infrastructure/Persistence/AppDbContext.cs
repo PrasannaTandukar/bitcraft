@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 {
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
+    public DbSet<TutorMemory> TutorMemories => Set<TutorMemory>();
 
     public DbSet<Tutor> Tutors => Set<Tutor>();
     public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();

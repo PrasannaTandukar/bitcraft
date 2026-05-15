@@ -69,6 +69,7 @@ function AppContent() {
               {token && <>
                 <Nav.Link as={NavLink} to="/" end>Dashboard</Nav.Link>
                 <Nav.Link as={NavLink} to="/settings">Settings</Nav.Link>
+                <Nav.Link as={NavLink} to="/ai-tutor">AI Tutor</Nav.Link>
                 <Nav.Link as={NavLink} to="/benchmarking">Benchmarking</Nav.Link>
                 {isEditor && <>
                   <Nav.Link as={NavLink} to="/files">Files</Nav.Link>

@@ -9,6 +9,7 @@ using Bitcraft.Infrastructure.Persistence;
 using Bitcraft.Infrastructure.Persistence.Interceptors;
 using Bitcraft.Infrastructure.Persistence.Repositories.Documents;
 using Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
+using Bitcraft.Infrastructure.Persistence.Repositories.Memory;
 using Bitcraft.Infrastructure.Persistence.Repositories.Tutoring;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 namespace Bitcraft.Infrastructure;
@@ -55,6 +57,26 @@ public static class DependencyInjection
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
                 RoleClaimType = System.Security.Claims.ClaimTypes.Role
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    var userIdValue = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? context.Principal?.FindFirstValue("sub");
+
+                    if (!Guid.TryParse(userIdValue, out var userId))
+                    {
+                        context.Fail("Token subject is missing or invalid.");
+                        return;
+                    }
+
+                    var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<AppUser>>();
+                    if (await userManager.FindByIdAsync(userId.ToString()) is null)
+                    {
+                        context.Fail("Token subject no longer exists.");
+                    }
+                }
+            };
         });
 
         services.AddAuthorization(options =>
@@ -67,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IRoleManagementService, IdentityService>();
         services.AddScoped<IDocumentStore, DocumentStore>();
+        services.AddScoped<ITutorMemoryStore, PgvectorTutorMemoryStore>();
         services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
         services.AddScoped<ILlmGenerationProvider, OllamaGenerationProvider>();
         services.AddKnowledgePersistence(configuration);

@@ -2,6 +2,7 @@ using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Domain.Knowledge;
 using Bitcraft.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Pgvector;
 using Pgvector.EntityFrameworkCore;
 
 namespace Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
@@ -23,9 +24,11 @@ public class PgvectorKnowledgeRetriever(AppDbContext db) : IKnowledgeRetriever
             return [];
         }
 
+        var queryVector = new Vector(queryEmbedding);
+
         return await db.KnowledgeChunks
             .Where(x => x.Embedding != null && documentIds.Contains(x.DocumentId))
-            .OrderBy(x => x.Embedding!.CosineDistance(queryEmbedding))
+            .OrderBy(x => x.Embedding!.CosineDistance(queryVector))
             .Take(topK)
             .ToListAsync(cancellationToken);
     }
