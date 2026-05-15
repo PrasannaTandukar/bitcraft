@@ -11,11 +11,11 @@ import Spinner from 'react-bootstrap/Spinner';
 import { useSelector } from 'react-redux';
 import './OllamaChat.css';
 
-const OLLAMA_GENERATE_URL = 'http://localhost:8000/api/ollama/generate';
+const TUTOR_ASK_URL = 'http://localhost:8000/api/tutor/ask';
 
 const examplePrompts = [
     'Explain Docker Compose simply',
-    'Summarize this topic',
+    'Tell me about RAG',
     'Create quiz questions',
 ];
 
@@ -35,12 +35,16 @@ const getErrorMessage = (status, payload) => {
         return 'The local Ollama model is not available. Please make sure the AI services are running.';
     }
 
-    if (payload?.code === 'Ollama.PromptRequired') {
+    if (payload?.code === 'Tutor.QuestionRequired') {
         return 'Please enter a prompt.';
     }
 
-    if (payload?.code === 'Ollama.ModelInvalid') {
+    if (payload?.code === 'Tutor.ModelInvalid') {
         return 'Please check the model name and try again.';
+    }
+
+    if (payload?.code === 'Tutor.TopKInvalid') {
+        return 'The tutor memory search limit must be between 1 and 10.';
     }
 
     if (payload?.description) {
@@ -50,19 +54,22 @@ const getErrorMessage = (status, payload) => {
     return 'Something went wrong while generating a response.';
 };
 
-async function generateOllamaResponse({ prompt, model, token }) {
+async function askTutor({ question, model, useMemory, saveToMemory, token }) {
     let response;
 
     try {
-        response = await fetch(OLLAMA_GENERATE_URL, {
+        response = await fetch(TUTOR_ASK_URL, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                prompt,
+                question,
                 ...(model ? { model } : {}),
+                useMemory,
+                saveToMemory,
+                topK: 5,
             }),
         });
     } catch {
@@ -77,8 +84,13 @@ async function generateOllamaResponse({ prompt, model, token }) {
 
     if (
         !payload ||
+        typeof payload.answer !== 'string' ||
         typeof payload.model !== 'string' ||
-        typeof payload.response !== 'string'
+        typeof payload.mode !== 'string' ||
+        typeof payload.contextUsed !== 'boolean' ||
+        typeof payload.memorySaved !== 'boolean' ||
+        typeof payload.message !== 'string' ||
+        !Array.isArray(payload.sources)
     ) {
         throw new Error('Something went wrong while generating a response.');
     }
@@ -86,13 +98,29 @@ async function generateOllamaResponse({ prompt, model, token }) {
     return payload;
 }
 
+const getModeBadge = (result) => {
+    if (!result) return null;
+
+    if (result.mode === 'general') {
+        return <Badge>General chat</Badge>;
+    }
+
+    return result.contextUsed
+        ? <Badge>Memory used</Badge>
+        : <Badge>Answered without memory</Badge>;
+};
+
+const getSourceLabel = (source) => source.sourceType === 'conversation'
+    ? 'Conversation'
+    : 'Document';
+
 function OllamaChat() {
     const token = useSelector((state) => state.auth.token);
     const [prompt, setPrompt] = useState('');
     const [model, setModel] = useState('');
-    const [response, setResponse] = useState('');
-    const [responseModel, setResponseModel] = useState('');
-    const [done, setDone] = useState(false);
+    const [useMemory, setUseMemory] = useState(true);
+    const [saveToMemory, setSaveToMemory] = useState(false);
+    const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -111,20 +139,17 @@ function OllamaChat() {
 
         setLoading(true);
         setError('');
-        setResponse('');
-        setResponseModel('');
-        setDone(false);
+        setResult(null);
 
         try {
-            const result = await generateOllamaResponse({
-                prompt: trimmedPrompt,
+            const nextResult = await askTutor({
+                question: trimmedPrompt,
                 model: trimmedModel,
+                useMemory,
+                saveToMemory,
                 token,
             });
-
-            setResponse(result.response);
-            setResponseModel(result.model);
-            setDone(result.done);
+            setResult(nextResult);
         } catch (requestError) {
             setError(
                 requestError instanceof Error
@@ -139,9 +164,7 @@ function OllamaChat() {
     const handleClear = () => {
         setPrompt('');
         setModel('');
-        setResponse('');
-        setResponseModel('');
-        setDone(false);
+        setResult(null);
         setError('');
     };
 
@@ -152,8 +175,8 @@ function OllamaChat() {
                     <Badge className="ollama-badge">Local LLM</Badge>
                     <h1>AI Tutor Chat</h1>
                     <p>
-                        Ask questions and generate explanations using your local Ollama model
-                        through the .NET backend.
+                        Ask questions through Ollama, with optional tutor memory drawn from
+                        uploaded documents and saved conversations.
                     </p>
                 </section>
 
@@ -191,6 +214,32 @@ function OllamaChat() {
                                                 />
                                                 <Form.Text>
                                                     Leave blank to use the backend default model.
+                                                </Form.Text>
+                                            </Form.Group>
+
+                                            <Form.Group className="memory-toggle" controlId="useTutorMemory">
+                                                <Form.Check
+                                                    type="switch"
+                                                    label="Use Tutor Memory"
+                                                    checked={useMemory}
+                                                    onChange={(event) => setUseMemory(event.target.checked)}
+                                                    disabled={loading}
+                                                />
+                                                <Form.Text>
+                                                    Search uploaded documents and saved conversations before answering. If nothing relevant is found, the tutor still answers normally.
+                                                </Form.Text>
+                                            </Form.Group>
+
+                                            <Form.Group className="memory-toggle" controlId="saveTutorMemory">
+                                                <Form.Check
+                                                    type="switch"
+                                                    label="Save this conversation to memory"
+                                                    checked={saveToMemory}
+                                                    onChange={(event) => setSaveToMemory(event.target.checked)}
+                                                    disabled={loading}
+                                                />
+                                                <Form.Text>
+                                                    Save this question and answer so the tutor can use it for future context.
                                                 </Form.Text>
                                             </Form.Group>
 
@@ -252,10 +301,10 @@ function OllamaChat() {
                             <Card.Body>
                                 <div className="response-heading">
                                     <h2>Response</h2>
-                                    {response && (
+                                    {result && (
                                         <div>
-                                            <span>{responseModel}</span>
-                                            {done && <Badge>Done</Badge>}
+                                            <span>{result.model}</span>
+                                            {getModeBadge(result)}
                                         </div>
                                     )}
                                 </div>
@@ -265,12 +314,42 @@ function OllamaChat() {
                                         <Spinner animation="border" />
                                         <span>Generating response...</span>
                                     </div>
-                                ) : response ? (
-                                    <p className="response-copy">{response}</p>
+                                ) : result ? (
+                                    <>
+                                        <p className="response-copy">{result.answer}</p>
+                                        <Alert className="memory-status" variant={result.memorySaved ? 'success' : 'secondary'}>
+                                            {result.message}
+                                        </Alert>
+                                    </>
                                 ) : (
                                     <div className="response-empty">
                                         Your generated explanation will appear here.
                                     </div>
+                                )}
+
+                                {result?.contextUsed && (
+                                    <section className="rag-sources">
+                                        <h3>Sources</h3>
+                                        {result.sources.map((source) => (
+                                            <details key={`${source.sourceType}-${source.sourceId}`} className="rag-source-card">
+                                                <summary>
+                                                    <span>
+                                                        <Badge className="source-type-badge">{getSourceLabel(source)}</Badge>
+                                                        {source.documentName || (source.sourceType === 'conversation'
+                                                            ? 'Saved conversation memory'
+                                                            : `Document ${source.documentId}`)}
+                                                    </span>
+                                                    <small>
+                                                        {source.chunkIndex !== null && source.chunkIndex !== undefined
+                                                            ? `Chunk ${source.chunkIndex} · `
+                                                            : ''}
+                                                        Score {source.score.toFixed(3)}
+                                                    </small>
+                                                </summary>
+                                                <p>{source.content}</p>
+                                            </details>
+                                        ))}
+                                    </section>
                                 )}
                             </Card.Body>
                         </Card>

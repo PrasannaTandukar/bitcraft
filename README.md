@@ -30,7 +30,7 @@ cp .env.example .env
 Key variables:
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — PostgreSQL credentials
 - `OLLAMA_BASE_URL` — Ollama service endpoint (default: `http://host.docker.internal:11434` — assumes Ollama running on host)
-- `OLLAMA_EMBED_MODEL` — Embedding model to use (default: `qwen3-embedding:0.6b`)
+- `OLLAMA_EMBED_MODEL` — Embedding model to use (default: `nomic-embed-text`, which returns the 768-dimensional vectors expected by the current pgvector schema)
 
 ### Quick Start (Full Stack)
 
