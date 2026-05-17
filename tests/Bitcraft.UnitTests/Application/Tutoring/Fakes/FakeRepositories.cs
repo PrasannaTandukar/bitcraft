@@ -30,6 +30,12 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         return Task.FromResult(Result.Success<IReadOnlyList<string>>(Roles));
     }
 
+    public Task<Result<IReadOnlyList<UserRoleMembership>>> ListUsersAsync(CancellationToken cancellationToken = default)
+    {
+        ListCalls++;
+        return Task.FromResult(Result.Success<IReadOnlyList<UserRoleMembership>>(Memberships.Values.ToList()));
+    }
+
     public Task<Result<UserRoleMembership>> GetUserRolesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         GetCalls++;

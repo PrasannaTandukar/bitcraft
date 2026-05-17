@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<IRoleManagementService, IdentityService>();
         services.AddScoped<IDocumentStore, DocumentStore>();
         services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
+        services.AddScoped<ILlmGenerationProvider, OllamaGenerationProvider>();
         services.AddKnowledgePersistence(configuration);
         services.Configure<DeepEvalBenchmarkOptions>(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName));
 
@@ -94,6 +95,11 @@ public static class DependencyInjection
         services.AddHttpClient(nameof(OllamaEmbeddingProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
+        });
+        var ollamaGenerateTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
+        services.AddHttpClient(nameof(OllamaGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
         });
         var deepEvalTimeoutSeconds = configuration.GetValue<int?>("Benchmarking:DeepEval:TimeoutSeconds") ?? 120;
         services.AddHttpClient(nameof(DeepEvalBenchmarkEngine), c =>
