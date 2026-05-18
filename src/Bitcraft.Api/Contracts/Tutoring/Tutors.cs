@@ -23,4 +23,4 @@ public sealed record TutorResponse(
     Guid? ActivePromptVersionId,
     Guid? DeploymentProfileId,
     DateTime CreatedUtc,
-    DateTime? LastModifiedUtc);
+    DateTime? ModifiedUtc);

@@ -13,17 +13,17 @@ internal static class BaseModelConfigurationExtensions
 
         entity.Property(x => x.CreatedUtc).IsRequired();
         entity.Property(x => x.CreatedById).IsRequired();
-        entity.Property(x => x.EditedUtc);
-        entity.Property(x => x.EditedById);
+        entity.Property(x => x.ModifiedUtc);
+        entity.Property(x => x.ModifiedById);
 
         entity.HasOne(x => x.CreatedBy)
             .WithMany()
             .HasForeignKey(x => x.CreatedById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasOne(x => x.EditedBy)
+        entity.HasOne(x => x.ModifiedBy)
             .WithMany()
-            .HasForeignKey(x => x.EditedById)
+            .HasForeignKey(x => x.ModifiedById)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

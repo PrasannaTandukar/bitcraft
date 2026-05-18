@@ -25,6 +25,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             .Include(x => x.KnowledgeSources)
             .Include(x => x.Tools)
             .Include(x => x.DeploymentProfile)
+            .Include(x => x.Snapshots)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
@@ -32,7 +33,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         db.Set<Tutor>()
             .Where(x => x.OwnerId == ownerId)
             .Include(x => x.TutorModelConnection)
-            .OrderByDescending(x => x.EditedUtc ?? x.CreatedUtc)
+            .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
 
     public async Task UpdateAsync(Tutor tutor, CancellationToken cancellationToken = default)

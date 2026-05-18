@@ -8,9 +8,9 @@ public abstract class BaseModel
     public DateTime CreatedUtc { get; private set; } = DateTime.UtcNow;
     public Guid? CreatedById { get; private set; }
     public AppUser? CreatedBy { get; private set; }
-    public DateTime? EditedUtc { get; private set; }
-    public Guid? EditedById { get; private set; }
-    public AppUser? EditedBy { get; private set; }
+    public DateTime? ModifiedUtc { get; private set; }
+    public Guid? ModifiedById { get; private set; }
+    public AppUser? ModifiedBy { get; private set; }
 
 
 
@@ -29,7 +29,7 @@ public abstract class BaseModel
 
     private void SetEditor(Guid? userId, DateTime utcNow)
     {
-        EditedUtc = utcNow;
-        EditedById = userId;
+        ModifiedUtc = utcNow;
+        ModifiedById = userId;
     }
 }

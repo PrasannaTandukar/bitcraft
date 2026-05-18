@@ -1,4 +1,5 @@
 using Bitcraft.Domain.Common;
+using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Identity;
 
 namespace Bitcraft.Domain.Tutoring;
@@ -19,4 +20,5 @@ public class Tutor : BaseModel
     public ICollection<KnowledgeSourceLink> KnowledgeSources { get; set; } = new List<KnowledgeSourceLink>();
     public ICollection<ToolDefinition> Tools { get; set; } = new List<ToolDefinition>();
     public ICollection<TutorConfigurationSnapshot> Snapshots { get; set; } = new List<TutorConfigurationSnapshot>();
+    public ICollection<BenchmarkRun> BenchmarkRuns { get; set; } = new List<BenchmarkRun>();
 }

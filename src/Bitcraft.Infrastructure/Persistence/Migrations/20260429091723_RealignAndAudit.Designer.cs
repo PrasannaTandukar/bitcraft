@@ -39,10 +39,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("MimeType")
@@ -65,7 +65,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("Name");
 
@@ -202,10 +202,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("IngestedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
@@ -217,7 +217,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("DocumentId", "ChunkIndex")
                         .IsUnique();
@@ -240,10 +240,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Target")
@@ -256,7 +256,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("TutorId")
                         .IsUnique();
@@ -279,10 +279,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("LinkedUtc")
@@ -297,7 +297,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("TutorId", "DocumentId")
                         .IsUnique();
@@ -329,10 +329,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ModelName")
@@ -355,7 +355,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("Name")
                         .IsUnique();
@@ -379,10 +379,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
@@ -404,7 +404,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("TutorId", "VersionNumber")
                         .IsUnique();
@@ -436,10 +436,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
@@ -454,7 +454,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("TutorId", "Name")
                         .IsUnique();
@@ -481,10 +481,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
@@ -504,7 +504,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("OwnerId");
 
@@ -537,10 +537,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<string>("KnowledgeSourcesJson")
                         .HasColumnType("jsonb");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("ModelCatalogEntryId")
@@ -584,7 +584,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("TutorId");
 
@@ -603,10 +603,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("EditedById")
+                    b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("EditedUtc")
+                    b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("ModelCatalogEntryId")
@@ -622,7 +622,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("ModelCatalogEntryId");
 
@@ -743,14 +743,14 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Knowledge.KnowledgeChunk", b =>
@@ -767,16 +767,16 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedBy");
 
                     b.Navigation("Document");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.DeploymentProfile", b =>
@@ -787,9 +787,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Tutoring.Tutor", "Tutor")
@@ -800,7 +800,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
 
                     b.Navigation("Tutor");
                 });
@@ -819,9 +819,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Tutoring.Tutor", "Tutor")
@@ -834,7 +834,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Document");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
 
                     b.Navigation("Tutor");
                 });
@@ -847,14 +847,14 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.PromptVersion", b =>
@@ -865,9 +865,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Tutoring.Tutor", "Tutor")
@@ -878,7 +878,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
 
                     b.Navigation("Tutor");
                 });
@@ -891,9 +891,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Tutoring.Tutor", "Tutor")
@@ -904,7 +904,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
 
                     b.Navigation("Tutor");
                 });
@@ -922,9 +922,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "Owner")
@@ -937,7 +937,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
 
                     b.Navigation("Owner");
                 });
@@ -956,9 +956,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Tutoring.Tutor", null)
@@ -971,7 +971,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorModelConnection", b =>
@@ -982,9 +982,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
-                        .HasForeignKey("EditedById")
+                        .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Tutoring.ModelCatalogEntry", "ModelCatalogEntry")
@@ -1001,7 +1001,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("EditedBy");
+                    b.Navigation("ModifiedBy");
 
                     b.Navigation("ModelCatalogEntry");
 

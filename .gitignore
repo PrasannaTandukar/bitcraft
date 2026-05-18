@@ -24,6 +24,10 @@ obj/
 # Logs
 *.log
 
+# Python
+__pycache__/
+*.py[cod]
+
 # =========================
 # Node / React
 # =========================
@@ -49,6 +53,7 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+.conda/
 
 # =========================
 # OS files

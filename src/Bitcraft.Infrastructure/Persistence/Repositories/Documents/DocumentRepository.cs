@@ -20,7 +20,7 @@ public class DocumentStore(AppDbContext db) : IDocumentStore
     public Task<List<Document>> ListByCreatorAsync(Guid creatorId, CancellationToken cancellationToken = default) =>
         db.Documents
             .Where(x => x.CreatedById == creatorId)
-            .OrderByDescending(x => x.EditedUtc ?? x.CreatedUtc)
+            .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
 
     public async Task UpdateAsync(Document document, CancellationToken cancellationToken = default)

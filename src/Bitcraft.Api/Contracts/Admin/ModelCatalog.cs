@@ -23,7 +23,7 @@ public sealed record ModelCatalogEntryResponse(
     string? SettingsJson,
     bool IsEnabled,
     DateTime CreatedUtc,
-    Guid? CreatedById,
+    Guid? CreatedById, // TODO: Initial user must be seeded, no nulls allowed in these fields.
     DateTime? LastModifiedUtc,
     Guid? LastModifiedById);
 
