@@ -1,0 +1,15 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "ms-azuretools.vscode-docker",
+    "humao.rest-client",
+    "ms-ossdata.vscode-postgresql",
+    "redhat.vscode-yaml",
+    "usernamehw.errorlens",
+    "editorconfig.editorconfig",
+    "eamodio.gitlens",
+    "mikestead.dotenv"
+  ]
+}
