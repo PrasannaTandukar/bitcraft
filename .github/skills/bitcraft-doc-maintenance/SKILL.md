@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-doc-maintenance
 description: 'Create and maintain Bitcraft developer documentation that reflects actual repository behavior. Use for README updates, docs/ guides, agentic AI overview docs, setup instructions, architecture notes, and maintenance playbooks.'
 argument-hint: '[doc topic or file]'

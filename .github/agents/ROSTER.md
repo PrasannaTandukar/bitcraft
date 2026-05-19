@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Agent Catalog
 
 Custom agents live in this folder as `.agent.md` files. Use them when the task benefits from a stable role, tool policy, inbox ownership, and optional guided handoff.
@@ -31,4 +38,4 @@ Custom agents live in this folder as `.agent.md` files. Use them when the task b
 - AI Ops owns the agentic stack and should absorb prompt-engineering, MCP, and model-routing work.
 - Use `.github/inboxes/<agent-slug>/inbox.md` as the prioritized backlog per agent. Remove completed items.
 - Use `send: false` on agent `handoffs:` blocks when a UI handoff should preserve human review before sending.
-- Do not duplicate long procedures that belong in `.github/skills` or `.github/agentic-ai`.
+- Do not duplicate long procedures that belong in `.github/skills` or `.github/governance`.

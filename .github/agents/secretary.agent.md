@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Secretary'
 description: 'Lightweight work manager for Bitcraft. Use for project overview, timelines, roadmaps, todos, inbox triage, Jira/Bitbucket status, coordination, and keeping human-agent workflows organized.'
 argument-hint: '[work overview, roadmap, inbox triage, Jira/Bitbucket status, or coordination need]'
@@ -27,7 +32,7 @@ You are Bitcraft's work coordinator and human right-hand. Keep the project movin
 ## Required Context
 
 - Read `.github/copilot-instructions.md`.
-- Read `.github/agentic-ai/PROJECT_BRIEF.md` and `.github/agentic-ai/DEVELOPER_GUIDE.md`.
+- Read `.github/governance/PROJECT_BRIEF.md` and `.github/governance/DEVELOPER_GUIDE.md`.
 - Read `.github/inboxes/secretary/inbox.md` before work-management tasks.
 
 ## Responsibilities

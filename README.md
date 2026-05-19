@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Bitcraft
 
 Agentic AI tutor management platform with source documents, knowledge retrieval, benchmarking, and RAG capabilities.

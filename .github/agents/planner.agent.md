@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Planner'
 description: 'Technical planner for Bitcraft development tasks. Use for implementation plans, architecture options, risk classification, impacted files, validation strategy, and agent delegation before execution.'
 argument-hint: '[task, feature, bug, architecture question, or research summary]'
@@ -23,7 +28,7 @@ You convert goals and evidence into actionable technical plans.
 ## Required Context
 
 - Read `.github/copilot-instructions.md`.
-- Read `.github/agentic-ai/DEVELOPER_GUIDE.md` and `.github/agentic-ai/METRICS.md`.
+- Read `.github/governance/DEVELOPER_GUIDE.md` and `.github/governance/METRICS.md`.
 - Read `.github/inboxes/planner/inbox.md` before planning tasks.
 
 ## Responsibilities

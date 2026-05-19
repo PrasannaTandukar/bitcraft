@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Bitcraft Agentic AI Setup
 
 This document is the human-facing overview for Bitcraft's agentic AI workflow. Operational customizations live under `.github`; this guide explains how to use and maintain them.
@@ -15,7 +22,8 @@ Bitcraft uses GitHub Copilot in VS Code as the primary agent surface. The stack 
 | Prompt entrypoints | `.github/prompts/*.prompt.md` | Lean slash-command workflows: overview, research, plan, develop, review, audits, write, metrics, and compact. |
 | Skills | `.github/skills/*/SKILL.md` | Reusable procedures loaded on demand. |
 | Agent inboxes | `.github/inboxes/<agent-slug>/inbox.md` | Prioritized per-agent backlog of cross-agent work items. |
-| Governance | `.github/agentic-ai/*.md` | Project brief, tooling matrix, developer guide, metrics, model routing, audit templates, and framework review notes. |
+| Governance | `.github/governance/*.md` | Project brief, tooling matrix, developer guide, metrics, model routing, audit templates, and framework review notes. |
+| Developer-local docs | `docs/dev/<stack-slug>/` | Ignored local documentation stacks populated by humans/developers; agents use them before external retrieval when present. |
 | MCP specification | `.github/mcp/bitcraft-mcp-spec.md` | Full MCP design surface (most tools still deferred). |
 | MCP minimal server | `mcp-server/` and `.vscode/mcp.json` | Read-only Python MCP server exposing inboxes, roster, governance docs, and a Clean Architecture spot check to compatible clients. Also wires the reference `fetch` and read-only `git` MCP servers via `uvx`. |
 | Static linting | `.markdownlint.jsonc`, `.vale.ini`, `.github/vale/styles/` | Markdown/prose checks for docs and agentic governance. Prompt evaluation frameworks are deferred to external tooling, not embedded in this repo. |
@@ -29,6 +37,46 @@ This is not a pure agentic AI project. Humans and agents cooperate.
 Humans own product direction, credentials, branch creation, commits, pushes, merges, releases, and final accountability. Agents gather evidence, plan, implement requested changes, validate, review, document, audit, and leave concise backlog items for each other.
 
 Jira and Bitbucket may be used for work management, but credentials and active integration settings stay outside the repository.
+
+## Markdown Metadata
+
+Every tracked Markdown file carries these frontmatter fields:
+
+```yaml
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+```
+
+`ai_gen: true` is the default for agent-created Markdown. `ai_gen: false` is the default for human-created Markdown. Humans may edit any document and are the only maintainers allowed to change `ai_gen` after creation. Agents may update `edited_at` and `editor` when they make an approved edit.
+
+Vale checks the required metadata fields for this iteration. No pre-commit hook, CI gate, or custom validation script is required yet.
+
+## Developer-Local Docs
+
+`docs/dev/` is ignored by Git and is reserved for local documentation packs supplied by humans or developers. The rest of `docs/` remains tracked.
+
+Use this local stack shape:
+
+```text
+docs/dev/<stack-slug>/
+	STACK.md
+	sources/
+		<human-provided files>
+```
+
+`STACK.md` should be Markdown with YAML frontmatter. It carries the global metadata fields plus stack fields such as `name`, `description`, `sources_required`, `sources`, `external_sources`, and `validation_status`.
+
+Documentation lookup is local-first:
+
+1. Check repository docs, governance docs, and `docs/dev/` stacks.
+2. Use external documentation retrieval only when the human explicitly grants it.
+3. Use broader web retrieval for deep research and collect sources.
+4. Ask the human when sources are missing, conflicting, inaccessible, or require approval.
+
+Deep research should run the first three steps when available and report discrepancies between local and remote sources. Bitcraft product Documents/Knowledge ingestion is intentionally out of scope for these agentic development docs.
 
 ## Agent Departments
 
@@ -92,7 +140,7 @@ The inbox system is separate from VS Code custom-agent UI handoffs. UI handoffs 
 
 ## Metrics And Risk
 
-The metrics system is defined in `.github/agentic-ai/METRICS.md`.
+The metrics system is defined in `.github/governance/METRICS.md`.
 
 Current risk metrics include:
 
@@ -105,11 +153,11 @@ Current risk metrics include:
 
 Agent execution metrics include plan adherence, tool selection accuracy, unsupported claim rate, loop count, token/cost estimates, validation pass rate, rework rate, context loss events, and inbox throughput.
 
-Metrics are guidance until humans approve thresholds and capture location. The current open decisions are listed in `.github/agentic-ai/METRICS.md` and assigned to Secretary's inbox.
+Metrics are guidance until humans approve thresholds and capture location. The current open decisions are listed in `.github/governance/METRICS.md` and assigned to Secretary's inbox.
 
 ## Audits
 
-Recurring audit templates live in `.github/agentic-ai/AUDIT_TEMPLATES.md`.
+Recurring audit templates live in `.github/governance/AUDIT_TEMPLATES.md`.
 
 - Sec Ops owns Security Audits.
 - Dev Ops owns Integrity Audits.
@@ -176,8 +224,8 @@ Validate `.github` and docs changes with:
 - Instruction frontmatter: `applyTo`.
 - Skill folder/name matching and lowercase skill names.
 - Agent frontmatter, tool policy, and stale-name searches.
-- Internal consistency between `.github/agentic-ai`, prompts, agents, skills, and this document.
+- Internal consistency between `.github/governance`, prompts, agents, skills, and this document.
 
 Review the stack when VS Code or Copilot customization syntax changes, workflows drift, new MCP tools are proposed, metrics create bad incentives, or agent roles start overlapping again.
 
-For prompt-stack maintenance methodology and external evaluation options, see `.github/agentic-ai/PROMPT_STACK_MAINTENANCE.md`.
+For prompt-stack maintenance methodology and external evaluation options, see `.github/governance/PROMPT_STACK_MAINTENANCE.md`.

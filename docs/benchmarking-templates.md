@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Benchmarking Templates
 
 Bitcraft benchmark templates are editor-managed evaluation profiles that describe how collected tutor outputs should be evaluated by the benchmark sidecar. They are created explicitly so benchmark runs have clear, auditable scoring configuration instead of hidden data created by a read operation.

@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-agentic-stack
 description: 'Design, maintain, and refactor Bitcraft GitHub Copilot customizations in .github. Use for prompts, instructions, custom agents, skills, inboxes, MCP specs, metrics, tool policy, context management, and agentic AI workflow cohesion.'
 argument-hint: '[customization task or workflow problem]'
@@ -10,7 +15,7 @@ Maintain the project AI customization system as a layered product.
 
 ## When to Use This Skill
 
-- The task touches `.github/copilot-instructions.md`, `.github/instructions`, `.github/prompts`, `.github/agents`, `.github/skills`, `.github/inboxes`, `.github/agentic-ai`, or `.github/mcp`.
+- The task touches `.github/copilot-instructions.md`, `.github/instructions`, `.github/prompts`, `.github/agents`, `.github/skills`, `.github/inboxes`, `.github/governance`, or `.github/mcp`.
 - The user asks to improve prompts, agents, skills, context, MCP, or tool usage.
 - Customizations conflict, duplicate each other, or drift from the codebase.
 

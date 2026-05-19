@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # AGENTS.md
 
 Bitcraft is an Agentic AI Tutor management platform. This file is the entry point for any third-party coding agent (Codex, Aider, Junie, Cursor, Gemini CLI, OpenCode, Devin, Copilot cloud agent, etc.) per the [agents.md](https://agents.md/) standard.
@@ -58,7 +65,7 @@ If you are GitHub Copilot in VS Code, the full agent department roster, prompt f
 
 - `.github/copilot-instructions.md` for always-on rules.
 - `.github/agents/ROSTER.md` for the agent department directory.
-- `.github/agentic-ai/PROJECT_BRIEF.md`, `.github/agentic-ai/DEVELOPER_GUIDE.md`, `.github/agentic-ai/METRICS.md`, `.github/agentic-ai/MODEL_ROUTING.md` for governance.
+- `.github/governance/PROJECT_BRIEF.md`, `.github/governance/DEVELOPER_GUIDE.md`, `.github/governance/METRICS.md`, `.github/governance/MODEL_ROUTING.md` for governance.
 - `.github/inboxes/<agent-slug>/inbox.md` for prioritized per-agent backlog.
 
 Other coding agents only need this file plus repository code.

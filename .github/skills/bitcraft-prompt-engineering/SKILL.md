@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-prompt-engineering
 description: 'Improve Bitcraft prompts, instructions, custom agents, and skills under AI Ops ownership. Use when asked to tune prompt quality, remove drift, standardize frontmatter, or make Copilot behavior more reliable.'
 argument-hint: '[prompt, agent, skill, or behavior to improve]'

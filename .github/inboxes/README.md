@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Agent Inboxes
 
 Each agent owns a prioritized backlog at `.github/inboxes/<agent-slug>/inbox.md`. Inboxes batch future work so an agent can pick it up the next time it is activated, and so other agents (and humans) can drop work onto a role without interrupting current execution.
@@ -9,7 +16,7 @@ Each agent owns a prioritized backlog at `.github/inboxes/<agent-slug>/inbox.md`
 - **Aggregation**: Secretary scans all inboxes to summarize cross-team backlog and surface overdue or conflicting items.
 - **Continuity**: items survive session compaction and model restarts because they live in the repository.
 
-Inboxes are not logs, transcripts, audit reports, framework documentation, or long-term memory. Detailed deliverables belong in `.github/agentic-ai/` or `docs/`.
+Inboxes are not logs, transcripts, audit reports, framework documentation, or long-term memory. Detailed deliverables belong in `.github/governance/` or `docs/`.
 
 ## Item Schema
 

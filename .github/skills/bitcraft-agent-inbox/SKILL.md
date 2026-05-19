@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-agent-inbox
 description: 'Use and maintain Bitcraft agent inboxes as prioritized per-agent backlogs. Use when reading, creating, pruning, blocking, parking, or delegating cross-agent backlog items under .github/inboxes.'
 argument-hint: '[agent slug, inbox item, delegation need, or cleanup task]'
@@ -23,7 +28,7 @@ Use this skill whenever an agent needs durable cross-agent coordination.
 - Keep each item concise and actionable.
 - Include only the context needed to act safely.
 - Link to owning docs or files instead of copying long summaries.
-- Put research reports, audit outputs, and framework decisions in `.github/agentic-ai/` or `docs/`.
+- Put research reports, audit outputs, and framework decisions in `.github/governance/` or `docs/`.
 - Never store secrets, credentials, private local paths, datasets, model weights, or final human-owned prose in an inbox.
 
 ## Output

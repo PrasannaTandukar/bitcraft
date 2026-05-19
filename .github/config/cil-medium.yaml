@@ -1,0 +1,49 @@
+﻿# CIL Medium — multi-file or expert-domain changes.
+level: medium
+description: >
+  Shared application behavior, multi-file feature work, frontend/API contract
+  changes, bounded-context refactors, or governance docs that downstream
+  agents rely on.
+
+agents_required:
+  - primary specialist matching the work surface
+  - lead-dev for review routing
+
+research_required:
+  - repository evidence for impacted modules and downstream consumers
+  - check existing inbox items for conflicts
+
+tools_allowed:
+  - read
+  - search
+  - edit
+  - todo
+
+context_sources:
+  - impacted files plus direct consumers
+  - relevant governance doc(s) under .github/governance/
+  - active plan.yaml for the branch
+
+development_order:
+  - confirm scope from plan.yaml and existing inboxes
+  - draft minimal change set
+  - implement in small validated slices
+  - update plan context.md if scope or risk changes
+
+validation_required:
+  - markdown lint and vale on touched markdown
+  - focused build or test on touched code (narrowest scope first)
+  - architecture spot check when backend boundaries are involved
+
+review_required:
+  - lead-dev
+  - relevant specialist (sec-ops for auth/privacy, dev-ops for infra, ai-ops for agentic stack)
+
+human_escalation:
+  required: false
+  conditions:
+    - scope expands to high or critical during implementation
+    - validation reveals security or data-integrity risk
+
+notes: >
+  Default routing tier. Most batch work lands here.

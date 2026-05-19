@@ -1,10 +1,12 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: ai-ops
+ai_gen: true
+---
 # Secretary Inbox
 
-- Date: 2026-05-18
-- Status: active
-- Source: AI Ops
-- Target: secretary
-- Priority: high
-- Task: Gather the human decisions needed to finalize metrics thresholds, capture location, and Bitbucket/Jira branch workflow.
-- Context: See `.github/agentic-ai/METRICS.md` and `.github/agentic-ai/DEVELOPER_GUIDE.md`; decisions are intentionally not enforced yet.
-- Acceptance/Cleanup: Human answers are captured in the approved governance location, then remove this item or replace it with concrete follow-up tasks.
+No active items.
+
+Recently completed (2026-05-19): Batch 2 open human decisions captured in `.github/governance/HUMAN_DECISIONS.md` (D-1 through D-7). Deferred decisions (D-3 branch convention; D-4/D-5 fetch and git MCP sign-off) are tracked in the Dev Ops and Sec Ops inboxes respectively.

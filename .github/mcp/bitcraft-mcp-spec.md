@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft MCP Specification
 
 This file is the long-form MCP design surface. A minimal read-only MCP server is now implemented under `mcp-server/`; this spec covers both the implemented baseline and the deferred extensions.
@@ -6,20 +13,23 @@ This file is the long-form MCP design surface. A minimal read-only MCP server is
 
 `mcp-server/server.py` exposes a small set of read-only tools using the official Python MCP SDK:
 
-- `list_inboxes`, `read_inbox(agent_slug)`
-- `list_governance_docs`, `read_governance(name)`
+- `list_inboxes`, `read_inbox(agent_slug)`, `read_inbox_structured(agent_slug)`
+- `list_governance_docs`, `read_governance(name)` — stable governance docs under `.github/governance/`.
+- `list_configs`, `read_config(name)` — human-managed YAML configuration under `.github/config/` (e.g. `approved-external-sources.yaml`, `cil-{low,medium,high,critical}.yaml`).
+- `list_active_plans(include_archived=False)`, `read_plan(branch_slug)` — active task plans under `.github/plans/<branch>/`. Archive and templates folders are excluded by default.
+- `list_doc_stacks`, `read_doc_stack(stack_slug)` for ignored developer-local docs under `docs/dev/`
 - `list_agents`, `read_roster`
-- `verify_architecture_readonly` — reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, forbidden external package references in Application). Read-only spot check; enforcement still belongs to tests and CI.
+- `verify_architecture_readonly` — reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, and external package references in Application that are not in the in-server allow-list, currently `MediatR` and `Microsoft.Extensions.DependencyInjection.Abstractions`). Read-only spot check; enforcement still belongs to tests and CI.
 
-The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/agentic-ai/`, `.github/agents/`, `.github/inboxes/`, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
+The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/governance/`, `.github/config/`, `.github/agents/`, `.github/inboxes/`, `.github/plans/` (active folders only), ignored `docs/dev/` stack manifests, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
 
 ## Third-Party MCP Servers Wired In `.vscode/mcp.json`
 
 | Server | Command | Purpose | Risk class |
 | --- | --- | --- | --- |
 | `bitcraft-mcp` | `python mcp-server/server.py` | Repository governance + Clean Architecture spot check (this repo). | Low (read-only, scoped). |
-| `fetch` | `uvx mcp-server-fetch` | Lets the agent fetch and convert web pages for research. | Medium (prompt-injection on returned content). Sec Ops review pending. |
-| `git` | `uvx mcp-server-git --repository ${workspaceFolder}` | Read-only Git history, blame, log, diff. Must NOT expose commit/push tools. | Medium (file content surfacing). Sec Ops review pending. |
+| `fetch` | `uvx mcp-server-fetch` | Lets the agent fetch and convert web pages for research. | Active under per-request approval (D-4). Prompt-injection on returned content — treat as untrusted. |
+| `git` | `uvx mcp-server-git --repository ${workspaceFolder}` | Read-only Git history, blame, log, diff. Must NOT expose commit/push tools. | Active under per-request approval (D-5). Sec Ops to record confirmed-safe tool list. |
 
 Out of scope per 2026-05-19 human decision:
 
@@ -95,6 +105,7 @@ Resources should be stable, small, and cacheable.
 | `bitcraft://tests/inventory` | Test projects, major suites, and command hints | `tests/` |
 | `bitcraft://api/contracts/{context}` | API contract inventory and route hints | `src/Bitcraft.Api/Contracts`, controllers |
 | `bitcraft://docs/agentic-ai` | Human-facing AI setup overview | `docs/agentic-ai.md` |
+| `bitcraft://docs/dev/{stack}` | Developer-local documentation stack manifest and source inventory | ignored `docs/dev/<stack>/STACK.md` |
 
 ## Tools
 
@@ -114,6 +125,38 @@ Output:
 - `boundedContexts`.
 - `validationCommands`.
 - `sourcePaths`.
+
+### `read_inbox_structured`
+
+Implemented additive helper. Parses the existing Markdown inbox source of truth into structured item fields without changing `read_inbox` behavior.
+
+Inputs:
+- `agent_slug`: lowercase agent slug.
+
+Output:
+- `agentSlug`.
+- `sourcePath`.
+- `itemCount`.
+- `items` with normalized fields such as `date`, `status`, `source`, `target`, `priority`, `task`, `context`, and `acceptance_cleanup`.
+
+### `list_doc_stacks` And `read_doc_stack`
+
+Implemented additive helpers for developer-local documentation under ignored `docs/dev/`.
+
+Inputs:
+- `stack_slug` for `read_doc_stack`: folder name under `docs/dev/`.
+
+Output:
+- Stack slug and source path.
+- Parsed frontmatter metadata.
+- Local source-path inventory with existence flags.
+- External source URLs declared by the stack manifest.
+- Raw `STACK.md` content for the selected stack.
+
+Rules:
+- Missing or empty `docs/dev/` is valid and returns no stacks.
+- Tools are read-only and accept only slugs, never free-form paths.
+- Product Documents/Knowledge ingestion is not used for agentic development docs.
 
 ### `bounded_context_summary`
 

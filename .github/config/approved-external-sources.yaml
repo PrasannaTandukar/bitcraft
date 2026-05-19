@@ -1,0 +1,24 @@
+# Approved External Sources
+#
+# Human-managed allow-list of external documentation sources that agents may
+# retrieve during research without asking for per-session permission. Edited by
+# humans only. Agents read this file via the YAML config policy described in
+# `.github/copilot-instructions.md` (Markdown Metadata And Documentation Access).
+#
+# Schema:
+#   - stack: short label (string)
+#     description: optional one-line purpose (string, optional)
+#     links: list of fully qualified URLs (list of strings)
+#
+# Example:
+#   - stack: "github docs"
+#     description: "Copilot customization, agents.md, MCP."
+#     links:
+#       - https://docs.github.com/en/copilot
+#       - https://agents.md/
+#       - https://modelcontextprotocol.io/
+#
+# Until a human adds entries, this list is empty and agents must rely on
+# explicit chat-session grants per D-2 in HUMAN_DECISIONS.md.
+
+sources: []

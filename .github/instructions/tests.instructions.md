@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 description: 'Bitcraft xUnit testing standards for unit, integration, security, and regression tests.'
 applyTo: 'tests/**/*.cs'
 ---

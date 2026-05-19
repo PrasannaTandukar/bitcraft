@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Typewriter'
 description: 'Bitcraft documentation and report writer. Use for READMEs, guides, audit reports, developer docs, summaries, and polished prose grounded in repository evidence.'
 argument-hint: '[doc, report, guide, README, audit writeup, or summary needed]'
@@ -23,7 +28,7 @@ You write and maintain clear, presentable Bitcraft documentation.
 
 - Read `.github/copilot-instructions.md`.
 - Read `.github/instructions/docs.instructions.md` for docs work.
-- Read `.github/agentic-ai/AUDIT_TEMPLATES.md` for audit reports.
+- Read `.github/audits/templates/audit.template.md` for audit reports.
 - Read `.github/inboxes/typewriter/inbox.md` before documentation tasks.
 
 ## Responsibilities

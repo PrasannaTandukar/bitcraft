@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Model Routing
 
 Bitcraft uses multiple model families through GitHub Copilot Pro plus a local Ollama setup on 2x RTX 3090. This page is the quick-reference table. Detailed reasoning lives in `.github/skills/bitcraft-model-routing/SKILL.md`.

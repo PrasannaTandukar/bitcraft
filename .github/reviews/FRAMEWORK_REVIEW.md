@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Agentic Framework Review
 
 ## 2026-05-19 Iteration: MCP Expansion, Provenance, Static Linting
@@ -21,11 +28,11 @@ User requested a planning and implementation iteration for the agentic AI stack 
 - Skip GitHub and Atlassian MCP servers. Bitbucket integration deferred until an official MCP exists.
 - Add `fetch` and read-only `git` MCP servers via `uvx`.
 - Add `verify_architecture_readonly` tool to `mcp-server/server.py` as a read-only Clean Architecture spot check.
-- Author `.github/agentic-ai/CONTENT_EXCLUSION.md` to replace the `.copilotignore` misconception.
-- Author `.github/agentic-ai/PROVENANCE.md` and emit a provenance blockquote from `compact`, `write`, and `research` prompts on standalone reports.
+- Author `.github/governance/CONTENT_EXCLUSION.md` to replace the `.copilotignore` misconception.
+- Author `.github/governance/PROVENANCE.md` and emit a provenance blockquote from `compact`, `write`, and `research` prompts on standalone reports.
 - Refresh `MODEL_ROUTING.md` with task categories, Secretary-as-triage / Lead-Dev-as-orchestrator separation, and a hybrid cascade default. No version pinning.
 - Remove the `.github/prompt-eval/` scaffold and promptfoo config. Keep only static linting helpers: root `.markdownlint.jsonc`, root `.vale.ini`, and `.github/vale/styles/`.
-- Add `.github/agentic-ai/PROMPT_STACK_MAINTENANCE.md` for prompt-stack methodology, ambiguity controls, and external evaluation options.
+- Add `.github/governance/PROMPT_STACK_MAINTENANCE.md` for prompt-stack methodology, ambiguity controls, and external evaluation options.
 - Extend `.vscode/extensions.json` with markdownlint, Vale, Python, ESLint, Prettier, Copilot/Copilot Chat. No MCP Inspector entry (unverified publisher).
 
 ### Best-Practice Deviations Or Caveats
@@ -63,7 +70,7 @@ The previous stack had become role-heavy and did not yet have persistent inboxes
 - Make Lead Dev responsible for development delegation and fallback implementation.
 - Make AI Ops the owner for prompts, instructions, agents, skills, MCP, metrics, model routing, and agentic audits.
 - Add repository-backed inboxes under `.github/inboxes` and keep VS Code UI handoffs as optional next-step buttons.
-- Add metrics definitions and review routing under `.github/agentic-ai/METRICS.md`.
+- Add metrics definitions and review routing under `.github/governance/METRICS.md`.
 - Keep exact model names out of frontmatter until the active Copilot client verifies availability.
 
 ### Best-Practice Deviations Or Caveats
@@ -96,7 +103,7 @@ User requested a best-practice review against the [GitHub Copilot customization 
 - Renamed `.github/agents/AGENTS.md` to `.github/agents/ROSTER.md` and added a real `AGENTS.md` at the repository root per the agents.md standard.
 - Added a nested `tutor-studio/AGENTS.md` so frontend-only coding agents have local guidance.
 - Implemented a minimal read-only MCP server under `mcp-server/` exposing inboxes, roster, and governance docs.
-- Added `.github/agentic-ai/MODEL_ROUTING.md` as a one-page routing reference for GPT, Claude, Gemini, and local Ollama (DeepSeek, Qwen).
+- Added `.github/governance/MODEL_ROUTING.md` as a one-page routing reference for GPT, Claude, Gemini, and local Ollama (DeepSeek, Qwen).
 - Added `.github/prompts/compact.prompt.md` so long sessions can be compacted into prioritized inbox items.
 - Updated `bitcraft-context-management` skill to integrate the runtime memory scopes (`/memories/`, `/memories/session/`, `/memories/repo/`).
 - Updated `.gitignore` to selectively un-ignore `.vscode/mcp.json`, `settings.json`, `extensions.json`, `tasks.json`, `launch.json`, and to ignore agent scratch artifacts (`*.session.md`, `*.draft.md`, `*.transcript.md`).
@@ -105,9 +112,9 @@ User requested a best-practice review against the [GitHub Copilot customization 
 ### Best-Practice Deviations Or Caveats
 
 - The MCP server is intentionally minimal. Extensions in `bitcraft-mcp-spec.md` (bounded context summaries, contract lookup, test inventory) remain deferred.
-- `.github/agentic-ai/` retains a project-specific name rather than the more generic `.github/governance/`. The deviation is documented for cross-project reuse.
+- `.github/governance/` retains a project-specific name rather than the more generic `.github/governance/`. The deviation is documented for cross-project reuse.
 
 ### Follow-Up Work
 
-- AI Ops: run an audit using `.github/agentic-ai/AUDIT_TEMPLATES.md` and capture findings.
+- AI Ops: run an audit using `.github/audits/templates/audit.template.md` and capture findings.
 - AI Ops: refresh `/memories/repo/` entries to point at the new file layout when next activated.

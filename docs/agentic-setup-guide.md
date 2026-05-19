@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Bitcraft Agentic Stack — Portable Setup Guide
 
 This guide explains how to recreate a stack like Bitcraft's in another project. It is opinionated, GitHub Copilot Pro friendly, and compatible with third-party coding agents through the [agents.md](https://agents.md/) standard.
@@ -38,14 +45,17 @@ A repository-versioned agentic AI layer with:
 │   ├── inboxes/
 │   │   ├── README.md                        # inbox schema and rules
 │   │   └── <agent-slug>/inbox.md            # prioritized backlog per agent
-│   ├── agentic-ai/
+│   ├── governance/
 │   │   ├── PROJECT_BRIEF.md
 │   │   ├── TOOLING_MATRIX.md
 │   │   ├── DEVELOPER_GUIDE.md
 │   │   ├── METRICS.md
 │   │   ├── MODEL_ROUTING.md
-│   │   ├── AUDIT_TEMPLATES.md
-│   │   └── FRAMEWORK_REVIEW.md
+│   │   ├── BRANCH_CONVENTION.md
+│   │   └── HUMAN_DECISIONS.md
+│   ├── config/                              # human-managed YAML configuration
+│   │   ├── approved-external-sources.yaml
+│   │   └── cil-{low,medium,high,critical}.yaml
 │   └── mcp/
 │       └── <project>-mcp-spec.md            # full MCP design surface
 ├── mcp-server/                              # minimal read-only MCP server
@@ -141,7 +151,7 @@ Document the schema in `inboxes/README.md`. Refuse anything that is not a backlo
 
 ### 8. Write the governance docs
 
-`.github/agentic-ai/`:
+`.github/governance/`:
 
 - `PROJECT_BRIEF.md`: purpose, surfaces, departments, constraints, model direction.
 - `TOOLING_MATRIX.md`: which IDE/agent surfaces each primitive lives in.
@@ -223,10 +233,10 @@ Pair this with the project's normal lint/test pipelines.
 | Prompt | `.github/prompts/<verb-or-noun>.prompt.md` | `develop.prompt.md` |
 | Skill | `.github/skills/<name>/SKILL.md` | `bitcraft-review/SKILL.md` |
 | Inbox | `.github/inboxes/<agent-slug>/inbox.md` | `ai-ops/inbox.md` |
-| Governance doc | `.github/agentic-ai/<NAME>.md` | `MODEL_ROUTING.md` |
+| Governance doc | `.github/governance/<NAME>.md` | `MODEL_ROUTING.md` |
 | MCP spec | `.github/mcp/<project>-mcp-spec.md` | `bitcraft-mcp-spec.md` |
 | MCP server | `mcp-server/server.py` | — |
-| Audit report | `.github/agentic-ai/AUDIT_<YYYY-MM-DD>_<LANE>.md` | `AUDIT_2026-05-18_AGENTIC.md` |
+| Audit report | `.github/governance/AUDIT_<YYYY-MM-DD>_<LANE>.md` | `AUDIT_2026-05-18_AGENTIC.md` |
 
 Agent slugs are lowercase hyphenated. Agent display names in frontmatter are Title Case. Skill names are lowercase hyphenated, optionally prefixed with the project name.
 

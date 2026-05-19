@@ -1,5 +1,5 @@
-extends: existence
-message: "AI-generated reports under docs/ or .github/agentic-ai/ should start with a provenance blockquote. See .github/agentic-ai/PROVENANCE.md."
+﻿extends: existence
+message: "AI-generated reports under docs/ or .github/governance/ should start with a provenance blockquote. See .github/governance/PROVENANCE.md."
 level: suggestion
 scope: raw
 raw:

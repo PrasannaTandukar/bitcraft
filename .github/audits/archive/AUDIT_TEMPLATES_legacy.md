@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Audit Templates
 
 Use these templates for recurring audits. Audit reports should be presentable, evidence-backed, and converted into actionable inbox or Jira items.

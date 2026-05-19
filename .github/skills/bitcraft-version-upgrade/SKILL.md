@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-version-upgrade
 description: 'Plan and execute Bitcraft dependency, framework, model, tool, and platform upgrades. Use for .NET, EF Core, PostgreSQL/pgvector, React/Vite, Copilot customization syntax, Ollama models, Docker, and CI/CD version changes.'
 argument-hint: '[package, framework, model, or platform to upgrade]'

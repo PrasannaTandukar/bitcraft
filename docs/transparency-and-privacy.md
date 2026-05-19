@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Transparency and Privacy Statement
 
 Bitcraft aims to remain open-source-first and deployment-transparent. This document is the operator-facing record of that posture, the current data-handling model, and the process for disclosing exceptions.

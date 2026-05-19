@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'NET Dev'
 description: '.NET backend specialist for Bitcraft. Use for Clean Architecture, Domain, Application, Infrastructure, Api, EF Core, Identity/JWT, MediatR/CQRS, PostgreSQL/pgvector, and backend tests.'
 argument-hint: '[backend feature, bug, test, contract, persistence, or API task]'

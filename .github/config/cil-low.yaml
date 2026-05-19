@@ -1,0 +1,39 @@
+# CIL Low — routine, contained, low-blast-radius changes.
+level: low
+description: >
+  Local non-runtime docs, prompt wording, isolated test-only changes,
+  or single-file refactors with no cross-cutting impact.
+
+agents_required:
+  - one specialist matching the work surface (e.g., ai-ops for .github, net-dev for backend)
+
+research_required:
+  - none beyond reading the impacted files and their direct imports
+
+tools_allowed:
+  - read
+  - search
+  - edit
+
+context_sources:
+  - impacted files
+  - the agent's own inbox
+
+development_order:
+  - read impacted files
+  - apply minimal edit
+  - run focused validation
+
+validation_required:
+  - markdown lint on touched markdown
+  - syntax check on touched code
+
+review_required:
+  - implementing agent self-check
+
+human_escalation:
+  required: false
+  conditions: []
+
+notes: >
+  Do not escalate to lead-dev unless a hidden cross-cutting risk surfaces.

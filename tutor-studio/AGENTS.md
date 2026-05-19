@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # AGENTS.md - Tutor Studio Frontend
 
 This nested file gives coding agents focused guidance when working inside `tutor-studio/`. The repository-root `AGENTS.md` and `.github/copilot-instructions.md` still apply; this file adds frontend-specific rules.

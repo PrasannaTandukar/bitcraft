@@ -1,8 +1,15 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Bitcraft Agentic Architecture Reference
 
 > **This document is a high-level pointer only.** The detailed, authoritative content has moved:
 >
-> - Architecture principles, department model, and workflow: [`.github/agentic-ai/PROJECT_BRIEF.md`](../.github/agentic-ai/PROJECT_BRIEF.md) and [`.github/agentic-ai/DEVELOPER_GUIDE.md`](../.github/agentic-ai/DEVELOPER_GUIDE.md).
+> - Architecture principles, department model, and workflow: [`.github/governance/PROJECT_BRIEF.md`](../.github/governance/PROJECT_BRIEF.md) and [`.github/governance/DEVELOPER_GUIDE.md`](../.github/governance/DEVELOPER_GUIDE.md).
 > - Human-facing overview, security notes, and maintenance guide: [`docs/agentic-ai.md`](agentic-ai.md).
 > - Portable setup template for new projects: [`docs/agentic-setup-guide.md`](agentic-setup-guide.md).
 >
@@ -56,14 +63,18 @@
 ├── inboxes/
 │   ├── README.md
 │   └── <agent-slug>/inbox.md
-├── agentic-ai/
+├── governance/
 │   ├── PROJECT_BRIEF.md
 │   ├── TOOLING_MATRIX.md
 │   ├── DEVELOPER_GUIDE.md
 │   ├── METRICS.md
 │   ├── MODEL_ROUTING.md
-│   ├── AUDIT_TEMPLATES.md
-│   └── FRAMEWORK_REVIEW.md
+│   ├── BRANCH_CONVENTION.md
+│   ├── HUMAN_DECISIONS.md
+│   └── PROMPT_STACK_MAINTENANCE.md
+├── config/
+│   ├── approved-external-sources.yaml
+│   └── cil-{low,medium,high,critical}.yaml
 └── mcp/
     └── bitcraft-mcp-spec.md
 ```
@@ -125,7 +136,7 @@ Inboxes are not for:
 
 ## Metrics-Based Decisions
 
-The metrics system is owned by AI Ops and documented in `.github/agentic-ai/METRICS.md`.
+The metrics system is owned by AI Ops and documented in `.github/governance/METRICS.md`.
 
 Risk routing starts with:
 
@@ -151,7 +162,7 @@ The architecture has three recurring audit lanes:
 - Integrity Audit by Dev Ops.
 - Agentic Audit by AI Ops.
 
-All audits use `.github/agentic-ai/AUDIT_TEMPLATES.md`. Findings should be converted into inbox or Jira items, not left as untracked report prose.
+All audits use `.github/governance/AUDIT_TEMPLATES.md`. Findings should be converted into inbox or Jira items, not left as untracked report prose.
 
 ## Branching And Work Management
 

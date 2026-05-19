@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-model-routing
 description: 'Choose GPT, Claude, Gemini, local Ollama DeepSeek/Qwen, or hybrid model routing for Bitcraft development and AI tutor workflows. Use for 2x RTX 3090 planning, cost control, privacy, future Junior Dev tasks, and inference tradeoffs.'
 argument-hint: '[task type, privacy level, budget, model family, or hardware constraint]'
@@ -31,7 +36,7 @@ Use this skill to choose the right model path for the job.
 - Cost per month and request budget.
 - Latency and local GPU utilization.
 - Tool integration and validation support.
-- CSR, rework, ILR, loop count, and token/cost trends from `.github/agentic-ai/METRICS.md`.
+- CSR, rework, ILR, loop count, and token/cost trends from `.github/governance/METRICS.md`.
 
 ## Gotchas
 

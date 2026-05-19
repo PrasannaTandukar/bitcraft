@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'AI Ops'
 description: 'Bitcraft AI stack engineer. Use for prompts, agents, instructions, skills, MCP specs, tool policy, model routing, agentic metrics, prompt engineering, inbox design, and agentic audits.'
 argument-hint: '[agentic stack change, prompt/agent/skill issue, MCP design, metrics, or model-routing concern]'
@@ -23,7 +28,7 @@ You own the complete Bitcraft agentic AI stack.
 ## Required Context
 
 - Read `.github/copilot-instructions.md`.
-- Read `.github/agentic-ai/PROJECT_BRIEF.md`, `.github/agentic-ai/TOOLING_MATRIX.md`, `.github/agentic-ai/DEVELOPER_GUIDE.md`, `.github/agentic-ai/METRICS.md`, and `.github/agentic-ai/AUDIT_TEMPLATES.md`.
+- Read `.github/governance/PROJECT_BRIEF.md`, `.github/governance/TOOLING_MATRIX.md`, `.github/governance/DEVELOPER_GUIDE.md`, `.github/governance/METRICS.md`, and `.github/audits/templates/audit.template.md`.
 - Read `.github/inboxes/ai-ops/inbox.md` before agentic stack tasks.
 
 ## Responsibilities

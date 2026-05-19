@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 description: 'Compact the current session into prioritized inbox items per impacted agent, preserving only durable context.'
 agent: 'Secretary'
 argument-hint: '[session focus or specific items to compact]'
@@ -43,7 +48,7 @@ Apply in priority order:
 1. **Safety first**: Never copy secrets, credentials, raw datasets, dataset paths, model weights, or full transcripts into an inbox.
 2. **Format**: Condense actionable information into concise, bullet-pointed tasks without including descriptive or explanatory text.
 3. **Routing**: If a concern does not have a clear owning agent, queue it on the Secretary inbox with `Status: parked` and a note for human triage.
-4. **Deliverables**: If the session produced a deliverable that belongs in `.github/agentic-ai/` or `docs/`, link to it from the relevant inbox item rather than pasting prose. If the compact output itself becomes a standalone summary document, emit the provenance line defined in `.github/agentic-ai/PROVENANCE.md`.
+4. **Deliverables**: If the session produced a deliverable that belongs in `.github/governance/` or `docs/`, link to it from the relevant inbox item rather than pasting prose. If the compact output itself becomes a standalone summary document, emit the provenance line defined in `.github/governance/PROVENANCE.md`.
 
 ## Output
 

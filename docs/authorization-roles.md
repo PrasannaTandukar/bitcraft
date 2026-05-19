@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Authorization Roles
 
 Authorization uses three roles only: `Admin`, `Editor`, and `Viewer`.
