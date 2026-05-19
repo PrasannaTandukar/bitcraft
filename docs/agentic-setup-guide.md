@@ -206,6 +206,7 @@ For any change in `.github/` or `AGENTS.md`:
 - Internal links resolve.
 - No stale references after a rename.
 - No secrets, credentials, dataset paths, or model weights anywhere.
+- If `.vscode/mcp.json` changed: confirm all third-party server tools are in the approved tool list, and that per-request approval is configured for any server with prompt-injection risk.
 
 Pair this with the project's normal lint/test pipelines.
 

@@ -12,6 +12,7 @@ Use this when the user wants evidence before choosing a technical direction.
 2. Define the research question and decision it supports.
 3. Gather repository evidence first, then official docs or high-quality external sources.
 4. Identify best-practice alignment, deviations, risks, and missing information.
-5. If follow-up work is needed, create concise inbox items for Planner, Typewriter, AI Ops, Dev Ops, or Sec Ops.
+5. When the research output becomes a standalone document under `docs/` or `.github/agentic-ai/`, emit the provenance line defined in `.github/agentic-ai/PROVENANCE.md` as the first line under the H1 title.
+6. If follow-up work is needed, create concise inbox items for Planner, Typewriter, AI Ops, Dev Ops, or Sec Ops.
 
 Output: evidence, confidence, recommendation, and follow-up inbox items.

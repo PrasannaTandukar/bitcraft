@@ -17,7 +17,8 @@ Bitcraft uses GitHub Copilot in VS Code as the primary agent surface. The stack 
 | Agent inboxes | `.github/inboxes/<agent-slug>/inbox.md` | Prioritized per-agent backlog of cross-agent work items. |
 | Governance | `.github/agentic-ai/*.md` | Project brief, tooling matrix, developer guide, metrics, model routing, audit templates, and framework review notes. |
 | MCP specification | `.github/mcp/bitcraft-mcp-spec.md` | Full MCP design surface (most tools still deferred). |
-| MCP minimal server | `mcp-server/` and `.vscode/mcp.json` | Read-only Python MCP server exposing inboxes, roster, and governance docs to compatible clients. |
+| MCP minimal server | `mcp-server/` and `.vscode/mcp.json` | Read-only Python MCP server exposing inboxes, roster, governance docs, and a Clean Architecture spot check to compatible clients. Also wires the reference `fetch` and read-only `git` MCP servers via `uvx`. |
+| Static linting | `.markdownlint.jsonc`, `.vale.ini`, `.github/vale/styles/` | Markdown/prose checks for docs and agentic governance. Prompt evaluation frameworks are deferred to external tooling, not embedded in this repo. |
 
 The older numbered startup/develop/test/review prompt ladder was replaced with role-based workflows. Startup is now an `/overview` workflow owned by Secretary.
 
@@ -132,10 +133,44 @@ The stack supports model families rather than hard-coded model names in frontmat
 
 Exact model names should be selected in the active client only after availability, cost, privacy, and quality are verified.
 
+## MCP Security
+
+Two of the three MCP servers wired in `.vscode/mcp.json` have open security findings that require specific handling until Sec Ops completes its sign-off. The third (`bitcraft-mcp`) is read-only and scoped; no action needed.
+
+### `fetch` — Prompt Injection Risk
+
+**What it does:** Fetches any URL and returns the full page content into agent context.
+
+**The risk:** A web page with adversarial embedded text can instruct the agent to perform unintended actions — leaking file contents, generating unwanted code, or chaining unexpected tool calls.
+
+**Required until Sec Ops signs off:**
+- In VS Code, open **Settings → Configure Tools** and set `fetch` to **per-request approval only**.
+- Never pre-approve `fetch` for an entire session.
+- Treat all content returned by `fetch` as untrusted.
+
+**What happens if you skip this:** An agent doing research can load a malicious page and execute injected instructions. The agent may have broad file-read access during a research session, making this a real data-leakage and unintended-action risk.
+
+### `git` — Unconfirmed Write-Capable Tools
+
+**What it does:** Provides Git history, log, diff, and blame access for the workspace.
+
+**The risk:** `mcp-server-git` may also expose write-capable tools (`git_create_branch`, `git_checkout`, `git_commit`, `git_push`) depending on the version installed. These have not been audited on this installation.
+
+**Required until Sec Ops signs off:**
+- In VS Code, open **Settings → Configure Tools** and approve only: `git_log`, `git_diff`, `git_show`, `git_blame`, `git_read_file`.
+- Actively decline any other `git_*` tools when prompted.
+- Do not grant blanket session approval to the `git` server.
+
+**What happens if you skip this:** An agent with unchecked `git` tool access may commit, branch, or push — bypassing the rule that humans own all Git write operations and creating unreviewed history.
+
+Full technical detail and long-term remediation options are in `.github/mcp/bitcraft-mcp-spec.md` under **Known Open Security Findings**.
+
 ## Maintenance
 
 Validate `.github` and docs changes with:
 
+- `npx markdownlint-cli2 --config .markdownlint.jsonc ".github/**/*.md" "docs/**/*.md" "*.md"`.
+- `vale --config .vale.ini .github docs *.md`.
 - Markdown diagnostics.
 - Prompt frontmatter: `description`, `agent`, and `argument-hint`.
 - Instruction frontmatter: `applyTo`.
@@ -144,3 +179,5 @@ Validate `.github` and docs changes with:
 - Internal consistency between `.github/agentic-ai`, prompts, agents, skills, and this document.
 
 Review the stack when VS Code or Copilot customization syntax changes, workflows drift, new MCP tools are proposed, metrics create bad incentives, or agent roles start overlapping again.
+
+For prompt-stack maintenance methodology and external evaluation options, see `.github/agentic-ai/PROMPT_STACK_MAINTENANCE.md`.

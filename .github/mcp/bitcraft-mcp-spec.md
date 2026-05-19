@@ -9,10 +9,26 @@ This file is the long-form MCP design surface. A minimal read-only MCP server is
 - `list_inboxes`, `read_inbox(agent_slug)`
 - `list_governance_docs`, `read_governance(name)`
 - `list_agents`, `read_roster`
+- `verify_architecture_readonly` — reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, forbidden external package references in Application). Read-only spot check; enforcement still belongs to tests and CI.
 
-The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/agentic-ai/`, `.github/agents/`, and `.github/inboxes/`. No writes, no shell, no network.
+The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/agentic-ai/`, `.github/agents/`, `.github/inboxes/`, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
 
-When extending the server, follow the Security Model section below and update both this spec and `mcp-server/README.md`.
+## Third-Party MCP Servers Wired In `.vscode/mcp.json`
+
+| Server | Command | Purpose | Risk class |
+| --- | --- | --- | --- |
+| `bitcraft-mcp` | `python mcp-server/server.py` | Repository governance + Clean Architecture spot check (this repo). | Low (read-only, scoped). |
+| `fetch` | `uvx mcp-server-fetch` | Lets the agent fetch and convert web pages for research. | Medium (prompt-injection on returned content). Sec Ops review pending. |
+| `git` | `uvx mcp-server-git --repository ${workspaceFolder}` | Read-only Git history, blame, log, diff. Must NOT expose commit/push tools. | Medium (file content surfacing). Sec Ops review pending. |
+
+Out of scope per 2026-05-19 human decision:
+
+- GitHub MCP — Bitcraft is hosted on Bitbucket. No mirror; do not add.
+- Atlassian Remote MCP (Jira/Confluence) — deferred; will be revisited when team agrees on auth model.
+- Bitbucket MCP — no official server exists today; deferred.
+- Copilot CLI hooks (`preToolUse.json`) — CLI is not adopted; do not scaffold.
+
+When extending the server or wiring a new third-party MCP, follow the Security Model section below and update both this spec and `mcp-server/README.md`.
 
 ## Goals
 
@@ -194,6 +210,30 @@ MCP prompts should wrap existing project workflows instead of replacing `.github
 - `review_bitcraft_change`: produces review findings using changed files, contracts, tests, and security checks.
 - `design_bitcraft_mcp_tool`: creates a safe tool proposal with schema, auth, prompt-injection risk, and validation.
 - `summarize_agentic_stack`: summarizes `.github` customizations and drift warnings.
+
+## Known Open Security Findings
+
+These findings were raised during the 2026-05-19 post-development review and require Sec Ops sign-off before `fetch` and `git` are treated as approved defaults.
+
+### Finding A — `fetch` MCP: Prompt Injection via Returned Web Content
+
+- **Severity:** Medium
+- **Status:** Open — pending Sec Ops sign-off.
+- **Risk:** The `fetch` server returns arbitrary web content verbatim into agent context. A page with adversarial embedded text can instruct the agent to perform unintended actions: exfiltrate file contents, generate unwanted code, or chain unexpected tool calls.
+- **Required workaround until sign-off:** Configure `fetch` in VS Code as **per-request approval only**. Never auto-approve `fetch` for an entire session. Mark all content returned by `fetch` as untrusted (`sourceKind: web`).
+- **Risk if workaround is skipped:** A research task that loads a malicious page could cause the agent to act on injected instructions. The agent may have broad file-read access at the time, making this a meaningful data-leakage vector.
+- **Long-term remediation options:** Define a domain allow-list in the client; return fetched content only in structured `untrustedContent` fields; add per-domain Sec Ops approval gates.
+
+### Finding B — `git` MCP: Write-Capable Tools May Be Present
+
+- **Severity:** Medium
+- **Status:** Open — pending Sec Ops tool inventory check.
+- **Risk:** `mcp-server-git` may expose `git_create_branch`, `git_checkout`, `git_commit`, `git_push`, and `git_set_working_dir` in addition to read-only tools, depending on the version retrieved by `uvx`. This contradicts the project rule that humans own all Git write operations.
+- **Required workaround until sign-off:** In VS Code Configure Tools, approve only: `git_log`, `git_diff`, `git_show`, `git_blame`, `git_read_file`. Actively decline any other `git_*` tools. Do not grant blanket session approval to the `git` server.
+- **Risk if workaround is skipped:** An agent with unchecked `git` tool access may commit, branch, or push — bypassing human review gates and creating unreviewed history or accidental production changes.
+- **Long-term remediation options:** Pin a specific version of `mcp-server-git` and document the exact exposed tool list; add a server-level tool filter if the client supports it; run a one-time audit of exposed tools on the installed version.
+
+Once Sec Ops completes its review, approved mitigations and the confirmed-safe tool list should be recorded here, and the Sec Ops inbox item removed.
 
 ## Security Model
 

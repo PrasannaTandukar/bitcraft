@@ -4,6 +4,20 @@
       "type": "stdio",
       "command": "python",
       "args": ["${workspaceFolder}/mcp-server/server.py"]
+    },
+    "fetch": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "git": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "${workspaceFolder}"
+      ]
     }
   }
 }

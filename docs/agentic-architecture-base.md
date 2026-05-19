@@ -1,6 +1,14 @@
 # Bitcraft Agentic Architecture Reference
 
-This reference adapts the portable agentic architecture into Bitcraft's current repository. It describes the real stack after the cohesion reset, not a generic template.
+> **This document is a high-level pointer only.** The detailed, authoritative content has moved:
+>
+> - Architecture principles, department model, and workflow: [`.github/agentic-ai/PROJECT_BRIEF.md`](../.github/agentic-ai/PROJECT_BRIEF.md) and [`.github/agentic-ai/DEVELOPER_GUIDE.md`](../.github/agentic-ai/DEVELOPER_GUIDE.md).
+> - Human-facing overview, security notes, and maintenance guide: [`docs/agentic-ai.md`](agentic-ai.md).
+> - Portable setup template for new projects: [`docs/agentic-setup-guide.md`](agentic-setup-guide.md).
+>
+> Do not update the sections below \u2014 they are kept only for historical context and will not be kept in sync.
+
+---
 
 ## Principles
 

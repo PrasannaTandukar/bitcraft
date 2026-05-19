@@ -1,0 +1,7 @@
+extends: existence
+message: "Retired hook filename '%s'. See .github/agentic-ai/CONTENT_EXCLUSION.md for the real mechanism."
+level: error
+ignorecase: true
+tokens:
+  - pre-tool\.sh
+  - pre-execute\.sh
