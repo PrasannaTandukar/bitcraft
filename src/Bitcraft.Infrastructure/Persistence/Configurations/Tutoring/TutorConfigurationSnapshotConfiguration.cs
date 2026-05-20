@@ -13,6 +13,8 @@ public class TutorConfigurationSnapshotConfiguration : IEntityTypeConfiguration<
 
         entity.ConfigureBaseModel();
 
+        entity.Property(x => x.VersionNumber).IsRequired();
+
         entity.Property(x => x.TutorName)
             .IsRequired()
             .HasMaxLength(200);
@@ -41,5 +43,6 @@ public class TutorConfigurationSnapshotConfiguration : IEntityTypeConfiguration<
         entity.HasIndex(x => x.TutorId);
         entity.HasIndex(x => x.CapturedById);
         entity.HasIndex(x => x.CapturedUtc);
+        entity.HasIndex(x => new { x.TutorId, x.VersionNumber }).IsUnique();
     }
 }

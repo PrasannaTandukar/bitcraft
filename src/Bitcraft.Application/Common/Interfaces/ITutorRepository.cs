@@ -23,4 +23,7 @@ public interface ITutorRepository
     Task<TutorModelConnection> UpsertTutorModelConnectionAsync(TutorModelConnection connection, CancellationToken cancellationToken = default);
 
     Task<TutorConfigurationSnapshot> AddSnapshotAsync(TutorConfigurationSnapshot snapshot, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns 1 for the first snapshot of a tutor, otherwise <c>max(VersionNumber) + 1</c>.</summary>
+    Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
 }

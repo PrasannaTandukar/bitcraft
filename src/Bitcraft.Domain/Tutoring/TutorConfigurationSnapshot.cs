@@ -12,6 +12,10 @@ namespace Bitcraft.Domain.Tutoring;
 public class TutorConfigurationSnapshot : BaseModel
 {
     public Guid TutorId { get; private set; }
+
+    /// <summary>Sequential per-tutor revision number assigned at capture time. Forms the logical "tutor revision" identity (D25 step 7).</summary>
+    public int VersionNumber { get; private set; }
+
     public string TutorName { get; private set; } = string.Empty;
     public Guid? PromptVersionId { get; private set; }
     public string? PromptContent { get; private set; }
@@ -30,6 +34,7 @@ public class TutorConfigurationSnapshot : BaseModel
 
     public static TutorConfigurationSnapshot Capture(
         Tutor tutor,
+        int versionNumber,
         PromptVersion? promptVersion,
         TutorModelConnection? tutorModelConnection,
         string? toolsJson,
@@ -42,12 +47,17 @@ public class TutorConfigurationSnapshot : BaseModel
         {
             throw new ArgumentException("Captured user id is required.", nameof(capturedById));
         }
+        if (versionNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(versionNumber), versionNumber, "Version number must be positive.");
+        }
 
         var interactionModel = tutorModelConnection?.InteractionModel;
 
         return new TutorConfigurationSnapshot
         {
             TutorId = tutor.Id,
+            VersionNumber = versionNumber,
             TutorName = tutor.Name,
             PromptVersionId = promptVersion?.Id,
             PromptContent = promptVersion?.Content,

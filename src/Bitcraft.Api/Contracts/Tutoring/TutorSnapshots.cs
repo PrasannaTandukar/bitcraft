@@ -4,6 +4,7 @@ namespace Bitcraft.Api.Contracts.Tutoring;
 public sealed record TutorConfigurationSnapshotResponse(
     Guid Id,
     Guid TutorId,
+    int VersionNumber,
     string TutorName,
     Guid? PromptVersionId,
     string? PromptContent,

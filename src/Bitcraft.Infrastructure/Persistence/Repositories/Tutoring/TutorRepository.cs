@@ -120,4 +120,13 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         await db.SaveChangesAsync(cancellationToken);
         return snapshot;
     }
+
+    public async Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
+    {
+        var max = await db.Set<TutorConfigurationSnapshot>()
+            .Where(x => x.TutorId == tutorId)
+            .Select(x => (int?)x.VersionNumber)
+            .MaxAsync(cancellationToken);
+        return (max ?? 0) + 1;
+    }
 }

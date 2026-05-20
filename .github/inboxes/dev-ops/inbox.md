@@ -8,6 +8,16 @@ ai_gen: true
 # Dev Ops Inbox
 
 - Date: 2026-05-21
+- Status: pending Human action after PR #4-8 merge
+- Source: Lead Dev (plan v3.4 / D25 steps 4-8)
+- Target: dev-ops
+- Priority: high (release-blocking for any env running merged step 4-8 code)
+- Task: Apply EF migration `20260520190952_Documents_Folders_DynamicDims_SnapshotVersions_20260521`. Migration drops the HNSW index on `KnowledgeChunks.Embedding`, relaxes the column from `vector(768)` to untyped `vector`, adds `EmbeddingModelId` + `EmbeddingDimensions`, creates `DocumentFolders`, adds `Documents.FolderId`, and adds `TutorConfigurationSnapshots.VersionNumber` (with backfill SQL ordered by CapturedUtc/Id before the unique index). `Down()` re-creates the HNSW index but rejects any rows whose embedding dimension differs from 768.
+- Command: `dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api`.
+- Notes: After apply, monitor `/api/knowledge/...` similarity query latency — HNSW is gone, so cosine search is sequential. Acceptable for current data volume; per-model partitioned ANN indices are a deferred follow-up. Verify the snapshot backfill set unique versions for every tutor: `SELECT "TutorId", COUNT(*) FROM "TutorConfigurationSnapshots" GROUP BY "TutorId" HAVING COUNT(DISTINCT "VersionNumber") <> COUNT(*);` must return zero rows.
+- Acceptance/Cleanup: Close after migration applied in dev + staging + prod and the verification query is empty.
+
+- Date: 2026-05-21
 - Status: pending Human action after PR #2 merge
 - Source: Lead Dev (plan v3.4 / D25 step 2)
 - Target: dev-ops

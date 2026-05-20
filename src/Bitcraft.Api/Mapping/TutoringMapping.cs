@@ -31,10 +31,20 @@ internal static class TutoringMapping
         document.SourcePath,
         document.MimeType,
         document.RawText,
+        document.FolderId,
         document.CreatedUtc,
         document.CreatedById,
         document.ModifiedUtc,
         document.ModifiedById);
+
+    public static DocumentFolderResponse ToResponse(this DocumentFolder folder) => new(
+        folder.Id,
+        folder.Name,
+        folder.ParentFolderId,
+        folder.CreatedUtc,
+        folder.CreatedById,
+        folder.ModifiedUtc,
+        folder.ModifiedById);
 
     public static VectorizeDocumentResponse ToResponse(this KnowledgeFeatures.VectorizeDocumentResult result) => new(
         result.DocumentId,
@@ -118,7 +128,7 @@ internal static class TutoringMapping
         c.Id, c.TutorId, c.InteractionModelId, c.OverrideSettingsJson, c.CreatedUtc, c.ModifiedUtc);
 
     public static TutorConfigurationSnapshotResponse ToResponse(this TutorConfigurationSnapshot s) => new(
-        s.Id, s.TutorId, s.TutorName, s.PromptVersionId, s.PromptContent,
+        s.Id, s.TutorId, s.VersionNumber, s.TutorName, s.PromptVersionId, s.PromptContent,
         s.TutorModelConnectionId, s.InteractionModelId, s.ModelName, s.ModelSettingsJson,
         s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById);
 

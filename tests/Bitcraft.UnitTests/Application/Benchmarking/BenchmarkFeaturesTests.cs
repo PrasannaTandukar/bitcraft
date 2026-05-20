@@ -1059,7 +1059,7 @@ public class BenchmarkRunFeaturesTests
             InteractionModelId = interactionModel.Id,
             InteractionModel = interactionModel
         };
-        var snapshot = TutorConfigurationSnapshot.Capture(tutor, null, tutorModelConnection, null, null, null, ownerId);
+        var snapshot = TutorConfigurationSnapshot.Capture(tutor, 1, null, tutorModelConnection, null, null, null, ownerId);
         tutorRepository.Snapshots.Add(snapshot);
 
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
@@ -1130,7 +1130,7 @@ public class BenchmarkRunFeaturesTests
             InteractionModelId = snapshotInteractionModel.Id,
             InteractionModel = snapshotInteractionModel
         };
-        var snapshot = TutorConfigurationSnapshot.Capture(tutor, null, tutorModelConnection, null, null, null, ownerId);
+        var snapshot = TutorConfigurationSnapshot.Capture(tutor, 1, null, tutorModelConnection, null, null, null, ownerId);
         tutorRepository.Snapshots.Add(snapshot);
 
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
