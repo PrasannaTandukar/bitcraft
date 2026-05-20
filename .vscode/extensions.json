@@ -1,0 +1,25 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-dotnettools.vscode-dotnet-runtime",
+    "ms-azuretools.vscode-docker",
+    "humao.rest-client",
+    "ms-ossdata.vscode-postgresql",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "usernamehw.errorlens",
+    "editorconfig.editorconfig",
+    "eamodio.gitlens",
+    "mikestead.dotenv",
+    "davidanson.vscode-markdownlint",
+    "chrischinchilla.vale-vscode",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "github.copilot",
+    "github.copilot-chat"
+  ]
+}

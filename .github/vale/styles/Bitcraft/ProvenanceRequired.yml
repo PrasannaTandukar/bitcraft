@@ -1,0 +1,6 @@
+extends: existence
+message: "AI-generated reports under docs/ or .github/agentic-ai/ should start with a provenance blockquote. See .github/agentic-ai/PROVENANCE.md."
+level: suggestion
+scope: raw
+raw:
+  - '\A(?:---\r?\n[\s\S]*?\r?\n---\r?\n)?(?:#[^\n]*\r?\n)?(?!>\s*Origin:)'
