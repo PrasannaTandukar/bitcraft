@@ -2,6 +2,7 @@ using Bitcraft.Domain.Identity;
 using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -17,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Tutor> Tutors => Set<Tutor>();
     public DbSet<TutorMember> TutorMembers => Set<TutorMember>();
     public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();
+    public DbSet<RuntimeEngine> RuntimeEngines => Set<RuntimeEngine>();
     public DbSet<ModelCatalogEntry> ModelCatalogEntries => Set<ModelCatalogEntry>();
     public DbSet<TutorModelConnection> TutorModelConnections => Set<TutorModelConnection>();
     public DbSet<KnowledgeSourceLink> TutorKnowledgeSources => Set<KnowledgeSourceLink>();

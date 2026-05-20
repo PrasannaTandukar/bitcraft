@@ -8,6 +8,7 @@ using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Microsoft.AspNetCore.Mvc;
 
@@ -61,6 +62,18 @@ internal static class TutoringMapping
         entry.CreatedById,
         entry.ModifiedUtc,
         entry.ModifiedById);
+
+    public static RuntimeEngineResponse ToResponse(this RuntimeEngine engine) => new(
+        engine.Id,
+        engine.Name,
+        engine.ProviderType,
+        engine.Endpoint,
+        HasApiKeySecret: !string.IsNullOrWhiteSpace(engine.ApiKeySecretRef),
+        engine.IsEnabled,
+        engine.CreatedUtc,
+        engine.CreatedById,
+        engine.ModifiedUtc,
+        engine.ModifiedById);
 
     public static TutorResponse ToResponse(this Tutor tutor) => new(
         tutor.Id,

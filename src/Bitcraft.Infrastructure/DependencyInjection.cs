@@ -11,6 +11,7 @@ using Bitcraft.Infrastructure.Persistence.Interceptors;
 using Bitcraft.Infrastructure.Persistence.Repositories.Benchmarking;
 using Bitcraft.Infrastructure.Persistence.Repositories.Documents;
 using Bitcraft.Infrastructure.Persistence.Repositories.Knowledge;
+using Bitcraft.Infrastructure.Persistence.Repositories.Modeling;
 using Bitcraft.Infrastructure.Persistence.Repositories.Tutoring;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -78,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<ITutorRepository, TutorRepository>();
         services.AddScoped<ITutorMembershipReader, TutorMembershipReader>();
         services.AddScoped<IModelCatalogRepository, ModelCatalogRepository>();
+        services.AddScoped<IRuntimeEngineRepository, RuntimeEngineRepository>();
 
         // Benchmarking
         services.AddScoped<IBenchmarkTemplateRepository, BenchmarkTemplateRepository>();
