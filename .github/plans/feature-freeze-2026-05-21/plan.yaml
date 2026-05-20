@@ -1,0 +1,39 @@
+branch: feature-freeze-2026-05-21
+created_at: 2026-05-19
+updated_at: 2026-05-20
+status: active
+goal: >
+  Freeze the Proof-of-Concept Product Core and Tutor Studio feature set before
+  2026-05-21: user bootstrap template, segmented environment/runtime-engine
+  settings, capability-aware model registry and configuration workflow,
+  tutor-specific text document ingestion, vectorization with selected embedding
+  model, tutor configuration, local activation, separate local runtime API, and
+  benchmarking shell.
+cil: high
+css: 8
+dis: 8
+agents:
+  lead: lead-dev
+  supporting:
+    - NET Dev
+    - Web Dev
+    - sec-ops
+    - dev-ops
+    - researcher
+model_family: claude
+human_locks:
+  - approval of tracked bootstrap template shape before implementation
+  - approval of Admin/Editor/Auditor/User role strategy and whether scoped tutor/project membership is in freeze scope
+  - approval of final Product model and vectorization workflow before frontend buildout
+  - approval of Runtime Engine entity now versus vocabulary-only POC
+  - approval of tutor document scoping via TutorId versus TutorDocumentLink
+  - approval of snapshot-only activation versioning versus TutorRevision escalation
+  - approval of local unauthenticated runtime endpoint guard versus JWT-only runtime testing
+  - approval of any product secret storage beyond environment/secret references
+  - approval of any Product MCP runtime connector execution before implementation
+  - approval of any production endpoint, deployment, migration apply, or Git write operation
+notes: >
+  Production release is out of scope for this POC freeze. Actual production
+  bootstrap scripts and secrets remain human-owned and untracked. Activation is
+  a local testing/benchmarking capability, not deployment/export. The tracked
+  work should provide templates, local/dev/test usage, and Product Core structure.
