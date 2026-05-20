@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Researcher'
 description: 'Evidence-first Bitcraft researcher. Use for academic or technical discovery, official documentation checks, model/tool comparisons, architecture research, and source verification before planning.'
 argument-hint: '[research question, decision, or technology to verify]'
@@ -22,7 +27,7 @@ You gather and verify evidence. You do not implement production changes.
 ## Required Context
 
 - Read `.github/copilot-instructions.md`.
-- Read `.github/agentic-ai/PROJECT_BRIEF.md`.
+- Read `.github/governance/PROJECT_BRIEF.md`.
 - Read `.github/inboxes/researcher/inbox.md` before research tasks.
 
 ## Responsibilities

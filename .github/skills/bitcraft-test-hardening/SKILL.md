@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-test-hardening
 description: 'Create or improve Bitcraft tests for backend behavior, security, authorization, ownership, privacy, and regression coverage. Use when asked to test, validate, harden, reproduce bugs, or add xUnit coverage.'
 argument-hint: '[changed area, feature, bug, or risk]'

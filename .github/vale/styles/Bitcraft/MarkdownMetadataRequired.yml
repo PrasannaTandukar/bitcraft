@@ -1,0 +1,6 @@
+extends: existence
+message: "Tracked Markdown files must start with metadata frontmatter containing created_at, edited_at, creator, editor, and ai_gen."
+level: error
+scope: raw
+raw:
+  - '\A(?!---\r?\n(?=[\s\S]*?\r?\ncreated_at:\s*\d{4}-\d{2}-\d{2}\r?\n)(?=[\s\S]*?\r?\nedited_at:\s*\d{4}-\d{2}-\d{2}\r?\n)(?=[\s\S]*?\r?\ncreator:\s*[^\r\n]+\r?\n)(?=[\s\S]*?\r?\neditor:\s*[^\r\n]+\r?\n)(?=[\s\S]*?\r?\nai_gen:\s*(?:true|false)\r?\n)[\s\S]*?\r?\n---\r?\n)'

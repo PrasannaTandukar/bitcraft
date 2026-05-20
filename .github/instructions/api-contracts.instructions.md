@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 description: 'Bitcraft API controller, contract, route, Swagger, and mapping rules.'
 applyTo: 'src/Bitcraft.Api/Controllers/**/*.cs,src/Bitcraft.Api/Contracts/**/*.cs,src/Bitcraft.Api/Mapping/**/*.cs'
 ---

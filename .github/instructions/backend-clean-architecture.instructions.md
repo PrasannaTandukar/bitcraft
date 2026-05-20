@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 description: 'Bitcraft backend Clean Architecture and CQRS rules for Domain, Application, Infrastructure, and Api C# code.'
 applyTo: 'src/Bitcraft.Domain/**/*.cs,src/Bitcraft.Application/**/*.cs,src/Bitcraft.Infrastructure/**/*.cs,src/Bitcraft.Api/**/*.cs'
 ---

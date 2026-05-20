@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Copilot Content Exclusion Policy
 
 Bitcraft does not use a `.copilotignore` file because that primitive does not exist. This document records the actual mechanisms available to keep Copilot away from sensitive content, the boundary against `.gitignore`, and the operational rules for Bitcraft contributors.
@@ -20,9 +27,10 @@ Bitcraft does not use a `.copilotignore` file because that primitive does not ex
 
 1. **No secrets in repository.** Secrets, tokens, dataset paths, model weights, and production endpoints are excluded by `.gitignore` (`*.env`, `.env.local`, `.env.*.local`, `.conda/`, etc.) and must never enter the working tree.
 2. **Sensitive ad-hoc files use scratch suffixes.** `.gitignore` blocks `*.session.md`, `*.draft.md`, `*.transcript.md` so agents can write transient analyses without committing them.
-3. **Identity, customer, and tutor user content.** None of this lives in the repository today. If it ever does, the path must be added to both `.gitignore` and to workspace `files.exclude`/`search.exclude` so Copilot does not retrieve it for context.
-4. **MCP servers must enforce their own scope.** The repository read-only MCP server constrains tools to `.github/agentic-ai/`, `.github/agents/`, and `.github/inboxes/`. New MCP tools must follow the same pattern (no free-form paths).
-5. **No exclusion theater.** Do not add files to `files.exclude` purely to "hide them from Copilot" if they are not actually sensitive. The signal value of the list collapses if it is full of noise.
+3. **Developer-local documentation.** `docs/dev/` is ignored by Git and populated locally by humans/developers. Agents may read it only when the active workflow calls for local documentation lookup, and must tolerate it being absent.
+4. **Identity, customer, and tutor user content.** None of this lives in the repository today. If it ever does, the path must be added to both `.gitignore` and to workspace `files.exclude`/`search.exclude` so Copilot does not retrieve it for context.
+5. **MCP servers must enforce their own scope.** The repository read-only MCP server constrains tools to approved repository governance, agent, inbox, and developer-local documentation paths. New MCP tools must follow the same pattern (no free-form paths).
+6. **No exclusion theater.** Do not add files to `files.exclude` purely to "hide them from Copilot" if they are not actually sensitive. The signal value of the list collapses if it is full of noise.
 
 ## Reflection
 

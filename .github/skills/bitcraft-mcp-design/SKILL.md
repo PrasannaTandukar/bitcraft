@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-mcp-design
 description: 'Design Bitcraft MCP servers, tools, resources, prompts, safety policy, and implementation phases. Use for custom MCP planning, read-only repository context tools, Knowledge/Documents resources, local Ollama helpers, and Copilot MCP integration.'
 argument-hint: '[MCP use case, tool, or server scope]'

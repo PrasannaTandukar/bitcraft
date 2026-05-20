@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-review
 description: 'Review Bitcraft code, docs, prompts, agents, skills, and inboxes for correctness, security, Clean Architecture, test adequacy, maintainability, instruction drift, and CIL-aware routing. Use for PR-style review, pre-merge checks, and AI customization audits.'
 argument-hint: '[diff, changed area, or review goal]'
@@ -19,7 +24,7 @@ Run a focused review with findings first.
 1. Identify the requested scope and changed files.
 2. Read enough surrounding code to evaluate behavior, not just syntax.
 3. Prioritize bugs, security issues, architecture violations, test gaps, and maintenance risk.
-4. Classify or confirm CIL from `.github/agentic-ai/METRICS.md` when review depth or expert routing is unclear.
+4. Classify or confirm CIL from `.github/governance/METRICS.md` when review depth or expert routing is unclear.
 5. Check `.github` customization frontmatter, layering, and inbox hygiene if agentic files changed.
 6. Provide findings first, ordered by severity.
 

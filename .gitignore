@@ -86,3 +86,6 @@ coverage/
 *.draft.md
 *.transcript.md
 
+# Developer-local documentation stacks; humans/developers populate these locally.
+docs/dev/
+

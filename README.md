@@ -1,3 +1,10 @@
+---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: secretary
+ai_gen: false
+---
 # Bitcraft
 
 Agentic AI tutor management platform with source documents, knowledge retrieval, benchmarking, and RAG capabilities.
@@ -9,7 +16,7 @@ Agentic AI tutor management platform with source documents, knowledge retrieval,
 - **Benchmarking:** Python sidecar (FastAPI + DeepEval) for benchmark execution
 - **AI:** Ollama (host-based or containerized)
 - **Architecture:** Clean Architecture (screaming, feature-based)
-- **Testing:** xUnit unit tests plus API and infrastructure integration tests
+- **Testing:** xUnit unit tests plus API, infrastructure, and sidecar integration tests
 
 ## Requirements
 
@@ -40,6 +47,13 @@ Key variables:
 dotnet tool restore
 dotnet build bitcraft.slnx
 dotnet test bitcraft.slnx
+```
+
+The solution test command covers the .NET test projects in `bitcraft.slnx`. The FastAPI sidecar integration test runs separately:
+
+```bash
+python -m pip install -r tests/Bitcraft.SidecarIntegration/requirements.txt
+python -m pytest tests/Bitcraft.SidecarIntegration/test_sidecar_api.py
 ```
 
 Optional Tutor Studio build from the host:
@@ -85,6 +99,12 @@ For GPU-backed Ollama:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml -f docker-compose.ai.gpu.yml up --build
+```
+
+For Jetson-backed Ollama:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml -f docker-compose.ai.jetson.yml up --build
 ```
 
 ### Production-like Tutor Studio packaging
@@ -160,6 +180,7 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 | `POST` | `/api/auth/register` | Register a Tutor Studio user |
 | `POST` | `/api/auth/login` | Authenticate and receive a JWT with role claims |
 | `GET` | `/api/admin/roles` | List seeded authorization roles |
+| `GET` | `/api/admin/users` | List users with their role memberships |
 | `GET/POST` | `/api/admin/users/{userId}/roles` | View and assign user roles |
 | `DELETE` | `/api/admin/users/{userId}/roles/{role}` | Revoke a specific user role |
 | `GET/POST` | `/api/admin/model-catalog` | Manage Admin-owned model catalog entries |
@@ -173,6 +194,7 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 | `GET/POST` | `/api/tutors/{tutorId}/benchmark-runs` | List and queue tutor benchmark runs |
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}` | Inspect benchmark run detail |
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}/progress` | Poll lightweight benchmark progress |
+| `POST` | `/api/ollama/generate` | Generate text using the configured local Ollama chat model |
 
 See Swagger UI (`/swagger`) for full request/response schemas. Additional operational notes live in `docs/authorization-roles.md` and `docs/benchmarking-templates.md`.
 
@@ -206,13 +228,21 @@ Open this project in VS Code and accept the workspace extension recommendations,
 | GitLens | `eamodio.gitlens` | Enhanced git blame and history |
 | DotENV | `mikestead.dotenv` | `.env` file syntax highlighting |
 
+## Agentic Development Workflow
+
+Bitcraft also includes a repo-local agentic workflow layer under `.github/` and a minimal read-only MCP server under `mcp-server/`.
+
+- Human-facing overview: `docs/agentic-ai.md`
+- Governance and operating rules: `.github/governance/README.md`
+- MCP server scope and setup: `mcp-server/README.md`
+
 ## Branch Convention
 
-```
-[type]/[name]/[ticket_id]
-```
+The active plan slug is derived directly from the current working Git branch name. Agents do not create branches.
 
-Examples: `feature/login/BC-11`, `fix/chunk-search/BC-42`, `chore/clean-arch/BC-15`
+If the working branch is `dev`, `main`, or `test`, do not create or assume a matching plan folder. Use a human-created feature branch or treat the change as a small in-place edit.
+
+When a branch is acceptable, the plan folder slug is the branch name lowercased with `/` replaced by `-`. Example: `feature/tutor-snapshots` becomes `.github/plans/feature-tutor-snapshots/`.
 
 ## Licensing and Transparency
 
@@ -227,8 +257,10 @@ See `docs/transparency-and-privacy.md` for the current open-source posture, priv
 ## Project Structure
 
 ```
+.github/                       # Agentic workflow, governance, prompts, inboxes, config
 db/                            # PostgreSQL + pgvector image build context
 docs/                          # Technical notes, role matrix, transparency statement
+mcp-server/                    # Read-only MCP server for governance and repo context
 sidecar/                       # Benchmark sidecar (FastAPI + DeepEval)
 src/
 ├── Bitcraft.Api/              # HTTP entry point, controllers, composition root
@@ -237,6 +269,7 @@ src/
 └── Bitcraft.Infrastructure/   # EF Core, pgvector, persistence and integrations
 tests/
 ├── Bitcraft.UnitTests/
+├── Bitcraft.SidecarIntegration/
 ├── Bitcraft.InfrastructureIntegrationTests/
 └── Bitcraft.ApiIntegrationTests/
 tutor-studio/                  # React + Vite frontend

@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: human
+editor: lead-dev
+ai_gen: false
+---
 # Bitcraft MCP Server
 
 Minimal read-only Model Context Protocol server. Exposes Bitcraft governance docs, the agent roster, and per-agent prioritized inboxes to compatible coding agents (GitHub Copilot in VS Code, Claude Desktop, and others).
@@ -10,11 +17,33 @@ Tools:
 
 - `list_inboxes()` returns agent slugs that have an inbox.
 - `read_inbox(agent_slug)` reads one prioritized backlog.
-- `list_governance_docs()` lists docs under `.github/agentic-ai/`.
-- `read_governance(name)` reads `PROJECT_BRIEF`, `DEVELOPER_GUIDE`, `METRICS`, `MODEL_ROUTING`, `AUDIT_TEMPLATES`, `TOOLING_MATRIX`, `PROVENANCE`, or `CONTENT_EXCLUSION`.
+- `read_inbox_structured(agent_slug)` reads one prioritized backlog as parsed structured items while preserving the Markdown source of truth.
+- `list_governance_docs()` lists docs under `.github/governance/`.
+- `read_governance(name)` reads stable governance docs such as `PROJECT_BRIEF`, `DEVELOPER_GUIDE`, `METRICS`, `MODEL_ROUTING`, `TOOLING_MATRIX`, `PROVENANCE`, `CONTENT_EXCLUSION`, `PROMPT_STACK_MAINTENANCE`, `BRANCH_CONVENTION`, or `HUMAN_DECISIONS`. (Audits, plans, research, and reviews live in their own top-level folders.)
+- `list_configs()` lists human-managed YAML configuration files under `.github/config/`.
+- `read_config(name)` reads one config file (e.g. `approved-external-sources.yaml`, `cil-medium.yaml`). Only `.yaml`/`.yml` files are exposed.
+- `list_active_plans(include_archived=False)` lists active plan branch folders under `.github/plans/`, excluding `archive/` and `templates/`. Pass `include_archived=True` to inspect history.
+- `read_plan(branch_slug)` reads `plan.yaml`, optional `plan.md`, and optional `context.md` for one active plan folder.
+- `list_doc_stacks()` lists developer-local documentation stacks under ignored `docs/dev/`, returning an empty list when absent.
+- `read_doc_stack(stack_slug)` reads one `docs/dev/<stack-slug>/STACK.md` manifest and reports local source paths.
 - `list_agents()` lists custom agent slugs.
 - `read_roster()` reads `.github/agents/ROSTER.md`.
-- `verify_architecture_readonly()` reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, forbidden external package references in Application). Read-only spot check only; tests and CI remain the enforcement layer.
+- `verify_architecture_readonly()` reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, and external package references in Application that are not in the in-server allow-list). Read-only spot check only; tests and CI remain the enforcement layer.
+
+## Developer-Local Documentation Stacks
+
+`docs/dev/` is intentionally ignored by Git. Humans and developers can populate it locally with documentation stacks that agents consult before external retrieval.
+
+Expected shape:
+
+```text
+docs/dev/<stack-slug>/
+  STACK.md
+  sources/
+    <human-provided files>
+```
+
+`STACK.md` should include the repository Markdown metadata fields plus stack fields such as `name`, `description`, `sources`, `external_sources`, and `validation_status`. The MCP server tolerates `docs/dev/` being absent or empty.
 
 ## Install
 
@@ -56,7 +85,7 @@ Adjust `command` to the absolute path of your virtualenv Python on Windows if VS
 ## Security
 
 - Read-only.
-- All file access constrained to `.github/agentic-ai/`, `.github/agents/`, `.github/inboxes/`, and (for `verify_architecture_readonly` only) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`.
+- All file access constrained to `.github/governance/`, `.github/agents/`, `.github/inboxes/`, ignored `docs/dev/` stack manifests, and (for `verify_architecture_readonly` only) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`.
 - Path traversal attempts raise `ValueError`.
 - No secrets, credentials, dataset paths, or external endpoints are read or returned.
 
@@ -69,37 +98,23 @@ When extending the server:
 
 ## Additional MCP Servers Wired In `.vscode/mcp.json`
 
-`.vscode/mcp.json` also references two reference servers from the modelcontextprotocol/servers project. Install [`uv`](https://docs.astral.sh/uv/) first (PowerShell: `winget install --id=astral-sh.uv -e`), then VS Code will launch them on demand via `uvx`:
+`.vscode/mcp.json` also references two reference servers from the modelcontextprotocol/servers project. Prerequisite: [`uv`](https://docs.astral.sh/uv/) must be installed (PowerShell: `winget install --id=astral-sh.uv -e`). VS Code launches them on demand via `uvx`.
 
 - `fetch` (`uvx mcp-server-fetch`) — web-page fetching for research.
 - `git` (`uvx mcp-server-git --repository ${workspaceFolder}`) — read-only Git history, log, diff, blame.
 
-Both run on stdio with no project-level state. **Sec Ops sign-off is pending** — see the known security issues below and `.github/mcp/bitcraft-mcp-spec.md`.
+Both run on stdio with no project-level state. Both are **active under per-request approval** via the VS Code Configure Tools picker (no session-wide auto-approval). See `.github/governance/HUMAN_DECISIONS.md` D-4/D-5 and the security notes below.
 
-## Known Security Issues (Open)
+## Operating Notes For `fetch` And `git`
 
-### Issue 1 — `fetch` MCP: Prompt Injection via Returned Web Content
+### `fetch` MCP: Prompt Injection Awareness
 
-**Severity:** Medium  
-**Status:** Open — Sec Ops sign-off pending.
+The `fetch` server fetches any URL and returns its full content into agent context. A web page with embedded adversarial text can attempt to instruct the agent to perform unintended actions.
 
-The `fetch` server fetches any URL and returns its full content into agent context. A web page with embedded adversarial text can instruct the agent to perform unintended actions (prompt injection).
+**Required operating practice:** Keep `fetch` set to **require per-request approval** in VS Code's Configure Tools picker. Never enable session-wide auto-approval. Treat all content returned by `fetch` as untrusted user data. A domain allow-list may be introduced later if research recommends it.
 
-**Workaround:** In VS Code, open **Settings → Configure Tools** (or the MCP tools picker) and set `fetch` to **require per-request approval** rather than auto-approve. Never pre-approve `fetch` for an entire session. Treat all content returned by `fetch` as untrusted user data.
+### `git` MCP: Read-Only Tool Discipline
 
-**Risk if not followed:** An agent doing research may retrieve a malicious page and execute embedded instructions — for example, leaking file contents, generating unwanted code, or issuing unexpected follow-up tool calls. This risk is heightened in sessions where the agent has broad file-read access.
+`mcp-server-git` may expose write-capable tools (`git_create_branch`, `git_checkout`, `git_commit`, `git_push`) depending on the version installed by `uvx`. The project policy is read-only Git use by agents.
 
-### Issue 2 — `git` MCP: Write-Capable Tools May Be Exposed
-
-**Severity:** Medium  
-**Status:** Open — Sec Ops tool inventory check pending.
-
-`mcp-server-git` may expose write-capable tools (`git_create_branch`, `git_checkout`, `git_commit`, `git_push`) depending on the version installed by `uvx`. The spec intends read-only use only.
-
-**Workaround:** In VS Code, open **Settings → Configure Tools** and approve only the following read-only tools: `git_log`, `git_diff`, `git_show`, `git_blame`, `git_read_file`. Decline or disable any other `git_*` tools presented. Do not grant blanket session approval to the `git` server.
-
-**Risk if not followed:** An agent with broad `git` tool access may commit, branch, or push on behalf of the user — bypassing the project's rule that humans own all Git write operations. This could result in unreviewed commits or accidental history modification.
-
----
-
-Once Sec Ops completes the sign-off (`.github/inboxes/sec-ops/inbox.md`), this section will be updated with the confirmed-safe tool list and any approved allow-list configuration.
+**Required operating practice:** In VS Code, approve only read-only `git` tools (`git_log`, `git_diff`, `git_show`, `git_blame`, `git_read_file`). Decline or disable any other `git_*` tools presented. Do not grant blanket session approval to the `git` server. Sec Ops will record the confirmed-safe tool list in `.github/mcp/bitcraft-mcp-spec.md` after enumerating the installed server version.

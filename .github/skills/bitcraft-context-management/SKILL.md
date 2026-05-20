@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-context-management
 description: 'Manage Bitcraft coding-agent context for long tasks, restarts, handoffs, and prompt compaction. Use when work spans many files, agent memory is stale, research artifacts may be confused with current state, or a session needs a concise evidence-backed working summary.'
 argument-hint: '[task, handoff, or current session concern]'

@@ -1,3 +1,10 @@
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
+---
 # Bitcraft Copilot Instructions
 
 Bitcraft is an Agentic AI Tutor management platform. Treat this repository as a .NET 10 Clean Architecture backend with EF Core, PostgreSQL, pgvector, Identity/JWT, MediatR/CQRS, and a React/Vite Tutor Studio client.
@@ -7,9 +14,22 @@ Bitcraft is an Agentic AI Tutor management platform. Treat this repository as a 
 - Humans and agents cooperate. Humans own product decisions, credentials, branch creation, commits, pushes, merges, releases, and final accountability.
 - Use the departmental agent roster in `.github/agents/ROSTER.md`: Secretary, Researcher, Planner, Lead Dev, NET Dev, Web Dev, Dev Ops, Sec Ops, AI Ops, and Typewriter.
 - Use `.github/inboxes/<agent-slug>/inbox.md` as the prioritized backlog per agent. Read your own inbox at the start of role-specific work, act on highest-priority items, and clean items you complete.
-- Use `.github/agentic-ai/METRICS.md` for Change Impact Level, risk metrics, agent execution metrics, and model-routing reflection.
+- Use `.github/governance/METRICS.md` for CSS, DIS, and Change Impact Level (internal routing signals only — no external tracking).
+- Use the per-level protocol files in `.github/config/cil-<level>.yaml` to choose agents, research depth, allowed tools, validation, review, and human-escalation rules for any change.
+- Persist active task plans under `.github/plans/<branch-slug>/` with `plan.yaml` and optional `plan.md`/`context.md`. Completed plans move to `.github/plans/archive/`. Audits, research, and reviews follow the same pattern under `.github/audits/`, `.github/research/`, and `.github/reviews/`. MCP excludes `archive/` from default context.
 - Prefer small, validated iterations over broad speculative rewrites.
 - Explain material design and algorithm decisions plainly, including tradeoffs and validation limits.
+
+## Markdown Metadata And Documentation Access
+
+- Every tracked Markdown file uses frontmatter fields `created_at`, `edited_at`, `creator`, `editor`, and `ai_gen`.
+- `ai_gen: true` means agents may generate or substantially edit the document. `ai_gen: false` means agents need explicit human permission before generating or substantially rewriting it.
+- Agents may update `edited_at` and `editor` when they edit a document, but only humans may change `ai_gen` after creation.
+- Agent-created Markdown defaults to `ai_gen: true`; human-created Markdown defaults to `ai_gen: false`.
+- Markdown files under `.github/governance/` are semi-locked report and doctrine files (AI-modifiable per `ai_gen`). Human-managed configuration lists (allow-lists, source rosters, similar typed data) are stored as **YAML** files alongside them, never as Markdown. First application: `.github/config/approved-external-sources.yaml`. See `HUMAN_DECISIONS.md` D-8.
+- Developer-local documentation stacks live under ignored `docs/dev/<stack-slug>/` folders. Humans provide source files there; repository docs describe the convention but do not track those local stacks.
+- Documentation lookup is local-first: consult repository docs and `docs/dev/` first, use approved external documentation only when the human explicitly grants it, use broader web retrieval only for deep research, then ask the human when sources remain missing or conflicting.
+- Product Documents/Knowledge ingestion is out of scope for the agentic development documentation stack.
 
 ## Hard Boundaries
 
@@ -20,6 +40,21 @@ Bitcraft is an Agentic AI Tutor management platform. Treat this repository as a 
 - Agentic AI customization work belongs under `.github`; developer-facing project documentation belongs under `docs/`.
 - Frontend work belongs in `tutor-studio/` and may be handled by Web Dev or Lead Dev when the user requests frontend work or a plan delegates it.
 - Do not expose domain entities through API contracts.
+
+## Autopilot-Locked Actions
+
+Even when running in autopilot or batch mode, agents must HALT and request human input before any of the following. Tool availability does not imply authority.
+
+- Git writes of any kind: branch creation, commit, push, merge, rebase, reset, tag, force operations, history rewrites.
+- Editing `.gitignore`, `.copilotignore`, or any ignore file.
+- Touching secrets, tokens, credentials, environment files, datasets, model weights, or production endpoints.
+- Changing `ai_gen: false` in any frontmatter (humans only).
+- Any operation classified `cil: critical` in the active `plan.yaml` (see `.github/config/cil-critical.yaml`).
+- Database destructive operations (drop, truncate, schema-incompatible migration apply against shared environments).
+- Enabling, installing, or invoking a write-capable MCP server or write-capable MCP tool.
+- Modifying `.vscode/mcp.json` to add a server, expand allowed tools, or change scope.
+- Deployment, release, or any operation that touches a non-local environment.
+- Restoring a document from `.github/**/archive/` back to an active folder.
 
 ## Clean Architecture Rules
 
@@ -51,8 +86,8 @@ Bitcraft is an Agentic AI Tutor management platform. Treat this repository as a 
 
 - Start with Secretary for work overview, Researcher for evidence discovery, or Planner for technical planning.
 - Development responsibility flows through Lead Dev. Lead Dev delegates frontend work to Web Dev, backend work to NET Dev, infrastructure to Dev Ops, security to Sec Ops, and agentic stack work to AI Ops.
-- Before review, classify Change Impact Level from `.github/agentic-ai/METRICS.md`. Higher impact changes need broader expert review and stronger validation.
-- Audit work uses `.github/agentic-ai/AUDIT_TEMPLATES.md` and creates actionable inbox items rather than unbounded report sprawl.
+- Before review, classify Change Impact Level from `.github/governance/METRICS.md`. Higher impact changes need broader expert review and stronger validation.
+- Audit work uses `.github/audits/templates/audit.template.md` and creates actionable inbox items rather than unbounded report sprawl.
 
 ## Validation
 

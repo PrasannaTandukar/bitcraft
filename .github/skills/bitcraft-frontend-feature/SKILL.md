@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-frontend-feature
 description: 'Implement Bitcraft Tutor Studio frontend changes. Use for React/Vite UI, routing, state, styling, API integration, accessibility, responsive behavior, and frontend validation.'
 argument-hint: '[frontend feature, bug, page, component, or integration task]'

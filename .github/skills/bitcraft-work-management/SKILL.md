@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-work-management
 description: 'Manage Bitcraft human-agent work from overview to research, planning, Lead Dev delegation, expert execution, review, metrics, inbox updates, and documentation. Use for task breakdown, handoffs, roadmaps, and avoiding scope drift.'
 argument-hint: '[idea, feature, task, roadmap, inbox state, or current work state]'

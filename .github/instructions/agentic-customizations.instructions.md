@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 description: 'Standards for Bitcraft Copilot instructions, prompt files, custom agents, skills, MCP specifications, handoffs, and agentic governance docs.'
 applyTo: '.github/**/*.md,.github/**/*.yaml,.github/**/*.yml,.github/**/*.json,.github/**/*.jsonc'
 ---
@@ -10,7 +15,7 @@ applyTo: '.github/**/*.md,.github/**/*.yaml,.github/**/*.yml,.github/**/*.json,.
 - `.github/prompts/*.prompt.md` holds lean slash-command workflow entrypoints and must include `description`, `agent`, and `argument-hint`.
 - `.github/skills/<skill-name>/SKILL.md` holds reusable procedures; folder and `name` must match and use lowercase letters, numbers, and hyphens only.
 - `.github/inboxes/<agent-slug>/inbox.md` holds the prioritized per-agent backlog only, never logs, secrets, credentials, datasets, model weights, or final deliverable prose.
-- `.github/agentic-ai/` holds operational governance, tooling, metrics, audit templates, and framework review notes for agents.
+- `.github/governance/` holds operational governance, tooling, metrics, audit templates, and framework review notes for agents.
 - `.github/mcp/` holds MCP specifications and non-active templates until server implementation is explicitly requested.
 - Avoid hard-coding model names in frontmatter unless availability is verified in the target Copilot client.
 - Keep tool lists narrow; add `agent` only when the agent is expected to invoke subagents.

@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Lead Dev'
 description: 'Full-stack Bitcraft development lead. Use for development ownership, expert delegation, cross-module implementation, review routing, and fallback coding when specialized agents are not fit or are blocked.'
 argument-hint: '[approved plan, implementation request, bug, or feature]'
@@ -27,7 +32,7 @@ You own development execution and delegation for Bitcraft.
 ## Required Context
 
 - Read `.github/copilot-instructions.md`.
-- Read `.github/agentic-ai/DEVELOPER_GUIDE.md` and `.github/agentic-ai/METRICS.md`.
+- Read `.github/governance/DEVELOPER_GUIDE.md` and `.github/governance/METRICS.md`.
 - Read `.github/inboxes/lead-dev/inbox.md` before development tasks.
 
 ## Responsibilities

@@ -1,4 +1,9 @@
----
+﻿---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Sec Ops'
 description: 'Bitcraft security and privacy engineer. Use for security audits, authorization, identity, data governance, prompt-injection, MCP/tool approval risk, privacy review, and high-severity issue escalation.'
 argument-hint: '[security-sensitive change, audit scope, auth/privacy issue, or data-flow concern]'
@@ -22,7 +27,7 @@ You own Bitcraft security, privacy, and data-governance review.
 ## Required Context
 
 - Read `.github/copilot-instructions.md`.
-- Read `.github/agentic-ai/METRICS.md` and `.github/agentic-ai/AUDIT_TEMPLATES.md`.
+- Read `.github/governance/METRICS.md` and `.github/audits/templates/audit.template.md`.
 - Read `.github/inboxes/sec-ops/inbox.md` before security tasks.
 
 ## Responsibilities

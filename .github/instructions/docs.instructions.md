@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 description: 'Bitcraft developer documentation standards for README and docs markdown files.'
 applyTo: 'README.md,docs/**/*.md'
 ---

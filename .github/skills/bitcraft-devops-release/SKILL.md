@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-devops-release
 description: 'Plan Bitcraft deployment, CI/CD, Docker, environment, migration, release operations, branch conventions, and Integrity Audits. Use for build/test pipelines, compose files, database updates, Bitbucket/Jira workflow, rollout checks, and production readiness.'
 argument-hint: '[deployment, CI/CD, migration, branch policy, integrity audit, or release concern]'
@@ -22,7 +27,7 @@ Use this skill for operational readiness and deployment workflows.
 4. Plan migrations separately from code deployment when risk warrants it.
 5. Validate with the narrowest build/test/container command available.
 6. For branch policy, keep Git write operations human-owned and evaluate short-lived Bitbucket/Jira-compatible branches.
-7. For Integrity Audits, use `.github/agentic-ai/AUDIT_TEMPLATES.md` and create inbox items for remediation.
+7. For Integrity Audits, use `.github/audits/templates/audit.template.md` and create inbox items for remediation.
 8. Document rollback and manual operator steps.
 
 ## Checks

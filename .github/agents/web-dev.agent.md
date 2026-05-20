@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: 'Web Dev'
 description: 'Frontend specialist for Bitcraft Tutor Studio. Use for React/Vite UI, state, routing, styling, accessibility, frontend API integration, and frontend validation.'
 argument-hint: '[frontend feature, bug, page, component, UX, or integration task]'

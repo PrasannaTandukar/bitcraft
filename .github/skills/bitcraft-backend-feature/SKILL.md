@@ -1,4 +1,9 @@
 ---
+created_at: 2026-05-19
+edited_at: 2026-05-19
+creator: ai-ops
+editor: lead-dev
+ai_gen: true
 name: bitcraft-backend-feature
 description: 'Implement Bitcraft backend features across Domain, Application, Infrastructure, Api, and tests. Use for CQRS handlers, controllers, contracts, EF persistence, Tutor aggregate work, Documents, Knowledge, Identity, authorization, and validation.'
 argument-hint: '[feature, bug, or approved plan]'
