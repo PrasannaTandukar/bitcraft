@@ -19,7 +19,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TutorMember> TutorMembers => Set<TutorMember>();
     public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();
     public DbSet<RuntimeEngine> RuntimeEngines => Set<RuntimeEngine>();
-    public DbSet<ModelCatalogEntry> ModelCatalogEntries => Set<ModelCatalogEntry>();
+    public DbSet<Model> Models => Set<Model>();
+    public DbSet<InteractionModel> InteractionModels => Set<InteractionModel>();
+    public DbSet<EmbeddingModel> EmbeddingModels => Set<EmbeddingModel>();
     public DbSet<TutorModelConnection> TutorModelConnections => Set<TutorModelConnection>();
     public DbSet<KnowledgeSourceLink> TutorKnowledgeSources => Set<KnowledgeSourceLink>();
     public DbSet<ToolDefinition> ToolDefinitions => Set<ToolDefinition>();

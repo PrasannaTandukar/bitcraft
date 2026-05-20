@@ -84,7 +84,7 @@ public class TutorBenchmarkRunsController(ISender sender) : ControllerBase
             tutorId,
             request.BenchmarkTemplateId,
             request.TutorConfigurationSnapshotId,
-            request.ModelCatalogEntryId,
+            request.InteractionModelId,
             request.ModelAlias,
             request.ConsistencyRuns,
             request.Cases.Select(x => new BenchmarkFeatures.BenchmarkCaseInput(

@@ -4,6 +4,7 @@ using Bitcraft.Application.Features.Documents;
 using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Application.Features.Tutoring;
 using Bitcraft.Domain.Documents;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.UnitTests.Application.Tutoring.Fakes;
 using Xunit;
@@ -85,137 +86,69 @@ public class TutorFeaturesTests
     }
 }
 
-public class ModelCatalogFeaturesTests
-{
-    [Fact]
-    public async Task CreateModelCatalogEntryHandler_WithValidHttpEndpoint_ReturnsSuccess()
-    {
-        // Arrange
-        var repo = new FakeModelCatalogRepository();
-        var handler = new ModelCatalogFeatures.CreateModelCatalogEntryHandler(repo, new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: true));
-        var command = new ModelCatalogFeatures.CreateModelCatalogEntryCommand(
-            Name: "Local Ollama",
-            ProviderType: ModelProviderType.Ollama,
-            Endpoint: "http://localhost:11434",
-            ModelName: "llama3.1",
-            ApiKeySecretRef: null,
-            SettingsJson: null,
-            IsEnabled: true);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Local Ollama", result.Value.Name);
-        Assert.Single(repo.Entries);
-    }
-
-    [Theory]
-    [InlineData("not-a-url")]
-    [InlineData("ftp://example.com")]
-    [InlineData("file:///etc/passwd")]
-    public async Task CreateModelCatalogEntryHandler_WithNonHttpEndpoint_ReturnsEndpointInvalid(string endpoint)
-    {
-        // Arrange
-        var handler = new ModelCatalogFeatures.CreateModelCatalogEntryHandler(
-            new FakeModelCatalogRepository(),
-            new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: true));
-        var command = new ModelCatalogFeatures.CreateModelCatalogEntryCommand(
-            "n", ModelProviderType.Ollama, endpoint, "m", null, null, true);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.EndpointInvalid", result.Error.Code);
-    }
-
-    [Fact]
-    public async Task CreateModelCatalogEntryHandler_ForNonAdmin_ReturnsForbidden()
-    {
-        // Arrange
-        var handler = new ModelCatalogFeatures.CreateModelCatalogEntryHandler(
-            new FakeModelCatalogRepository(),
-            new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: false));
-        var command = new ModelCatalogFeatures.CreateModelCatalogEntryCommand(
-            "n", ModelProviderType.Ollama, "http://localhost:11434", "m", null, null, true);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.Forbidden", result.Error.Code);
-    }
-}
-
 public class TutorModelConnectionFeaturesTests
 {
     [Fact]
-    public async Task SaveTutorModelConnectionHandler_WithEnabledCatalogEntry_PersistsConnection()
+    public async Task SaveTutorModelConnectionHandler_WithEnabledInteractionModel_PersistsConnection()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
         var tutorRepository = new FakeTutorRepository();
         var tutor = Tutor.Create("Tutor", null, ownerId);
         tutorRepository.Tutors[tutor.Id] = tutor;
-        var catalogRepository = new FakeModelCatalogRepository();
-        var entry = new ModelCatalogEntry
+        var modelRepository = new FakeModelRepository();
+        var interactionModel = new InteractionModel
         {
             Name = "Local",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3.1",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3.1",
             IsEnabled = true
         };
-        catalogRepository.Entries[entry.Id] = entry;
+        modelRepository.InteractionModels[interactionModel.Id] = interactionModel;
         var handler = new TutorModelConnectionFeatures.SaveTutorModelConnectionHandler(
             tutorRepository,
-            catalogRepository,
+            modelRepository,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
-        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, entry.Id, "{\"temp\":0.2}");
+        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, interactionModel.Id, "{\"temp\":0.2}");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(entry.Id, result.Value.ModelCatalogEntryId);
+        Assert.Equal(interactionModel.Id, result.Value.InteractionModelId);
         Assert.Single(tutorRepository.TutorModelConnections);
     }
 
     [Fact]
-    public async Task SaveTutorModelConnectionHandler_WithDisabledCatalogEntry_ReturnsDisabledFailure()
+    public async Task SaveTutorModelConnectionHandler_WithDisabledInteractionModel_ReturnsDisabledFailure()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
         var tutorRepository = new FakeTutorRepository();
         var tutor = Tutor.Create("Tutor", null, ownerId);
         tutorRepository.Tutors[tutor.Id] = tutor;
-        var catalogRepository = new FakeModelCatalogRepository();
-        var entry = new ModelCatalogEntry
+        var modelRepository = new FakeModelRepository();
+        var interactionModel = new InteractionModel
         {
             Name = "Local",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3.1",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3.1",
             IsEnabled = false
         };
-        catalogRepository.Entries[entry.Id] = entry;
+        modelRepository.InteractionModels[interactionModel.Id] = interactionModel;
         var handler = new TutorModelConnectionFeatures.SaveTutorModelConnectionHandler(
             tutorRepository,
-            catalogRepository,
+            modelRepository,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
-        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, entry.Id, null);
+        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, interactionModel.Id, null);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.Disabled", result.Error.Code);
+        Assert.Equal("InteractionModel.Disabled", result.Error.Code);
     }
 }
 

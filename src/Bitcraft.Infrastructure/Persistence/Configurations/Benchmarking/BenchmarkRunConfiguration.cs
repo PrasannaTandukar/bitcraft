@@ -57,14 +57,14 @@ public class BenchmarkRunConfiguration : IEntityTypeConfiguration<BenchmarkRun>
             .HasForeignKey(x => x.TutorConfigurationSnapshotId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasOne(x => x.ModelCatalogEntry)
+        entity.HasOne(x => x.InteractionModel)
             .WithMany()
-            .HasForeignKey(x => x.ModelCatalogEntryId)
+            .HasForeignKey(x => x.InteractionModelId)
             .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasIndex(x => new { x.TutorId, x.QueuedUtc });
         entity.HasIndex(x => x.TutorConfigurationSnapshotId);
-        entity.HasIndex(x => x.ModelCatalogEntryId);
+        entity.HasIndex(x => x.InteractionModelId);
         entity.HasIndex(x => x.Status);
     }
 }

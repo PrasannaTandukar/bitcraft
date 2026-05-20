@@ -1,6 +1,7 @@
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Benchmarking;
 using Bitcraft.Domain.Benchmarking;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.UnitTests.Application.Benchmarking.Fakes;
 using Bitcraft.UnitTests.Application.Tutoring.Fakes;
@@ -403,7 +404,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -460,7 +461,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             new FakeBenchmarkRunRepository(),
             queue,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -494,7 +495,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             new FakeTutorRepository(),
             new FakeBenchmarkTemplateRepository(),
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(), new FakeCurrentUserContext(Guid.NewGuid()));
@@ -540,7 +541,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             new FakeBenchmarkRunRepository(),
             new FakeBenchmarkRunQueue(),
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -586,7 +587,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(Guid.NewGuid()));
@@ -634,7 +635,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -682,7 +683,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -715,7 +716,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             new FakeTutorRepository(),
             new FakeBenchmarkTemplateRepository(),
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(), new FakeCurrentUserContext(ownerId));
@@ -761,7 +762,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             new FakeBenchmarkRunRepository(),
             new FakeBenchmarkRunQueue(),
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -791,7 +792,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             new FakeTutorRepository(),
             new FakeBenchmarkTemplateRepository(),
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(), new FakeCurrentUserContext(Guid.NewGuid()));
@@ -826,7 +827,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             new FakeTutorRepository(),
             new FakeBenchmarkTemplateRepository(),
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(), new FakeCurrentUserContext(Guid.NewGuid()));
@@ -858,7 +859,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             new FakeTutorRepository(),
             new FakeBenchmarkTemplateRepository(),
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             runRepository,
             queue,
             new FakeTutorMembershipReader(), new FakeCurrentUserContext(Guid.NewGuid()));
@@ -904,7 +905,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             new FakeBenchmarkRunRepository(),
             new FakeBenchmarkRunQueue(),
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -926,7 +927,7 @@ public class BenchmarkRunFeaturesTests
     }
 
     [Fact]
-    public async Task CreateTutorBenchmarkRunHandler_WithMissingModelCatalogEntry_ReturnsModelCatalogNotFound()
+    public async Task CreateTutorBenchmarkRunHandler_WithMissingInteractionModel_ReturnsInteractionModelNotFound()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
@@ -948,7 +949,7 @@ public class BenchmarkRunFeaturesTests
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
             templateRepository,
-            new FakeModelCatalogRepository(),
+            new FakeModelRepository(),
             new FakeBenchmarkRunRepository(),
             new FakeBenchmarkRunQueue(),
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
@@ -966,11 +967,11 @@ public class BenchmarkRunFeaturesTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.NotFound", result.Error.Code);
+        Assert.Equal("InteractionModel.NotFound", result.Error.Code);
     }
 
     [Fact]
-    public async Task CreateTutorBenchmarkRunHandler_WithDisabledModelCatalogEntry_ReturnsModelCatalogDisabled()
+    public async Task CreateTutorBenchmarkRunHandler_WithDisabledInteractionModel_ReturnsInteractionModelDisabled()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
@@ -989,16 +990,15 @@ public class BenchmarkRunFeaturesTests
         };
         templateRepository.Templates[template.Id] = template;
 
-        var modelCatalogRepository = new FakeModelCatalogRepository();
-        var modelCatalogEntry = new ModelCatalogEntry
+        var modelCatalogRepository = new FakeModelRepository();
+        var interactionModel = new InteractionModel
         {
             Name = "Disabled Model",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3",
             IsEnabled = false
         };
-        modelCatalogRepository.Entries[modelCatalogEntry.Id] = modelCatalogEntry;
+        modelCatalogRepository.InteractionModels[interactionModel.Id] = interactionModel;
 
         var handler = new BenchmarkFeatures.CreateTutorBenchmarkRunHandler(
             tutorRepository,
@@ -1011,7 +1011,7 @@ public class BenchmarkRunFeaturesTests
             tutor.Id,
             template.Id,
             null,
-            modelCatalogEntry.Id,
+            interactionModel.Id,
             null,
             1,
             [new BenchmarkFeatures.BenchmarkCaseInput("Question", "Answer", null, null, null)]);
@@ -1021,11 +1021,11 @@ public class BenchmarkRunFeaturesTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.Disabled", result.Error.Code);
+        Assert.Equal("InteractionModel.Disabled", result.Error.Code);
     }
 
     [Fact]
-    public async Task CreateTutorBenchmarkRunHandler_WithSnapshotModelCatalogEntry_PersistsSnapshotModelCatalogEntry()
+    public async Task CreateTutorBenchmarkRunHandler_WithSnapshotInteractionModel_PersistsSnapshotInteractionModel()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
@@ -1044,21 +1044,20 @@ public class BenchmarkRunFeaturesTests
         };
         templateRepository.Templates[template.Id] = template;
 
-        var modelCatalogRepository = new FakeModelCatalogRepository();
-        var modelCatalogEntry = new ModelCatalogEntry
+        var modelCatalogRepository = new FakeModelRepository();
+        var interactionModel = new InteractionModel
         {
             Name = "Enabled Model",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3",
             IsEnabled = true
         };
-        modelCatalogRepository.Entries[modelCatalogEntry.Id] = modelCatalogEntry;
+        modelCatalogRepository.InteractionModels[interactionModel.Id] = interactionModel;
         var tutorModelConnection = new TutorModelConnection
         {
             TutorId = tutor.Id,
-            ModelCatalogEntryId = modelCatalogEntry.Id,
-            ModelCatalogEntry = modelCatalogEntry
+            InteractionModelId = interactionModel.Id,
+            InteractionModel = interactionModel
         };
         var snapshot = TutorConfigurationSnapshot.Capture(tutor, null, tutorModelConnection, null, null, null, ownerId);
         tutorRepository.Snapshots.Add(snapshot);
@@ -1084,11 +1083,11 @@ public class BenchmarkRunFeaturesTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(modelCatalogEntry.Id, result.Value.ModelCatalogEntryId);
+        Assert.Equal(interactionModel.Id, result.Value.InteractionModelId);
     }
 
     [Fact]
-    public async Task CreateTutorBenchmarkRunHandler_WithSnapshotModelCatalogMismatch_ReturnsModelCatalogMismatch()
+    public async Task CreateTutorBenchmarkRunHandler_WithSnapshotInteractionModelMismatch_ReturnsInteractionModelMismatch()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
@@ -1107,31 +1106,29 @@ public class BenchmarkRunFeaturesTests
         };
         templateRepository.Templates[template.Id] = template;
 
-        var snapshotModelCatalogEntry = new ModelCatalogEntry
+        var snapshotInteractionModel = new InteractionModel
         {
             Name = "Snapshot Model",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3",
             IsEnabled = true
         };
-        var requestedModelCatalogEntry = new ModelCatalogEntry
+        var requestedInteractionModel = new InteractionModel
         {
             Name = "Requested Model",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "mistral",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "mistral",
             IsEnabled = true
         };
-        var modelCatalogRepository = new FakeModelCatalogRepository();
-        modelCatalogRepository.Entries[snapshotModelCatalogEntry.Id] = snapshotModelCatalogEntry;
-        modelCatalogRepository.Entries[requestedModelCatalogEntry.Id] = requestedModelCatalogEntry;
+        var modelCatalogRepository = new FakeModelRepository();
+        modelCatalogRepository.InteractionModels[snapshotInteractionModel.Id] = snapshotInteractionModel;
+        modelCatalogRepository.InteractionModels[requestedInteractionModel.Id] = requestedInteractionModel;
 
         var tutorModelConnection = new TutorModelConnection
         {
             TutorId = tutor.Id,
-            ModelCatalogEntryId = snapshotModelCatalogEntry.Id,
-            ModelCatalogEntry = snapshotModelCatalogEntry
+            InteractionModelId = snapshotInteractionModel.Id,
+            InteractionModel = snapshotInteractionModel
         };
         var snapshot = TutorConfigurationSnapshot.Capture(tutor, null, tutorModelConnection, null, null, null, ownerId);
         tutorRepository.Snapshots.Add(snapshot);
@@ -1147,7 +1144,7 @@ public class BenchmarkRunFeaturesTests
             tutor.Id,
             template.Id,
             snapshot.Id,
-            requestedModelCatalogEntry.Id,
+            requestedInteractionModel.Id,
             null,
             1,
             [new BenchmarkFeatures.BenchmarkCaseInput("Question", "Answer", null, null, null)]);
@@ -1157,7 +1154,7 @@ public class BenchmarkRunFeaturesTests
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("Benchmark.ModelCatalogMismatch", result.Error.Code);
+        Assert.Equal("Benchmark.InteractionModelMismatch", result.Error.Code);
     }
 
     [Fact]

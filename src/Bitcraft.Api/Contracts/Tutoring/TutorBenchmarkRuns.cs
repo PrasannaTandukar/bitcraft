@@ -4,7 +4,7 @@ namespace Bitcraft.Api.Contracts.Tutoring;
 public sealed record CreateTutorBenchmarkRunRequest(
     Guid BenchmarkTemplateId,
     Guid? TutorConfigurationSnapshotId,
-    Guid? ModelCatalogEntryId,
+    Guid? InteractionModelId,
     string? ModelAlias,
     int ConsistencyRuns,
     IReadOnlyList<TutorBenchmarkCaseInputRequest?>? Cases);
@@ -23,7 +23,7 @@ public sealed record TutorBenchmarkRunSummaryResponse(
     Guid TutorId,
     Guid BenchmarkTemplateId,
     Guid? TutorConfigurationSnapshotId,
-    Guid? ModelCatalogEntryId,
+    Guid? InteractionModelId,
     string? ModelAlias,
     int ConsistencyRuns,
     string Status,

@@ -78,7 +78,7 @@ public static class DependencyInjection
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();
         services.AddScoped<ITutorMembershipReader, TutorMembershipReader>();
-        services.AddScoped<IModelCatalogRepository, ModelCatalogRepository>();
+        services.AddScoped<IModelRepository, ModelRepository>();
         services.AddScoped<IRuntimeEngineRepository, RuntimeEngineRepository>();
 
         // Benchmarking
@@ -89,11 +89,6 @@ public static class DependencyInjection
         services.AddHostedService<BenchmarkRunWorker>();
 
         // External model providers
-        var ollamaTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:HealthCheckTimeoutSeconds") ?? 5;
-        services.AddHttpClient(nameof(OllamaHealthCheck), c =>
-        {
-            c.Timeout = TimeSpan.FromSeconds(ollamaTimeoutSeconds);
-        });
         var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 30;
         services.AddHttpClient(nameof(OllamaEmbeddingProvider), c =>
         {
@@ -109,8 +104,6 @@ public static class DependencyInjection
         {
             c.Timeout = TimeSpan.FromSeconds(deepEvalTimeoutSeconds);
         });
-        services.AddScoped<OllamaHealthCheck>();
-        services.AddScoped<IModelConnectionHealthCheck, ModelConnectionHealthCheckDispatcher>();
 
         return services;
     }

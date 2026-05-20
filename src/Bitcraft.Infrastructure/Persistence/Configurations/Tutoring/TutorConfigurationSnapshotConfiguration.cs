@@ -20,10 +20,7 @@ public class TutorConfigurationSnapshotConfiguration : IEntityTypeConfiguration<
         entity.Property(x => x.PromptContent);
 
         entity.Property(x => x.TutorModelConnectionId);
-        entity.Property(x => x.ModelCatalogEntryId);
-
-        entity.Property(x => x.ProviderType)
-            .HasConversion<int?>();
+        entity.Property(x => x.InteractionModelId);
 
         entity.Property(x => x.ModelName)
             .HasMaxLength(200);
