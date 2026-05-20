@@ -2,12 +2,14 @@
 created_at: 2026-05-19
 edited_at: 2026-05-20
 creator: planner
-editor: planner
+editor: lead-dev
 ai_gen: true
 ---
 # Plan: Feature Freeze 2026-05-21
 
 > Origin: Planner, 2026-05-19. Human review: revised with product POC decisions.
+> Revision v2 by Lead Dev, 2026-05-20: production-grade ERM locked in [plan.erm.md](plan.erm.md); frontend work carved into [plan.frontend.md](plan.frontend.md); decisions in this file reconciled with `plan.yaml.locked_decisions`.
+> Revision v3 by Planner, 2026-05-20: human-confirmed decision pass folded in (ABAC-throughout, single-tenant, Twelve-Factor, build-time runtime auth gate, configurable HNSW/IVFFlat, RuntimeEngine entity now, Document/Folder semantic re-frame, TypeScript-now). Open Decisions table reset; companion artifacts [plan.decisions.md](plan.decisions.md) (decision register), [docs/architecture.md](../../../docs/architecture.md) (living architecture report), and [docs/change-notes.md](../../../docs/change-notes.md) (release-batch change notes) are introduced and owned by Secretary/Typewriter.
 
 ## Goal
 
@@ -77,18 +79,59 @@ Freeze the Proof-of-Concept Product Core and Tutor Studio feature set by 2026-05
 - Environment-specific provider settings belong in Product Settings, but actual secrets should initially be environment/secret references. Storing encrypted provider secrets in the database can be a later feature if Human approves it.
 - Product MCP/tutor connectors are distinct from Dev Framework MCP. Product connector runtime execution is gated and not required for the POC freeze.
 
-## Architecture Decision Gates
+## Architecture Decisions (Locked v2)
 
-These gates should be decided before the relevant development branch starts. They are intentionally narrow so the team can keep moving between pauses.
+The following decisions are locked as of 2026-05-20 by the human reviewer. They supersede the original "Architecture Decision Gates" table and are enforced by `plan.yaml.locked_decisions`. Schema shapes are normative in [plan.erm.md](plan.erm.md).
 
-| Gate | Options | Recommendation For Freeze | Blocks |
+## Architecture Decisions (Locked v3)
+
+The table below replaces the v2 lock table. The full decision register with options, references, and reasoning lives in [plan.decisions.md](plan.decisions.md). `plan.yaml.locked_decisions` is the single machine-readable source of truth; this table is a human-readable summary.
+
+| # | Concern | Decision | Reference |
 |---|---|---|---|
-| Role and access model | A. Global roles only; B. global roles plus tutor/project memberships; C. granular permission claims. | Use global roles `Admin`, `Editor`, `Auditor`; keep `User` reserved and unused for internal POC accounts. Continue owner/resource checks for tutor data. Add project/tutor membership only if Human confirms collaboration is required before freeze. | WS1, WS6, WS7 |
-| Runtime endpoint auth | A. JWT/owner checked; B. unauthenticated local endpoint; C. scoped API keys. | Management API stays JWT. Runtime API is separate and can be unauthenticated only behind a local-only flag/host constraint for POC activation testing. Scoped API keys are post-freeze. | WS7 |
-| Tutor versioning | A. existing snapshots on activation; B. draft/published `TutorRevision`; C. cloned tutor versions; D. event sourcing; E. deployment artifact manifests. | Use existing `TutorConfigurationSnapshot` as the activation snapshot now. Defer `TutorRevision` until workflow pressure proves it is needed. Event sourcing is too costly for this POC. | WS6, WS7 |
-| Runtime engine model | A. keep endpoint on `ModelCatalogEntry`; B. introduce `RuntimeEngine` and reference it from catalog entries; C. sidecar/external orchestrator. | POC can keep the current catalog shape if time is tight, but the UI and contracts should use Runtime Engine vocabulary. Add a `RuntimeEngine` entity only if it reduces duplication without delaying activation. | WS2, WS3, WS7 |
-| Model assignment | A. one `TutorModelConnection`; B. typed tutor model assignments; C. JSON-only settings. | Prefer typed assignments for interaction and embedding roles if a schema change is already happening. Otherwise keep one interaction connection and record embedding model in vectorization metadata/snapshot. Avoid JSON-only as the long-term shape. | WS3, WS5, WS6, WS7 |
-| Document scoping | A. add `TutorId` to `Document`; B. add `TutorDocumentLink`; C. leave global docs and link only knowledge. | Use `TutorId` for the POC if documents are truly tutor-specific. Choose `TutorDocumentLink` only if immediate cross-tutor reuse is required. | WS4, WS5, WS6 |
+| D0a | Tenancy | Single-tenant per deployment (standalone single-tenant app + single-tenant DB). Multi-owner link tables are an internal pattern, not multi-tenancy. | [Azure SaaS app design patterns](https://learn.microsoft.com/azure/azure-sql/database/saas-tenancy-app-design-patterns#c-standalone-single-tenant-app-with-single-tenant-database) |
+| D0b | Twelve-Factor App | Foundational deployment vision. AI Ops produces a Bitcraft 12-factor compliance map under `.github/governance/`. | [12factor.net](https://12factor.net/) |
+| D1 | Authorization model | **ABAC throughout.** Roles `Admin`/`Editor`/`Auditor` are coarse subject attributes, not the access decision. Resource attributes (TutorMember role, revision status, document visibility) are evaluated by a centralized policy evaluator. No role-only gates outside boundary controllers. | [NIST SP 800-162 ABAC](https://csrc.nist.gov/Projects/Attribute-Based-Access-Control) |
+| D2 | Resource ownership | `TutorMember(TutorId, UserId, ResourceRole)` link table; no `OwnerId` on aggregates. Same shape reused for other resource ownership relationships as needed. | [EF Core M:N](https://learn.microsoft.com/ef/core/modeling/relationships/many-to-many) |
+| D3 | Model registry | EF Core TPH; abstract `Model` + `ModelType` discriminator; leaves `InteractionModel`, `EmbeddingModel`, `JudgeModel` (reserved), `RerankerModel` (reserved). | [EF Core inheritance](https://learn.microsoft.com/ef/core/modeling/inheritance) |
+| D4 | Document scoping | `Document` is tutor-agnostic. `TutorDocument` (M:N) attaches a Document to a Tutor for administrative selection. `DocumentFolder` is an admin-side organizational grouping (not a runtime entity). | [EF Core M:N](https://learn.microsoft.com/ef/core/modeling/relationships/many-to-many) |
+| D4b | Document/Knowledge runtime semantics | Tutor runtime consumes **Knowledge** (vectorized chunks) only. Documents are pre-runtime input. `DocumentFolder` is administrative; folders are not visible to the runtime. End-user file uploads at chat time are out of PoC scope and will be a separate, semantically distinct domain feature. | — |
+| D5 | Embedding dimensions and ANN index | `KnowledgeChunk.Embedding` is untyped pgvector `vector`. ANN index strategy is **configurable**: HNSW default, IVFFlat supported. Partial indexes per `EmbeddingModelId`. | [pgvector](https://github.com/pgvector/pgvector) |
+| D6 | Tutor versioning | `TutorRevision` aggregate (Draft/Published/Active/Archived) is the editable unit. `TutorConfigurationSnapshot` is a derived immutable projection captured at activation/benchmark. Re-vectorization produces a new snapshot and a new active revision. | [Fowler — Temporal Patterns](https://martinfowler.com/eaaDev/timeNarrative.html) |
+| D7 | Activation vs deployment | Activation = `TutorRevision.Status(Active)` + Snapshot. `DeploymentProfile` is preserved for future export/release configuration. | [12-Factor build/release/run](https://12factor.net/build-release-run) |
+| D8 | Runtime API auth | **Design target: JWT-always.** Anonymous local-only mode is a **build-time** MSBuild constant (`BITCRAFT_RUNTIME_LOCAL_ONLY`) that physically excludes the anonymous path from non-local builds. No runtime configuration switch can enable anonymous access. | [ASP.NET Core Authorization](https://learn.microsoft.com/aspnet/core/security/authorization/introduction) |
+| D9 | Secrets and config | 12-Factor Config: env vars for production-bound deployments. PoC and early iterations use simple local installs and localhost testing. The `template.<file>.<ext>` pattern is used **only when** a tracked configuration sample is genuinely required. | [12-Factor Config](https://12factor.net/config) |
+| D10 | Auditing (PoC) | BaseModel timestamps + actor FKs via SaveChanges interceptor. Future iterations adopt Message-History-style audit log. | [EF Core SaveChanges interceptor](https://learn.microsoft.com/ef/core/logging-events-diagnostics/interceptors#savechanges-interceptor), [EIP — Message History](https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageHistory.html) |
+| D11 | RuntimeEngine entity | First-class admin-managed entity introduced now (Provider, Endpoint, ApiKeySecretRef, IsEnabled). `Model` carries a FK to `RuntimeEngine`. Health checks and richer engine lifecycle are deferred. | — |
+| D12 | DocumentFolderMember | Omitted; folder access derives from tutor membership. | — |
+| D13 | TutorRevisionTool override | Reference `ToolDefinition` as-is for PoC; per-revision tool configuration/override is post-PoC. | — |
+| D14 | Server state | TanStack Query v5; Redux Toolkit narrowed to client-only state. | [TanStack Query](https://tanstack.com/query/latest) |
+| D15 | Forms | React Hook Form + Zod. | [React Hook Form](https://react-hook-form.com/) |
+| D16 | Data tables | TanStack Table v8 headless. | [TanStack Table](https://tanstack.com/table/latest) |
+| D17 | Document/Folder UI | Folder UI is administrative, not runtime. Re-evaluate `@svar-ui/react-filemanager` fit during frontend planning; replace only if it cannot represent admin-side selection cleanly. | — |
+| D18 | Frontend language | **Migrate Tutor Studio to TypeScript now.** Adopt OpenAPI-generated client when backend contracts are stable enough not to break frontend each iteration. | [TypeScript](https://www.typescriptlang.org/) |
+| D19 | Frontend testing | Vitest + Testing Library scaffold with at least one smoke test before freeze. | [Vitest](https://vitest.dev/) |
+| D20 | Design system | Keep react-bootstrap 5.3 for PoC; re-evaluate post-PoC only if forced by an architectural decision. | — |
+| D21 | Migrations | N-step dependency-ordered migrations. Step count recomputed during replanning after each ERM change. | [EF Core migrations](https://learn.microsoft.com/ef/core/managing-schemas/migrations) |
+| D22 | Activation slug | Slug derived from Tutor name (URL-safe). Uniqueness enforced; renames recompute slug and retain previous as a one-revision redirect. | — |
+| D23 | Effective document set | Materialized at activation into the Snapshot. Documents and folder attachments mutated after activation do not affect the active runtime until a new activation. | — |
+
+## Template Configuration Convention
+
+Locked: any tracked file that would carry secrets in a real deployment lives in source control **only** in the form `template.<original_file_name>.<original_ext>` with placeholder values. The real file (without the `template.` prefix) is added to `.gitignore` and produced by the human at deploy time from the template. This applies uniformly to bootstrap, appsettings, env files, compose env overrides, and any future settings carrying credentials, tokens, or endpoint references that resolve to a deployment.
+
+Examples (no agent edits to these without explicit human approval):
+
+- `template.appsettings.Bootstrap.json` (tracked) ↔ `appsettings.Bootstrap.json` (ignored).
+- `template.appsettings.Production.json` (tracked, if introduced) ↔ `appsettings.Production.json` (ignored).
+- `template.env` ↔ `.env`.
+
+Rules:
+
+- Placeholders use `"__REPLACE_ME__"` or empty strings with a documented contract; never plausible-looking real values.
+- `ApiKeySecretRef` columns (see [plan.erm.md §5.2](plan.erm.md#52-common-columns-on-model)) hold the **logical key name**, not the secret itself.
+- `IdentityRoleSeeder` and any startup seeding paths read configuration via strongly-typed `IOptions<T>` bound to bootstrap sections; missing/blank required fields **fail fast** rather than seeding defaults.
+- Agents do not modify `.gitignore` to add or remove template ignore rules without explicit human approval.
 
 ## Product Settings Segmentation
 
@@ -190,61 +233,123 @@ Activation should capture the configuration. It should not mutate model weights.
 - **CIL**: medium.
 - **Acceptance**: `dotnet build bitcraft.slnx` passes; focused interceptor/audit tests pass or are added if behavior is touched.
 
-### WS1 - Bootstrap Template And User System
+### WS1 - Bootstrap Template And Role Vocabulary
 
-- **Current State**: Roles and hardcoded admin credentials are seeded from startup code; startup logs and continues on seeding failure. Current roles are Admin/Editor/Viewer, but the requested Product roles are Admin/Editor/Auditor/User with `User` reserved for future runtime/end-user scenarios.
-- **Decision/Approach**: Production release is out of scope, but the POC must remove hardcoded credentials. Create a tracked bootstrap template with placeholders and clear local/dev/test usage. Actual deployment-specific scripts and secrets stay untracked and human-owned. Roles remain idempotent reference data. Admin/user creation is explicit via template/config, not hidden in normal startup. Rename/replace Viewer with Auditor if Human approves the role vocabulary now; keep runtime end users out of internal account management for POC.
-- **Owner**: Sec Ops architecture, NET Dev implementation, Lead Dev orchestration.
+- **Current State**: Roles and a hardcoded admin (`admin@bitcraft.com` / `Admin1234!`) are seeded from startup code in [IdentityRoleSeeder](../../../src/Bitcraft.Infrastructure/Identity/IdentityRoleSeeder.cs); startup logs and continues on seeding failure. Current roles are Admin/Editor/Viewer in [AppRoles](../../../src/Bitcraft.Application/Common/Security/AppRoles.cs); the locked Product vocabulary is Admin/Editor/Auditor (no User).
+- **Decision/Approach**:
+  1. Rename `Viewer` → `Auditor` in `AppRoles` and in the `ViewerOrAbove` policy in [DependencyInjection](../../../src/Bitcraft.Infrastructure/DependencyInjection.cs) (policy becomes `AuditorOrAbove`). Update all referencing controllers and tests.
+  2. Remove all hardcoded credentials from `IdentityRoleSeeder`. Roles remain idempotently seeded; users are not seeded by default.
+  3. Add `BootstrapOptions` (`Application/Common/Configuration`) bound from a `Bootstrap` configuration section. Add tracked `template.appsettings.Bootstrap.json` with placeholder values per [Template Configuration Convention](#template-configuration-convention). Real `appsettings.Bootstrap.json` is gitignored (humans add ignore rule; agents do not).
+  4. Startup binds `BootstrapOptions`; if section is present and validation succeeds, seed the configured admin user idempotently. If absent or invalid, seed roles only and log clearly. Missing required fields when section is present must **fail fast**.
+- **Owner**: Sec Ops architecture review, NET Dev implementation, Lead Dev orchestration.
 - **CIL**: high.
-- **Acceptance**: no hardcoded admin password; tracked template has placeholders only; local/dev/test can seed configured users and roles from the template pattern; duplicate runs are idempotent; docs match behavior; tests cover configured bootstrap and disabled/default state.
+- **Acceptance**:
+  - No hardcoded credentials anywhere in source.
+  - `AppRoles` exports exactly `Admin`, `Editor`, `Auditor`; `AuditorOrAbove` policy exists; old `Viewer`/`ViewerOrAbove` references are gone (build proof).
+  - `template.appsettings.Bootstrap.json` is tracked with placeholders only; the runtime file is gitignored.
+  - Unit tests cover: configured bootstrap path seeds admin once and is idempotent; missing/invalid bootstrap with section present fails fast; absent section seeds roles only without error.
+  - Integration test confirms the new policy gates an `Auditor`-only read endpoint correctly.
+  - [docs/authorization-roles.md](../../../docs/authorization-roles.md) is updated to match (requires explicit human permission to edit because `ai_gen: false`).
 
 ### WS2 - Product Settings, Runtime Engines, And Provider Configuration
 
 - **Current State**: Configuration is static appsettings/env vars; Settings page is a placeholder.
-- **Decision/Approach**: Add an Admin Settings view/API for Product environment/provider/runtime engine configuration. It should support viewing and, where approved, updating Ollama/OpenAI-compatible endpoint references, local mode flags, default engine/model references, and feature flags needed by the POC. Segment the UI into Environment, Runtime Engines, Models, Tutor Defaults, and User/Access. For POC, secrets are represented by secret references or environment variable names, not raw returned values. If Human wants UI-entered provider secrets before freeze, that becomes a separate security-reviewed decision.
+- **Decision/Approach** (v3): introduce a first-class admin-managed `RuntimeEngine` entity now (per D11) holding Provider, Endpoint, ApiKeySecretRef, IsEnabled. `Model` carries a FK to `RuntimeEngine`; provider/endpoint columns move off `Model`. Admin Settings view/API segments into Environment, Runtime Engines, Models, Tutor Defaults, and User/Access. Per 12-Factor Config (D9) configuration prefers env vars; tracked `template.<file>.<ext>` is used only when a sample file is genuinely required (not for routine bootstrap). Secrets are represented by `ApiKeySecretRef` only; raw values are never returned to the client. Health checks and richer engine lifecycle remain deferred.
 - **Owner**: NET Dev and Web Dev, Sec Ops review for any setting that can affect security or provider behavior.
 - **CIL**: high if mutable, medium if read-only plus references.
 - **Acceptance**: Admin can view and, where approved, update safe Product settings; no secret values are returned to the client; provider config supports Ollama and OpenAI references; Tutor Studio uses shared API base config; settings route is Admin-only and tested.
 
-### WS3 - Models View, Capabilities, And Model Wizard
+### WS3 - Model Registry (Polymorphic) And Wizard Contracts
 
-- **Current State**: Model catalog CRUD exists in backend and a basic frontend page exists, but the Product workflow needs capability-aware model configuration.
-- **Decision/Approach**: Add or refine internal Models menu/view for CRUD and a minimal model configuration/creation wizard. Preserve current style/structure. The wizard should capture name, runtime engine/provider, model name, endpoint/reference, capabilities, embedding dimensions where relevant, hyperparameter defaults, prompt/template metadata, enabled state, and health status where available. Interaction LLM/VLM models and embedding models must be visibly distinct. Avoid adding a new framework.
-- **Owner**: Web Dev primary, NET Dev for contract/domain changes.
-- **CIL**: high if domain/API model changes, medium for UI-only refinement.
-- **Acceptance**: Admin can create/list/update/delete model catalog entries; models are categorized by capability; vectorization flow can select embedding-capable models; tutor runtime flow can select chat-capable models.
-
-### WS4 - Minimal Tutor-Specific Document Ingestion
-
-- **Current State**: Document CRUD exists; frontend upload posts no raw text, so vectorization cannot work for user-uploaded files. Documents are not tutor-specific in the current domain model.
-- **Decision/Approach**: Implement tutor-specific plain text ingestion only. Prefer adding `TutorId` to `Document` if documents are not intended to be shared across tutors before freeze; otherwise add a `TutorDocumentLink`. Client reads `.txt`, `.md`, `.json`, and small text-like files as text and posts `rawText`. Keep local-file/folder concepts as metadata or UI grouping only unless Human approves server-side storage. Add a simple metadata popup; full document viewer is post-freeze.
-- **Owner**: Web Dev primary, NET Dev for any contract hardening.
-- **CIL**: medium.
-- **Acceptance**: Editor can create/list/delete a text document with non-empty raw text; vectorization rejects empty raw text cleanly; UI surfaces vectorization status and chunk count.
-
-### WS5 - Knowledge Vectorization Workflow
-
-- **Current State**: Vectorization uses fixed-size chunks and HNSW `vector(768)`; retrieval is scoped to tutor-linked documents.
-- **Decision/Approach**: Vectorization becomes a Product workflow: select tutor document(s), select embedding-capable model, choose simple chunk settings, run vectorization, and record provider/model/dimensions on chunks. Keep fixed chunking for freeze but add guardrails: validate embedding dimension before persistence and return useful errors. Activation may offer an "auto-vectorize missing/outdated tutor documents" checkbox, but the primary action remains explicit. Semantic chunking, overlaps, halfvec, binary quantization, reindex jobs, and hybrid search move after freeze.
-- **Owner**: NET Dev, Researcher for model dimension confirmation, Human for model decision.
-- **CIL**: high if schema changes, medium if only validation/config hardening.
-- **Acceptance**: Editor can select an embedding model during vectorization; vectorization succeeds with the selected model, fails safely on dimension mismatch, replaces chunks transactionally, and retrieval remains tutor/owner scoped.
-
-### WS6 - Tutor Configuration Flow
-
-- **Current State**: Backend supports tutor, prompts, model connection, knowledge source links, tools, deployment profile, and snapshots; frontend only lists tutors and cannot configure details.
-- **Decision/Approach**: Build a minimal tutor detail/config route. Required panels: interaction model, embedding/vectorization status, prompt, tutor documents/knowledge, activation, future deployment profile, and test runtime. Product MCP/tutor connector panel remains metadata only and disabled for runtime execution unless Human explicitly promotes it. Before implementation, choose whether POC versioning is snapshot-only or needs a draft/published revision table.
-- **Owner**: Web Dev primary, NET Dev for missing read endpoints or contract adjustments.
-- **CIL**: high because it crosses frontend/API contract and tutor aggregate behavior.
-- **Acceptance**: Editor can create tutor, add prompt, connect enabled chat-capable model catalog entry, attach vectorized document, save deployment profile, activate tutor, capture snapshot, and navigate back to list.
-
-### WS7 - Tutor Activation And Separate Runtime API
-
-- **Current State**: Low-level Ollama generation exists, but no runtime endpoint composes tutor model, prompt, knowledge, and generation.
-- **Decision/Approach**: Add tutor activation and a non-streaming runtime ask endpoint under a separate runtime controller/contract namespace. Activation captures the runnable snapshot and marks the local endpoint available. The runtime handler should use the activated interaction model, use the selected embedding model for query embedding, retrieve top tutor-linked chunks, assemble a bounded prompt from active prompt plus sources, call the existing generation abstraction, and return answer plus source metadata. For POC, unauthenticated runtime access is acceptable only if local-only guarded; otherwise keep JWT owner/editor checks. No memory, no tools, no streaming, no Product MCP execution.
-- **Owner**: NET Dev primary; Sec Ops review for prompt-injection and data boundary; Web Dev consumes in test panel.
+- **Current State**: A flat `ModelCatalogEntry` exists with `TutorModelConnection` binding a single tutor to a single model. There is no capability typing in the domain.
+- **Decision/Approach** (per [plan.erm.md §5](plan.erm.md#5-modeling-context-abstract-model--modeltype)):
+  1. Backend: introduce abstract `Model` with `ModelType` discriminator using EF Core TPH. Concrete leaves: `InteractionModel`, `EmbeddingModel`, `JudgeModel` (reserved), `RerankerModel` (reserved). Common columns on the base except provider/endpoint, which live on `RuntimeEngine` (D11); `Model` carries `RuntimeEngineId` FK and `ProviderModelName`. Leaf-specific columns (notably `EmbeddingDimensions`) on leaves. Drop `ModelCatalogEntry` in the same migration; data is internal POC and not preserved.
+  2. API contracts under [src/Bitcraft.Api/Contracts/Admin](../../../src/Bitcraft.Api/Contracts/Admin): one polymorphic `ModelResponse` keyed by `ModelType`, with explicit per-type request DTOs (`CreateInteractionModelRequest`, `CreateEmbeddingModelRequest`, etc.). Per [api-contracts.instructions.md](../../../.github/instructions/api-contracts.instructions.md) all DTOs are immutable records and do not expose domain entities.
+  3. `TutorModelConnection` is removed; model selection moves to `TutorRevision` (see WS6).
+  4. Frontend wizard work is **not** in scope here. The frontend iteration plans the wizard UX in [plan.frontend.md §6](plan.frontend.md#6-recommendation-block-pending-human-approval).
+- **Owner**: NET Dev primary; Lead Dev orchestration.
 - **CIL**: high.
-- **Acceptance**: Authenticated editor can activate and ask a tutor; inactive tutors do not serve runtime responses; non-owner cannot use the endpoint; response includes answer, active snapshot/deployment id, model label, retrieved source/chunk metadata, and safe errors for missing model/prompt/knowledge; focused unit/API tests cover ownership and missing configuration.
+- **Acceptance**:
+  - Single `Models` table with `ModelType` discriminator; FK from `KnowledgeChunk.EmbeddingModelId` and from `TutorRevision.InteractionModelId`/`QueryEmbeddingModelId` resolve via the base type.
+  - Admin CRUD endpoints accept and return capability-typed payloads; selecting embedding models elsewhere is filtered server-side.
+  - Unit tests cover TPH read/write per leaf, embedding-only validation (required `EmbeddingDimensions`), and FK-restricted delete when chunks reference an embedding model.
+
+### WS4 - Documents, Folders, And Tutor Link Tables
+
+- **Current State**: `Document` already has no `TutorId`. `KnowledgeSourceLink` ties tutors to documents 1:1 per row but lacks the folder concept. Frontend uploads raw text incorrectly (null).
+- **Decision/Approach** (per [plan.erm.md §4](plan.erm.md#4-document-context)):
+  1. Add `DocumentFolder`, `DocumentFolderEntry`, `TutorDocument`, `TutorDocumentFolder`. Migrate `KnowledgeSourceLink` rows into `TutorDocument` and drop the old table.
+  2. `Document` keeps its current shape (Name, MimeType, RawText, Checksum, Source). No `TutorId`, no `OwnerId`. Author is `BaseModel.CreatedById`.
+  3. Application commands: `AttachDocumentToTutor`, `DetachDocumentFromTutor`, `AttachFolderToTutor`, `DetachFolderFromTutor`, `CreateFolder`, `AddDocumentToFolder`, `RemoveDocumentFromFolder`. Each enforces tutor membership via the rule in [plan.erm.md §3.2](plan.erm.md#32-resource-membership).
+  4. Effective document set is the union of direct `TutorDocument` and folder membership. Materialized at activation into the snapshot (D23). Documents and folder attachments mutated after activation do not affect the active runtime until a new activation is created.
+  5. Backend accepts plain text only (`text/plain`, `text/markdown`, `application/json`) for the freeze.
+  6. **Document/Folder semantic re-frame** (D4b): `DocumentFolder` is an administrative grouping owned by Editor/Admin and is **not** a runtime concept. The runtime consumes `Knowledge` (vectorized chunks) only. End-user file uploads at chat time are out of PoC scope and will be a separate, semantically distinct domain feature.
+- **Owner**: NET Dev primary; Lead Dev orchestration. Frontend changes for these surfaces are in [plan.frontend.md](plan.frontend.md) and do not block this WS.
+- **CIL**: high.
+- **Acceptance**:
+  - All new tables present with the cardinality matrix in [plan.erm.md §9](plan.erm.md#9-cardinality-and-cascade-summary).
+  - Effective-document-set resolver covered by unit tests for: direct only, folder only, mixed, duplicate suppression.
+  - Attach/detach commands enforce `TutorMember` membership; non-member editors are rejected; admin bypasses membership.
+  - Vectorization rejects empty `RawText` cleanly with a typed error code.
+
+### WS5 - Knowledge Vectorization (Dynamic Dimensions)
+
+- **Current State**: `KnowledgeChunk.Embedding` is `vector(768)` with a single global HNSW index; `EmbeddingModel`/`EmbeddingProvider` are denormalized strings.
+- **Decision/Approach** (per [plan.erm.md §6](plan.erm.md#6-knowledge-context)):
+  1. Change `Embedding` column type to untyped `vector` (no N).
+  2. Add `EmbeddingModelId Guid` FK to the polymorphic `Model` (restricted to `EmbeddingModel`) and `EmbeddingDimensions int`. Drop the legacy string columns.
+  3. Add CHECK constraint `vector_dims(Embedding) = EmbeddingDimensions`.
+  4. Drop the fixed-dim HNSW index. Ship Infrastructure migration helpers (`EnsureEmbeddingIndex(modelId, dims)`, `DropEmbeddingIndex(modelId)`) that create/drop partial HNSW indexes per model.
+  5. Application commands `EnableEmbeddingModelCommand`/`DisableEmbeddingModelCommand` invoke the helpers.
+  6. `RebuildKnowledgeCommand` operates on `(DocumentId, EmbeddingModelId)` pairs only.
+  7. Unique `(DocumentId, EmbeddingModelId, ChunkIndex)` constraint enforced.
+- **Owner**: NET Dev primary; Researcher confirms `vector_dims()` availability in target pgvector version.
+- **CIL**: high.
+- **Acceptance**:
+  - Migration converts existing chunks to dynamic-dim schema (or wipes them if no embedding model can be inferred; POC data is disposable).
+  - Enable/disable model command creates/drops the partial HNSW index transactionally.
+  - Persisting a chunk whose vector length mismatches `EmbeddingDimensions` is rejected by the DB CHECK.
+  - Multiple embedding models coexist for the same document in tests; retrieval picks chunks for the active revision's `QueryEmbeddingModelId`.
+
+### WS6 - Tutor Revisions, Membership, And Activation Domain
+
+- **Current State**: `Tutor` carries `OwnerId` and uses `TutorModelConnection` plus `TutorConfigurationSnapshot` for ad-hoc versioning; the editor surface in the frontend is missing.
+- **Decision/Approach** (per [plan.erm.md §7](plan.erm.md#7-tutoring-context)):
+  1. Drop `OwnerId` from `Tutor`. Introduce `TutorMember(TutorId, UserId, ResourceRole, GrantedById, GrantedUtc)` with the membership invariant (≥1 Owner at all times). Founding membership inserted in the same transaction as tutor creation.
+  2. Drop `TutorModelConnection`. Introduce `TutorRevision` aggregate with state machine `Draft → Published → Active → Archived`. Add `Tutor.ActiveRevisionId` pointer.
+  3. Introduce `TutorRevisionTool` M:N join for tool composition per revision.
+  4. Update `TutorConfigurationSnapshot` to carry `TutorRevisionId`, `EffectiveDocumentIdsJson`, `EffectiveKnowledgeBindingJson`.
+  5. Application commands: `CreateTutor` (with founding owner), `AddTutorMember` / `RemoveTutorMember` (Owner-only invariant guarded), `CreateRevision` (from latest or blank), `EditDraftRevision`, `PublishRevision`, `ActivateRevision` (atomic: archives previous Active, sets `Tutor.ActiveRevisionId`, captures snapshot), `ArchiveRevision`.
+  6. Frontend surfaces for these are deferred to [plan.frontend.md](plan.frontend.md).
+- **Owner**: NET Dev primary; Sec Ops review of membership rule and authorization handler.
+- **CIL**: high.
+- **Acceptance**:
+  - Domain unit tests cover membership invariant (cannot remove last Owner), revision state machine (illegal transitions rejected), atomic activation (previous Active → Archived in same transaction), and snapshot capture content.
+  - API integration tests cover: non-member editor blocked, member editor permitted, admin bypass, auditor read-only.
+  - No references to `OwnerId` or `TutorModelConnection` remain in the codebase.
+
+### WS7 - Runtime API Aligned To Revisions
+
+- **Current State**: Low-level Ollama generation exists; no composed runtime endpoint.
+- **Decision/Approach**: Add `POST /api/runtime/tutors/{activationSlug}/ask` served by a dedicated runtime controller. Resolution flow:
+  1. Look up the activation slug → `Tutor` → `Tutor.ActiveRevisionId`. Reject with `tutor_inactive` if null.
+  2. Load the `TutorRevision` and its derived `TutorConfigurationSnapshot`.
+  3. Embed the incoming query with `Revision.QueryEmbeddingModel` (use the partial HNSW index for that model).
+  4. Retrieve top-K chunks from the snapshot's materialized document set, filtered to chunks whose `EmbeddingModelId` matches (mismatch surfaced as `knowledge_not_ready_for_active_embedding_model`).
+  5. Assemble bounded prompt from `Revision.PromptVersion` + retrieved sources.
+  6. Call `Revision.InteractionModel` via the generation abstraction.
+  7. Return answer, model label, revision id, snapshot id, retrieved chunk ids + source document ids, safe error codes.
+- Auth: management API stays JWT. The runtime endpoint is JWT-protected by default; an anonymous variant of the controller exists **only** when the `BITCRAFT_RUNTIME_LOCAL_ONLY` MSBuild constant is defined for the active configuration. Non-local builds physically exclude the anonymous code path. There is no runtime configuration switch for anonymous access.
+- No streaming, no tools, no memory, no Product MCP execution in this WS.
+- **Owner**: NET Dev primary; Sec Ops review of local-only guard and prompt-injection surface.
+- **CIL**: high.
+- **Acceptance**:
+  - Endpoint returns `tutor_inactive` for tutors with null `ActiveRevisionId`.
+  - In a non-`BITCRAFT_RUNTIME_LOCAL_ONLY` build, the anonymous controller variant is not present in the compiled assembly (verified by reflection-based assembly inspection test).
+  - JWT-required path rejects non-member editors and admits member editors per the ABAC policy evaluator (D1).
+  - Knowledge mismatch and missing-prompt errors return typed codes, not 500s.
+  - End-to-end happy path test against an Ollama mock (if available) or via unit-level fakes.
+  - Activation slug derived from Tutor name; rename retains the previous slug as a one-revision redirect (D22).
 
 ### WS8 - Basic Benchmarking Shell
 
@@ -299,21 +404,25 @@ Suggested branch shape for Human-managed Git/Jira: `type/JIRA-short-slug`, for e
 - **Bugs**: compile failures, broken existing endpoints, UI regressions found during smoke tests.
 - **Spikes**: only for unresolved provider secret storage or embedding dimension behavior; keep spikes time-boxed.
 
-## Open Human Decisions
+## Open Human Decisions (v3)
+
+Resolved items have moved to `plan.yaml.locked_decisions` and are detailed in [plan.decisions.md](plan.decisions.md). Remaining open questions:
 
 | # | Question | Recommendation | Blocks |
 |---|---|---|---|
-| 1 | What exact Product model workflow should Tutor Studio show? | Use Settings -> Models -> Documents -> Vectorize -> Tutor -> Activate -> Test. Human reviews final UI flow before frontend buildout. | WS2-WS7 |
-| 2 | Should model capabilities be explicit fields now or represented in settings JSON for POC? | Prefer explicit capability metadata now because it defines interaction vs embedding vs future expert model architecture. | WS3, WS5, WS7 |
-| 3 | Should Runtime Engine be a first-class entity now? | Prefer vocabulary/UI now; add an entity only if it reduces duplicated endpoint/provider config without blocking activation. | WS2, WS3 |
-| 4 | Can Tutor Studio store provider secrets, or only secret references for POC? | Prefer secret references only. Actual secret scripts remain untracked and human-owned. | WS2, WS3 |
-| 5 | What embedding model/dimension is approved for the first vectorization flow? | Select via Models view; validate dimension before persistence; default to 768-compatible output unless schema changes are approved. | WS5, WS7 |
-| 6 | Are documents strictly tutor-specific before freeze? | If yes, add `TutorId` to `Document`; if reuse matters immediately, add `TutorDocumentLink`. | WS4, WS5, WS6 |
-| 7 | What role strategy should management API use? | Admin/Editor/Auditor as internal global roles; `User` reserved; resource checks for owner/tutor data; scoped membership post-freeze unless required now. | WS1, WS6, WS7 |
-| 8 | What versioning option is approved? | Snapshot-only activation for POC; analyze `TutorRevision` after freeze. | WS6, WS7 |
-| 9 | Should runtime endpoint be authenticated or local unauthenticated? | Prefer separate `/api/runtime/...`; allow unauthenticated only with local guard and Human approval. | WS7 |
-| 10 | Is Product MCP connector metadata required before freeze? | Optional metadata only. No runtime execution. | WS6, WS7 |
-| 11 | Is benchmarking shell acceptable with no deep integration? | Yes. UI shell only is accepted for freeze. | WS8 |
+| _(none)_ | All Open Decisions O1–O8 from prior revisions are resolved. See the **Resolutions** note below. | — | — |
+
+> **Resolutions (2026-05-20, plan v3.4)**: O1 → **D25** (migration sequence approved). O2 → **D26** (`BITCRAFT_RUNTIME_LOCAL_ONLY` confirmed: name, definition site `Directory.Build.props`, CI defaults). O3 → **D27** (OpenAPI client deferred until at least one full PoC iteration of stable contracts). O4 → **D28** (frontend library set + admin-only DocumentFolder UX confirmed cohesive). O5 → D24 (ABAC evaluator placement). O6 → D11 (RuntimeEngine in-window, already locked). O7 → D22 / D22.b (slug redirect lifecycle + storage shape). O8 → reports adopted ([docs/architecture.md](../../../docs/architecture.md), [docs/change-notes.md](../../../docs/change-notes.md), [plan.decisions.md](plan.decisions.md)).
+>
+> **Next gate (Human, branching strategy)**: see `human_locks` in [plan.yaml](plan.yaml) and the development kickoff brief at [.github/plans/feature-freeze-2026-05-21/kickoff.md](kickoff.md) (once published).
+
+## Companion Reporting Artifacts
+
+Three artifacts are introduced alongside this plan and persist beyond the freeze:
+
+- **[plan.decisions.md](plan.decisions.md)** — in-plan decision register. Each decision row carries: ID, concern, options considered, locked option, references, reasoning, blocked work streams, and revision history. Owned by Planner; updated on every plan revision.
+- **[docs/architecture.md](../../../docs/architecture.md)** — living architecture document for the team. High-level system overview, ABAC + 12-Factor compliance map, ERM diagram (Mermaid/PlantUML), context-scoped class diagrams (Identity & Access, Modeling & RuntimeEngine, Documents & Knowledge, Tutoring & Revisions, Benchmarking), API/Infrastructure/Interface relations, and runtime/activation flow. Owned by Typewriter; updated on every accepted ERM/contract change.
+- **[docs/change-notes.md](../../../docs/change-notes.md)** — release-batch change notes for developers and team members. Concise, referenced, learner-friendly. Owned by Secretary; one entry per merged batch with links back to plan, decisions, and architecture sections.
 
 ## Impacted Files
 
@@ -357,12 +466,14 @@ Suggested branch shape for Human-managed Git/Jira: `type/JIRA-short-slug`, for e
 ## Defer After Freeze
 
 - MediatR replacement, Native AOT, dispatcher benchmarking.
-- Semantic chunking and overlap, re-embedding jobs, halfvec/binary quantization, hybrid search, vector index maintenance commands.
+- Semantic chunking and overlap, halfvec/binary quantization, hybrid search, automated index maintenance jobs beyond the per-model partial-index lifecycle.
 - OpenTelemetry spans, trace visualization, Stream of Thought UI.
 - Runtime engine fleet management, vLLM/llama.cpp/cloud runners, orchestrator/expert execution, Product MCP connector runtime execution, per-client OAuth consent, remote Product MCP integrations.
 - Statistical benchmarking, confidence intervals, p-values, LLM-as-judge, export/reporting.
-- Rich file manager, folders backed by storage, binary ingestion, OCR, PDF/DOCX parsers.
-- Tutor revision tables if snapshot-only activation proves insufficient, deployment/export artifacts, conversation history, streaming answers, external runtime API keys, encrypted remote model secret storage, true fine-tuning/training lifecycle.
+- Rich file manager backed by object storage, binary ingestion, OCR, PDF/DOCX parsers, smart-filter folder evaluation engine.
+- Deployment/export artifacts, conversation history, streaming answers, external runtime API keys, encrypted remote model secret storage, true fine-tuning/training lifecycle.
+- `DocumentFolderMember` ACL, hierarchical folders, membership history/audit log, dedicated `RuntimeEngine` entity.
+- TypeScript migration of the frontend; Mantine/Radix design-system evaluation; AG Grid; httpOnly-cookie auth rotation.
 
 ## Inbox Updates Queued
 

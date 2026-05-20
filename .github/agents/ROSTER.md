@@ -1,8 +1,8 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-05-20
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 ---
 # Bitcraft Agent Catalog
@@ -11,25 +11,31 @@ Custom agents live in this folder as `.agent.md` files. Use them when the task b
 
 ## Admin
 
-- `secretary`: overview, timelines, inbox triage, roadmaps, Jira/Bitbucket status, and work coordination.
-- `typewriter`: reports, guides, README/docs, audit writeups, and presentable developer documentation.
+- `secretary` (Secretary): overview, timelines, inbox triage, roadmaps, Jira/Bitbucket status, and work coordination.
+- `typewriter` (Typewriter): reports, guides, README/docs, audit writeups, and presentable developer documentation.
 
 ## Planning
 
-- `researcher`: repository and external evidence gathering, academic/technical research, and source verification.
-- `planner`: technical planning, risk classification, impacted files, acceptance criteria, and validation strategy.
+- `researcher` (Researcher): repository and external evidence gathering, academic/technical research, and source verification.
+- `planner` (Planner): technical planning, risk classification, impacted files, acceptance criteria, and validation strategy.
 
 ## Development
 
-- `lead-dev`: full-stack development orchestrator, expert delegation, review routing, and fallback implementation.
-- `net-dev`: .NET backend, Clean Architecture, EF Core, API/Application/Domain/Infrastructure, and backend tests.
-- `web-dev`: React/Vite Tutor Studio frontend and frontend validation.
+- `lead-dev` (Lead Dev): full-stack development orchestrator, expert delegation, review routing, and fallback implementation.
+- `net-dev` (NET Dev): .NET backend, Clean Architecture, EF Core, API/Application/Domain/Infrastructure, and backend tests.
+- `web-dev` (Web Dev): React/Vite Tutor Studio frontend and frontend validation.
 
 ## Integrity
 
-- `dev-ops`: CI/CD, Docker, deployment, migrations, branch conventions, release workflow, and integrity audit.
-- `sec-ops`: security, privacy, authorization, prompt-injection, data governance, and security audit.
-- `ai-ops`: prompts, agents, instructions, skills, MCP, model routing, metrics, and agentic audit.
+- `dev-ops` (Dev Ops): CI/CD, Docker, deployment, migrations, branch conventions, release workflow, and integrity audit.
+- `sec-ops` (Sec Ops): security, privacy, authorization, prompt-injection, data governance, and security audit.
+- `ai-ops` (AI Ops): prompts, agents, instructions, skills, MCP, model routing, metrics, and agentic audit.
+
+## Naming Convention
+
+- Each agent file's YAML `name:` value is the **Title Case display name** (e.g. `Lead Dev`, `NET Dev`, `AI Ops`).
+- The **slug** is the kebab-case folder/file/inbox identifier (e.g. `lead-dev`, `net-dev`, `ai-ops`) and is used in paths, MCP tool arguments, and inbox routing.
+- Cross-references in inboxes, plans, prompts, and skills should use the slug for paths and the display name for prose.
 
 ## Coordination Rules
 

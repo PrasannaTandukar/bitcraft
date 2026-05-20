@@ -52,3 +52,9 @@ Captured from chat. This document records human-confirmed answers so plans, prom
 - **Decision**: Markdown files under `.github/governance/` are semi-locked report and doctrine files that agents may modify (subject to `ai_gen` rules). Human-managed configuration lists — such as the approved external sources allow-list — are kept as **YAML** files instead.
 - **Rationale**: Keeps the human-edited surface narrow and well-typed; keeps AI-edited surface in Markdown where prose updates are natural.
 - **First application**: `.github/config/approved-external-sources.yaml` replaces the planned `APPROVED_EXTERNAL_SOURCES.md`.
+
+## D-9 — Twelve-Factor Compliance Map
+
+- **Decision**: [Twelve-Factor App](https://12factor.net/) is Bitcraft's foundational deployment vision (per feature-freeze-2026-05-21 D0b). A living compliance map at [twelve-factor.md](twelve-factor.md) tracks each factor's status (Compliant / Partial / Gap) with repository evidence and next actions.
+- **Ownership**: AI Ops maintains the document; updates are triggered when locked decisions, infrastructure changes, or governance updates materially affect a factor.
+- **Companion**: [.github/plans/feature-freeze-2026-05-21/plan.decisions.md](../plans/feature-freeze-2026-05-21/plan.decisions.md) Companion Artifacts.

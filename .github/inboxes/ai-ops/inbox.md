@@ -1,6 +1,6 @@
-﻿---
+---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-05-20
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -9,11 +9,11 @@ ai_gen: true
 
 - Date: 2026-05-18
 - Status: blocked
-- Blocked by: Repo memory files are stored in VS Code extension storage outside the workspace; only a human or agent with memory-tool access can refresh them.
+- Blocked by: Repo memory files are stored in VS Code extension storage outside the workspace; only a human or agent with memory-tool access can refresh them. Re-confirmed blocked 2026-05-20 during feature-freeze v3.1 inbox sweep � AI Ops cannot self-unblock this item.
 - Source: AI Ops (Agentic Audit F-2)
 - Target: ai-ops
 - Priority: medium
-- Task: Refresh `/memories/repo/*.md` entries to reflect the current layout: `handoffs`→`inboxes`, root `AGENTS.md` added, MCP server implemented, `MODEL_ROUTING.md` added, `.github/config/` added, `.github/plans/` `.github/audits/` `.github/research/` `.github/reviews/` added with archive+templates, METRICS.md simplified to CSS/DIS/CIL only.
+- Task: Refresh `/memories/repo/*.md` entries to reflect the current layout: `handoffs`?`inboxes`, root `AGENTS.md` added, MCP server implemented, `MODEL_ROUTING.md` added, `.github/config/` added, `.github/plans/` `.github/audits/` `.github/research/` `.github/reviews/` added with archive+templates, METRICS.md simplified to CSS/DIS/CIL only.
 - Acceptance/Cleanup: Repo memory mirrors the current tree; remove this item.
 
 - Date: 2026-05-19

@@ -2,7 +2,7 @@
 created_at: 2026-05-19
 edited_at: 2026-05-21
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 ---
 # NET Dev Inbox
