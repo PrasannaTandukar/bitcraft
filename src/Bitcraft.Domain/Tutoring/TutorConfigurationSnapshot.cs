@@ -1,5 +1,6 @@
 using Bitcraft.Domain.Common;
 using Bitcraft.Domain.Identity;
+using Bitcraft.Domain.Modeling;
 
 namespace Bitcraft.Domain.Tutoring;
 
@@ -15,8 +16,7 @@ public class TutorConfigurationSnapshot : BaseModel
     public Guid? PromptVersionId { get; private set; }
     public string? PromptContent { get; private set; }
     public Guid? TutorModelConnectionId { get; private set; }
-    public Guid? ModelCatalogEntryId { get; private set; }
-    public ModelProviderType? ProviderType { get; private set; }
+    public Guid? InteractionModelId { get; private set; }
     public string? ModelName { get; private set; }
     public string? ModelSettingsJson { get; private set; }
     public string? ToolsJson { get; private set; }
@@ -43,7 +43,7 @@ public class TutorConfigurationSnapshot : BaseModel
             throw new ArgumentException("Captured user id is required.", nameof(capturedById));
         }
 
-        var catalogEntry = tutorModelConnection?.ModelCatalogEntry;
+        var interactionModel = tutorModelConnection?.InteractionModel;
 
         return new TutorConfigurationSnapshot
         {
@@ -52,10 +52,9 @@ public class TutorConfigurationSnapshot : BaseModel
             PromptVersionId = promptVersion?.Id,
             PromptContent = promptVersion?.Content,
             TutorModelConnectionId = tutorModelConnection?.Id,
-            ModelCatalogEntryId = catalogEntry?.Id,
-            ProviderType = catalogEntry?.ProviderType,
-            ModelName = catalogEntry?.ModelName,
-            ModelSettingsJson = tutorModelConnection?.OverrideSettingsJson ?? catalogEntry?.SettingsJson,
+            InteractionModelId = interactionModel?.Id,
+            ModelName = interactionModel?.ProviderModelName,
+            ModelSettingsJson = tutorModelConnection?.OverrideSettingsJson ?? interactionModel?.SettingsJson,
             ToolsJson = toolsJson,
             KnowledgeSourcesJson = knowledgeSourcesJson,
             DeploymentProfileJson = deploymentProfile?.ConfigurationJson,

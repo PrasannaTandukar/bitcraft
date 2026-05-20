@@ -15,9 +15,9 @@ public class TutorModelConnectionConfiguration : IEntityTypeConfiguration<TutorM
 
         entity.Property(x => x.OverrideSettingsJson).HasColumnType("jsonb");
 
-        entity.HasOne(x => x.ModelCatalogEntry)
+        entity.HasOne(x => x.InteractionModel)
             .WithMany()
-            .HasForeignKey(x => x.ModelCatalogEntryId)
+            .HasForeignKey(x => x.InteractionModelId)
             .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasIndex(x => x.TutorId).IsUnique();

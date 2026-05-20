@@ -1,3 +1,4 @@
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.Infrastructure.Persistence.Repositories.Tutoring;
 using Xunit;
@@ -45,26 +46,33 @@ public class TutorRepositoryTests
         await PersistenceTestContextFactory.AddUserAsync(db, userId);
         var repository = new TutorRepository(db);
         var tutor = await repository.AddAsync(Tutor.Create("Tutor", null, currentUser.UserId));
-        var firstCatalogEntry = new ModelCatalogEntry
+        var engine = new RuntimeEngine
+        {
+            Name = "Local Ollama",
+            ProviderType = RuntimeEngineProviderType.Ollama,
+            Endpoint = "http://localhost:11434",
+            IsEnabled = true
+        };
+        db.RuntimeEngines.Add(engine);
+        await db.SaveChangesAsync();
+        var firstModel = new InteractionModel
         {
             Name = "First model",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3"
+            RuntimeEngineId = engine.Id,
+            ProviderModelName = "llama3"
         };
-        var secondCatalogEntry = new ModelCatalogEntry
+        var secondModel = new InteractionModel
         {
             Name = "Second model",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "mistral"
+            RuntimeEngineId = engine.Id,
+            ProviderModelName = "mistral"
         };
-        db.ModelCatalogEntries.AddRange(firstCatalogEntry, secondCatalogEntry);
+        db.InteractionModels.AddRange(firstModel, secondModel);
         await db.SaveChangesAsync();
         var original = await repository.UpsertTutorModelConnectionAsync(new TutorModelConnection
         {
             TutorId = tutor.Id,
-            ModelCatalogEntryId = firstCatalogEntry.Id,
+            InteractionModelId = firstModel.Id,
             OverrideSettingsJson = "{\"temperature\":0.2}"
         });
 
@@ -72,13 +80,13 @@ public class TutorRepositoryTests
         var updated = await repository.UpsertTutorModelConnectionAsync(new TutorModelConnection
         {
             TutorId = tutor.Id,
-            ModelCatalogEntryId = secondCatalogEntry.Id,
+            InteractionModelId = secondModel.Id,
             OverrideSettingsJson = "{\"temperature\":0.4}"
         });
 
         // Assert
         Assert.Equal(original.Id, updated.Id);
-        Assert.Equal(secondCatalogEntry.Id, updated.ModelCatalogEntryId);
+        Assert.Equal(secondModel.Id, updated.InteractionModelId);
         Assert.Equal("{\"temperature\":0.4}", updated.OverrideSettingsJson);
     }
 }

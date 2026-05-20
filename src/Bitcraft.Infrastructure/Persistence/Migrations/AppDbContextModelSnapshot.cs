@@ -70,15 +70,15 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<Guid?>("InteractionModelId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("LastProgressUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ModelAlias")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<Guid?>("ModelCatalogEntryId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
@@ -142,7 +142,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("ModelCatalogEntryId");
+                    b.HasIndex("InteractionModelId");
 
                     b.HasIndex("ModifiedById");
 
@@ -483,6 +483,116 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.ToTable("KnowledgeChunks", (string)null);
                 });
 
+            modelBuilder.Entity("Bitcraft.Domain.Modeling.Model", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ModelKind")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ProviderModelName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("RuntimeEngineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SettingsJson")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("RuntimeEngineId");
+
+                    b.ToTable("Models", (string)null);
+
+                    b.HasDiscriminator<string>("ModelKind").HasValue("Model");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Modeling.RuntimeEngine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApiKeySecretRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProviderType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("RuntimeEngines", (string)null);
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.DeploymentProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -561,64 +671,6 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("TutorKnowledgeSources", (string)null);
-                });
-
-            modelBuilder.Entity("Bitcraft.Domain.Tutoring.ModelCatalogEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApiKeySecretRef")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Endpoint")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ModelName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid?>("ModifiedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ModifiedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("ProviderType")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SettingsJson")
-                        .HasColumnType("jsonb");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("ModifiedById");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("ModelCatalogEntries", (string)null);
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.PromptVersion", b =>
@@ -785,11 +837,11 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<string>("DeploymentProfileJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<Guid?>("InteractionModelId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("KnowledgeSourcesJson")
                         .HasColumnType("jsonb");
-
-                    b.Property<Guid?>("ModelCatalogEntryId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("ModelName")
                         .HasMaxLength(200)
@@ -809,9 +861,6 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("PromptVersionId")
                         .HasColumnType("uuid");
-
-                    b.Property<int?>("ProviderType")
-                        .HasColumnType("integer");
 
                     b.Property<string>("ToolsJson")
                         .HasColumnType("jsonb");
@@ -887,7 +936,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("ModelCatalogEntryId")
+                    b.Property<Guid>("InteractionModelId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ModifiedById")
@@ -906,7 +955,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("ModelCatalogEntryId");
+                    b.HasIndex("InteractionModelId");
 
                     b.HasIndex("ModifiedById");
 
@@ -1019,6 +1068,23 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Bitcraft.Domain.Modeling.EmbeddingModel", b =>
+                {
+                    b.HasBaseType("Bitcraft.Domain.Modeling.Model");
+
+                    b.Property<int>("EmbeddingDimensions")
+                        .HasColumnType("integer");
+
+                    b.HasDiscriminator().HasValue("Embedding");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Modeling.InteractionModel", b =>
+                {
+                    b.HasBaseType("Bitcraft.Domain.Modeling.Model");
+
+                    b.HasDiscriminator().HasValue("Interaction");
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Benchmarking.BenchmarkRun", b =>
                 {
                     b.HasOne("Bitcraft.Domain.Benchmarking.BenchmarkTemplate", "BenchmarkTemplate")
@@ -1033,9 +1099,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Tutoring.ModelCatalogEntry", "ModelCatalogEntry")
+                    b.HasOne("Bitcraft.Domain.Modeling.InteractionModel", "InteractionModel")
                         .WithMany()
-                        .HasForeignKey("ModelCatalogEntryId")
+                        .HasForeignKey("InteractionModelId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
@@ -1058,7 +1124,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("ModelCatalogEntry");
+                    b.Navigation("InteractionModel");
 
                     b.Navigation("ModifiedBy");
 
@@ -1163,6 +1229,50 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("ModifiedBy");
                 });
 
+            modelBuilder.Entity("Bitcraft.Domain.Modeling.Model", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bitcraft.Domain.Modeling.RuntimeEngine", "RuntimeEngine")
+                        .WithMany()
+                        .HasForeignKey("RuntimeEngineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
+
+                    b.Navigation("RuntimeEngine");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Modeling.RuntimeEngine", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.DeploymentProfile", b =>
                 {
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
@@ -1221,24 +1331,6 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("ModifiedBy");
 
                     b.Navigation("Tutor");
-                });
-
-            modelBuilder.Entity("Bitcraft.Domain.Tutoring.ModelCatalogEntry", b =>
-                {
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
-                        .WithMany()
-                        .HasForeignKey("ModifiedById")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.PromptVersion", b =>
@@ -1385,9 +1477,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Bitcraft.Domain.Tutoring.ModelCatalogEntry", "ModelCatalogEntry")
+                    b.HasOne("Bitcraft.Domain.Modeling.InteractionModel", "InteractionModel")
                         .WithMany()
-                        .HasForeignKey("ModelCatalogEntryId")
+                        .HasForeignKey("InteractionModelId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1404,7 +1496,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("ModelCatalogEntry");
+                    b.Navigation("InteractionModel");
 
                     b.Navigation("ModifiedBy");
 

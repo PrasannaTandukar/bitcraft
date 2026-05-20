@@ -1,15 +1,15 @@
-using Bitcraft.Domain.Tutoring;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Bitcraft.Infrastructure.Persistence.Configurations.Tutoring;
+namespace Bitcraft.Infrastructure.Persistence.Configurations.Modeling;
 
-public class ModelCatalogEntryConfiguration : IEntityTypeConfiguration<ModelCatalogEntry>
+public class RuntimeEngineConfiguration : IEntityTypeConfiguration<RuntimeEngine>
 {
-    public void Configure(EntityTypeBuilder<ModelCatalogEntry> entity)
+    public void Configure(EntityTypeBuilder<RuntimeEngine> entity)
     {
-        entity.ToTable("ModelCatalogEntries");
+        entity.ToTable("RuntimeEngines");
 
         entity.ConfigureBaseModel();
 
@@ -25,15 +25,8 @@ public class ModelCatalogEntryConfiguration : IEntityTypeConfiguration<ModelCata
             .IsRequired()
             .HasMaxLength(500);
 
-        entity.Property(x => x.ModelName)
-            .IsRequired()
-            .HasMaxLength(200);
-
         entity.Property(x => x.ApiKeySecretRef)
             .HasMaxLength(200);
-
-        entity.Property(x => x.SettingsJson)
-            .HasColumnType("jsonb");
 
         entity.Property(x => x.IsEnabled).IsRequired();
 

@@ -154,7 +154,7 @@ public static class BenchmarkFeatures
         Guid TutorId,
         Guid BenchmarkTemplateId,
         Guid? TutorConfigurationSnapshotId,
-        Guid? ModelCatalogEntryId,
+        Guid? InteractionModelId,
         string? ModelAlias,
         int ConsistencyRuns,
         IReadOnlyList<BenchmarkCaseInput> Cases) : IRequest<Result<BenchmarkRun>>;
@@ -162,7 +162,7 @@ public static class BenchmarkFeatures
     public sealed class CreateTutorBenchmarkRunHandler(
         ITutorRepository tutors,
         IBenchmarkTemplateRepository templates,
-        IModelCatalogRepository modelCatalog,
+        IModelRepository modelRepository,
         IBenchmarkRunRepository runs,
         IBenchmarkRunQueue queue,
         ITutorMembershipReader membership,
@@ -245,25 +245,25 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.SnapshotNotFound", "Snapshot was not found for the selected tutor."));
             }
 
-            if (request.ModelCatalogEntryId.HasValue &&
-                selectedSnapshot?.ModelCatalogEntryId.HasValue == true &&
-                request.ModelCatalogEntryId.Value != selectedSnapshot.ModelCatalogEntryId.Value)
+            if (request.InteractionModelId.HasValue &&
+                selectedSnapshot?.InteractionModelId.HasValue == true &&
+                request.InteractionModelId.Value != selectedSnapshot.InteractionModelId.Value)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Benchmark.ModelCatalogMismatch", "Selected model catalog entry does not match the selected snapshot."));
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.InteractionModelMismatch", "Selected interaction model does not match the selected snapshot."));
             }
 
-            var modelCatalogEntryId = request.ModelCatalogEntryId ?? selectedSnapshot?.ModelCatalogEntryId;
-            if (modelCatalogEntryId.HasValue)
+            var interactionModelId = request.InteractionModelId ?? selectedSnapshot?.InteractionModelId;
+            if (interactionModelId.HasValue)
             {
-                var modelCatalogEntry = await modelCatalog.GetByIdAsync(modelCatalogEntryId.Value, cancellationToken);
-                if (modelCatalogEntry is null)
+                var interactionModel = await modelRepository.GetInteractionModelByIdAsync(interactionModelId.Value, cancellationToken);
+                if (interactionModel is null)
                 {
-                    return Result.Failure<BenchmarkRun>(new Error("ModelCatalog.NotFound", $"Model catalog entry '{modelCatalogEntryId.Value}' not found."));
+                    return Result.Failure<BenchmarkRun>(new Error("InteractionModel.NotFound", $"Interaction model '{interactionModelId.Value}' not found."));
                 }
 
-                if (!modelCatalogEntry.IsEnabled)
+                if (!interactionModel.IsEnabled)
                 {
-                    return Result.Failure<BenchmarkRun>(new Error("ModelCatalog.Disabled", "Selected model catalog entry is disabled."));
+                    return Result.Failure<BenchmarkRun>(new Error("InteractionModel.Disabled", "Selected interaction model is disabled."));
                 }
             }
 
@@ -272,7 +272,7 @@ public static class BenchmarkFeatures
                 TutorId = request.TutorId,
                 TutorConfigurationSnapshotId = request.TutorConfigurationSnapshotId,
                 BenchmarkTemplateId = request.BenchmarkTemplateId,
-                ModelCatalogEntryId = modelCatalogEntryId,
+                InteractionModelId = interactionModelId,
                 ModelAlias = string.IsNullOrWhiteSpace(request.ModelAlias) ? null : request.ModelAlias.Trim(),
                 ConsistencyRuns = request.ConsistencyRuns,
                 Status = BenchmarkRunStatus.Queued,

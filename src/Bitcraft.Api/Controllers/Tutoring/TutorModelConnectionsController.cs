@@ -29,7 +29,7 @@ public class TutorModelConnectionsController(ISender sender) : ControllerBase
     {
         var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(
             tutorId,
-            request.ModelCatalogEntryId,
+            request.InteractionModelId,
             request.OverrideSettingsJson);
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess

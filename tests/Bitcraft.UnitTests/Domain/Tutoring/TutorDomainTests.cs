@@ -1,3 +1,4 @@
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Xunit;
 
@@ -155,18 +156,18 @@ public class TutorConfigurationSnapshotTests
         // Arrange
         var tutor = Tutor.Create("Algebra", null, Guid.NewGuid());
         var prompt = new PromptVersion { TutorId = tutor.Id, Content = "system prompt", Name = "v1" };
-        var catalogEntry = new ModelCatalogEntry
+        var interactionModel = new InteractionModel
         {
-            ProviderType = ModelProviderType.Ollama,
-            ModelName = "llama3.1",
-            Endpoint = "http://localhost:11434",
+            Name = "m",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3.1",
             SettingsJson = "{\"temp\":0.2}"
         };
         var connection = new TutorModelConnection
         {
             TutorId = tutor.Id,
-            ModelCatalogEntryId = catalogEntry.Id,
-            ModelCatalogEntry = catalogEntry,
+            InteractionModelId = interactionModel.Id,
+            InteractionModel = interactionModel,
             OverrideSettingsJson = "{\"temp\":0.4}"
         };
         var profile = new DeploymentProfile { TutorId = tutor.Id, ConfigurationJson = "{\"replicas\":1}" };
@@ -183,8 +184,8 @@ public class TutorConfigurationSnapshotTests
         Assert.Equal(prompt.Id, snapshot.PromptVersionId);
         Assert.Equal(prompt.Content, snapshot.PromptContent);
         Assert.Equal(connection.Id, snapshot.TutorModelConnectionId);
-        Assert.Equal(catalogEntry.Id, snapshot.ModelCatalogEntryId);
-        Assert.Equal(ModelProviderType.Ollama, snapshot.ProviderType);
+        Assert.Equal(interactionModel.Id, snapshot.InteractionModelId);
+        Assert.Equal(interactionModel.ProviderModelName, snapshot.ModelName);
         Assert.Equal(connection.OverrideSettingsJson, snapshot.ModelSettingsJson);
         Assert.Equal(profile.ConfigurationJson, snapshot.DeploymentProfileJson);
         Assert.Equal(capturedById, snapshot.CapturedById);

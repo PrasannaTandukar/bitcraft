@@ -3,6 +3,7 @@ using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 
 namespace Bitcraft.UnitTests.Application.Tutoring.Fakes;
@@ -228,25 +229,69 @@ internal sealed class FakeTutorRepository : ITutorRepository
     }
 }
 
-internal sealed class FakeModelCatalogRepository : IModelCatalogRepository
+internal sealed class FakeModelRepository : IModelRepository
 {
-    public Dictionary<Guid, ModelCatalogEntry> Entries { get; } = new();
+    public Dictionary<Guid, InteractionModel> InteractionModels { get; } = new();
+    public Dictionary<Guid, EmbeddingModel> EmbeddingModels { get; } = new();
 
-    public Task<ModelCatalogEntry> AddAsync(ModelCatalogEntry entry, CancellationToken ct = default)
+    public Task<Model?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        Entries[entry.Id] = entry;
-        return Task.FromResult(entry);
+        if (InteractionModels.TryGetValue(id, out var im)) return Task.FromResult<Model?>(im);
+        if (EmbeddingModels.TryGetValue(id, out var em)) return Task.FromResult<Model?>(em);
+        return Task.FromResult<Model?>(null);
     }
 
-    public Task<ModelCatalogEntry?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        Task.FromResult(Entries.TryGetValue(id, out var entry) ? entry : null);
-
-    public Task<List<ModelCatalogEntry>> ListAsync(CancellationToken ct = default) =>
-        Task.FromResult(Entries.Values.ToList());
-
-    public Task UpdateAsync(ModelCatalogEntry entry, CancellationToken ct = default)
+    public Task<bool> NameExistsAsync(string name, Guid? excludeId, CancellationToken ct = default)
     {
-        Entries[entry.Id] = entry;
+        bool match(Model m) => m.Name == name && (excludeId is null || m.Id != excludeId.Value);
+        return Task.FromResult(InteractionModels.Values.Any(match) || EmbeddingModels.Values.Any(match));
+    }
+
+    public Task<InteractionModel?> GetInteractionModelByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(InteractionModels.TryGetValue(id, out var m) ? m : null);
+
+    public Task<List<InteractionModel>> ListInteractionModelsAsync(CancellationToken ct = default) =>
+        Task.FromResult(InteractionModels.Values.ToList());
+
+    public Task<InteractionModel> AddAsync(InteractionModel model, CancellationToken ct = default)
+    {
+        InteractionModels[model.Id] = model;
+        return Task.FromResult(model);
+    }
+
+    public Task UpdateAsync(InteractionModel model, CancellationToken ct = default)
+    {
+        InteractionModels[model.Id] = model;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(InteractionModel model, CancellationToken ct = default)
+    {
+        InteractionModels.Remove(model.Id);
+        return Task.CompletedTask;
+    }
+
+    public Task<EmbeddingModel?> GetEmbeddingModelByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(EmbeddingModels.TryGetValue(id, out var m) ? m : null);
+
+    public Task<List<EmbeddingModel>> ListEmbeddingModelsAsync(CancellationToken ct = default) =>
+        Task.FromResult(EmbeddingModels.Values.ToList());
+
+    public Task<EmbeddingModel> AddAsync(EmbeddingModel model, CancellationToken ct = default)
+    {
+        EmbeddingModels[model.Id] = model;
+        return Task.FromResult(model);
+    }
+
+    public Task UpdateAsync(EmbeddingModel model, CancellationToken ct = default)
+    {
+        EmbeddingModels[model.Id] = model;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(EmbeddingModel model, CancellationToken ct = default)
+    {
+        EmbeddingModels.Remove(model.Id);
         return Task.CompletedTask;
     }
 }
@@ -339,8 +384,3 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
     }
 }
 
-internal sealed class StubHealthCheck(Result<ModelHealthStatus> result) : IModelConnectionHealthCheck
-{
-    public Task<Result<ModelHealthStatus>> CheckAsync(ModelCatalogEntry catalogEntry, CancellationToken cancellationToken = default) =>
-        Task.FromResult(result);
-}

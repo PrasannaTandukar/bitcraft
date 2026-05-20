@@ -8,6 +8,7 @@ using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Microsoft.AspNetCore.Mvc;
 
@@ -48,19 +49,42 @@ internal static class TutoringMapping
         chunk.EmbeddingProvider,
         chunk.IngestedUtc);
 
-    public static ModelCatalogEntryResponse ToResponse(this ModelCatalogEntry entry) => new(
-        entry.Id,
-        entry.Name,
-        entry.ProviderType,
-        entry.Endpoint,
-        entry.ModelName,
-        HasApiKey: !string.IsNullOrWhiteSpace(entry.ApiKeySecretRef),
-        entry.SettingsJson,
-        entry.IsEnabled,
-        entry.CreatedUtc,
-        entry.CreatedById,
-        entry.ModifiedUtc,
-        entry.ModifiedById);
+    public static InteractionModelResponse ToResponse(this InteractionModel model) => new(
+        model.Id,
+        model.Name,
+        model.RuntimeEngineId,
+        model.ProviderModelName,
+        model.SettingsJson,
+        model.IsEnabled,
+        model.CreatedUtc,
+        model.CreatedById,
+        model.ModifiedUtc,
+        model.ModifiedById);
+
+    public static EmbeddingModelResponse ToResponse(this EmbeddingModel model) => new(
+        model.Id,
+        model.Name,
+        model.RuntimeEngineId,
+        model.ProviderModelName,
+        model.EmbeddingDimensions,
+        model.SettingsJson,
+        model.IsEnabled,
+        model.CreatedUtc,
+        model.CreatedById,
+        model.ModifiedUtc,
+        model.ModifiedById);
+
+    public static RuntimeEngineResponse ToResponse(this RuntimeEngine engine) => new(
+        engine.Id,
+        engine.Name,
+        engine.ProviderType,
+        engine.Endpoint,
+        HasApiKeySecret: !string.IsNullOrWhiteSpace(engine.ApiKeySecretRef),
+        engine.IsEnabled,
+        engine.CreatedUtc,
+        engine.CreatedById,
+        engine.ModifiedUtc,
+        engine.ModifiedById);
 
     public static TutorResponse ToResponse(this Tutor tutor) => new(
         tutor.Id,
@@ -75,9 +99,6 @@ internal static class TutoringMapping
 
     public static PromptVersionResponse ToResponse(this PromptVersion v) => new(
         v.Id, v.TutorId, v.VersionNumber, v.Name, v.Content, v.Notes, v.CreatedUtc);
-
-    public static ModelHealthResponse ToResponse(this ModelHealthStatus s) => new(
-        s.IsReachable, s.ProviderType, s.Endpoint, s.ModelName, s.ModelAvailable, s.LatencyMs, s.Detail);
 
     public static UserRoleMembershipResponse ToResponse(this UserRoleMembership membership) => new(
         membership.UserId,
@@ -94,11 +115,11 @@ internal static class TutoringMapping
         d.Id, d.TutorId, d.Target, d.ConfigurationJson, d.CreatedUtc, d.ModifiedUtc);
 
     public static TutorModelConnectionResponse ToResponse(this TutorModelConnection c) => new(
-        c.Id, c.TutorId, c.ModelCatalogEntryId, c.OverrideSettingsJson, c.CreatedUtc, c.ModifiedUtc);
+        c.Id, c.TutorId, c.InteractionModelId, c.OverrideSettingsJson, c.CreatedUtc, c.ModifiedUtc);
 
     public static TutorConfigurationSnapshotResponse ToResponse(this TutorConfigurationSnapshot s) => new(
         s.Id, s.TutorId, s.TutorName, s.PromptVersionId, s.PromptContent,
-        s.TutorModelConnectionId, s.ModelCatalogEntryId, s.ProviderType, s.ModelName, s.ModelSettingsJson,
+        s.TutorModelConnectionId, s.InteractionModelId, s.ModelName, s.ModelSettingsJson,
         s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById);
 
     public static BenchmarkTemplateResponse ToResponse(this BenchmarkTemplate template) => new(
@@ -118,7 +139,7 @@ internal static class TutoringMapping
         run.TutorId,
         run.BenchmarkTemplateId,
         run.TutorConfigurationSnapshotId,
-        run.ModelCatalogEntryId,
+        run.InteractionModelId,
         run.ModelAlias,
         run.ConsistencyRuns,
         run.Status.ToString(),

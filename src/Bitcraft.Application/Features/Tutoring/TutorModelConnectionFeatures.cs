@@ -10,12 +10,12 @@ public static class TutorModelConnectionFeatures
 {
     public sealed record SaveTutorModelConnectionCommand(
         Guid TutorId,
-        Guid ModelCatalogEntryId,
+        Guid InteractionModelId,
         string? OverrideSettingsJson) : IRequest<Result<TutorModelConnection>>;
 
     public sealed class SaveTutorModelConnectionHandler(
         ITutorRepository tutorRepository,
-        IModelCatalogRepository modelCatalogRepository,
+        IModelRepository modelRepository,
         ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<SaveTutorModelConnectionCommand, Result<TutorModelConnection>>
@@ -48,21 +48,21 @@ public static class TutorModelConnectionFeatures
                 return Result.Failure<TutorModelConnection>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
-            var catalogEntry = await modelCatalogRepository.GetByIdAsync(request.ModelCatalogEntryId, cancellationToken);
-            if (catalogEntry is null)
+            var interactionModel = await modelRepository.GetInteractionModelByIdAsync(request.InteractionModelId, cancellationToken);
+            if (interactionModel is null)
             {
-                return Result.Failure<TutorModelConnection>(new Error("ModelCatalog.NotFound", $"Model catalog entry '{request.ModelCatalogEntryId}' not found."));
+                return Result.Failure<TutorModelConnection>(new Error("InteractionModel.NotFound", $"Interaction model '{request.InteractionModelId}' not found."));
             }
 
-            if (!catalogEntry.IsEnabled)
+            if (!interactionModel.IsEnabled)
             {
-                return Result.Failure<TutorModelConnection>(new Error("ModelCatalog.Disabled", "Model catalog entry is disabled."));
+                return Result.Failure<TutorModelConnection>(new Error("InteractionModel.Disabled", "Interaction model is disabled."));
             }
 
             var connection = new TutorModelConnection
             {
                 TutorId = request.TutorId,
-                ModelCatalogEntryId = request.ModelCatalogEntryId,
+                InteractionModelId = request.InteractionModelId,
                 OverrideSettingsJson = string.IsNullOrWhiteSpace(request.OverrideSettingsJson) ? null : request.OverrideSettingsJson
             };
 

@@ -19,7 +19,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
     public Task<Tutor?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default) =>
         db.Set<Tutor>()
             .Include(x => x.TutorModelConnection)
-                .ThenInclude(x => x!.ModelCatalogEntry)
+                .ThenInclude(x => x!.InteractionModel)
             .Include(x => x.ActivePromptVersion)
             .Include(x => x.PromptVersions)
             .Include(x => x.KnowledgeSources)
@@ -108,7 +108,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             return connection;
         }
 
-        existing.ModelCatalogEntryId = connection.ModelCatalogEntryId;
+        existing.InteractionModelId = connection.InteractionModelId;
         existing.OverrideSettingsJson = connection.OverrideSettingsJson;
         await db.SaveChangesAsync(cancellationToken);
         return existing;
