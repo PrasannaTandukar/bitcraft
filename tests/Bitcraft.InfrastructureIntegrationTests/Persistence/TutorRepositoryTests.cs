@@ -18,9 +18,9 @@ public class TutorRepositoryTests
         await PersistenceTestContextFactory.AddUserAsync(db, otherOwnerId);
         var repository = new TutorRepository(db);
 
-        var olderOwned = await repository.AddAsync(new Tutor { OwnerId = ownerId, Name = "Older owned" });
-        await repository.AddAsync(new Tutor { OwnerId = otherOwnerId, Name = "Other owner" });
-        var newerOwned = await repository.AddAsync(new Tutor { OwnerId = ownerId, Name = "Newer owned" });
+        var olderOwned = await repository.AddAsync(Tutor.Create("Older owned", null, ownerId));
+        await repository.AddAsync(Tutor.Create("Other owner", null, otherOwnerId));
+        var newerOwned = await repository.AddAsync(Tutor.Create("Newer owned", null, ownerId));
 
         olderOwned.Name = "Recently modified owned";
         await repository.UpdateAsync(olderOwned);
@@ -30,7 +30,7 @@ public class TutorRepositoryTests
 
         // Assert
         Assert.Equal(2, tutors.Count);
-        Assert.All(tutors, tutor => Assert.Equal(ownerId, tutor.OwnerId));
+        Assert.All(tutors, tutor => Assert.Equal(ownerId, tutor.Members.FirstOrDefault(m => m.Role == ResourceRole.Owner)?.UserId));
         Assert.Equal(olderOwned.Id, tutors[0].Id);
         Assert.Equal(newerOwned.Id, tutors[1].Id);
     }
@@ -44,7 +44,7 @@ public class TutorRepositoryTests
         await using var db = PersistenceTestContextFactory.Create(currentUser);
         await PersistenceTestContextFactory.AddUserAsync(db, userId);
         var repository = new TutorRepository(db);
-        var tutor = await repository.AddAsync(new Tutor { OwnerId = currentUser.UserId, Name = "Tutor" });
+        var tutor = await repository.AddAsync(Tutor.Create("Tutor", null, currentUser.UserId));
         var firstCatalogEntry = new ModelCatalogEntry
         {
             Name = "First model",

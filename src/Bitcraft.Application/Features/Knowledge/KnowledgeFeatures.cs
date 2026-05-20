@@ -1,6 +1,7 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Tutoring;
 using MediatR;
 
 namespace Bitcraft.Application.Features.Knowledge;
@@ -19,6 +20,7 @@ public static class KnowledgeFeatures
     public sealed class SearchKnowledgeHandler(
         IKnowledgeRetriever knowledgeRetriever,
         ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<SearchKnowledgeQuery, Result<List<KnowledgeChunk>>>
     {
@@ -42,9 +44,11 @@ public static class KnowledgeFeatures
                 return Result.Failure<List<KnowledgeChunk>>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != userId)
+            // D2/D3: read-only retrieval → any membership role (Auditor, Editor, Owner).
+            var role = await membership.GetRoleAsync(tutor.Id, userId, cancellationToken);
+            if (role is null)
             {
-                return Result.Failure<List<KnowledgeChunk>>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<List<KnowledgeChunk>>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var documentIds = tutor.KnowledgeSources.Select(x => x.DocumentId).Distinct().ToList();

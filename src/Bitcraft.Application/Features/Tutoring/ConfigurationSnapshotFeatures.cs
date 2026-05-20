@@ -18,6 +18,7 @@ public static class ConfigurationSnapshotFeatures
 
     public sealed class CreateConfigurationSnapshotHandler(
         ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<CreateConfigurationSnapshotCommand, Result<TutorConfigurationSnapshot>>
     {
@@ -32,9 +33,11 @@ public static class ConfigurationSnapshotFeatures
             }
 
             var userId = currentUser.UserId;
-            if (tutor.OwnerId != userId)
+            // D2/D3: capturing a snapshot is an immutable record of current config → Editor or Owner.
+            var role = await membership.GetRoleAsync(tutor.Id, userId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
             {
-                return Result.Failure<TutorConfigurationSnapshot>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<TutorConfigurationSnapshot>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var promptVersion = tutor.ActivePromptVersion

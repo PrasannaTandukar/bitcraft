@@ -76,6 +76,7 @@ public static class DependencyInjection
 
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();
+        services.AddScoped<ITutorMembershipReader, TutorMembershipReader>();
         services.AddScoped<IModelCatalogRepository, ModelCatalogRepository>();
 
         // Benchmarking

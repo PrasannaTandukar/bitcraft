@@ -8,6 +8,16 @@ ai_gen: true
 # Dev Ops Inbox
 
 - Date: 2026-05-21
+- Status: pending Human action after PR #2 merge
+- Source: Lead Dev (plan v3.4 / D25 step 2)
+- Target: dev-ops
+- Priority: high (release-blocking for any env that runs the merged step 2 code)
+- Task: Apply EF migration `20260520172552_ResourceMembershipTables_20260521` against each Bitcraft database after PR #2 merges. Migration creates `TutorMembers`, **backfills existing `Tutor.OwnerId` rows as self-granted Owner members**, then drops `Tutors.OwnerId`. Verify backfill before running on shared environments.
+- Command: `dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api`.
+- Notes: `Down()` is lossy on multi-Owner tutors and raises if a tutor has no Owner; treat as one-way for any non-dev DB. SQL preview in `.github/plans/feature-freeze-2026-05-21/pr-summaries/02-resource-membership-tables.md`.
+- Acceptance/Cleanup: Close after the migration is applied in dev + staging + prod and `TutorMembers` row counts match prior Tutor counts.
+
+- Date: 2026-05-21
 - Status: partially complete (build-flag landed)
 - Source: Lead Dev (plan v3.4 / D26, D9)
 - Target: dev-ops

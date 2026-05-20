@@ -31,7 +31,9 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
 
     public Task<List<Tutor>> ListByOwnerAsync(Guid ownerId, CancellationToken cancellationToken = default) =>
         db.Set<Tutor>()
-            .Where(x => x.OwnerId == ownerId)
+            // D2/D3: "owner" is now any membership row — caller-visible tutors are those where
+            // the user has a TutorMember entry (any ResourceRole).
+            .Where(x => x.Members.Any(m => m.UserId == ownerId))
             .Include(x => x.TutorModelConnection)
             .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);

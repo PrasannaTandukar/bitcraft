@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-05-20
+edited_at: 2026-05-21
 creator: planner
-editor: planner
+editor: lead-dev
 ai_gen: true
 ---
 # Feature Freeze 2026-05-21 — Decision Register (v3)
@@ -337,6 +337,24 @@ Each decision row contains:
   - [ASP.NET Core Authorization](https://learn.microsoft.com/aspnet/core/security/authorization/introduction)
 - **Blocks/Touches**: WS1, WS6, WS7.
 - **Revision history**: v3.2 — Planner lock (closes Open Decision O5).
+
+### D24.a — ABAC Obligation Vocabulary (Minimum Viable)
+
+- **Status**: Locked (v3.5, Human-approved 2026-05-21).
+- **Decision**: The PEP-fulfillable obligation vocabulary is locked to a minimum-viable set. Only three keys are **enforced**: `audit-log`, `redact-pii`, `scope-down`. One key is **reserved** (declared, not enforced until MFA infrastructure exists): `require-step-up`. These constants live in `src/Bitcraft.Application/Common/Authorization/Obligations.cs` as a `public static class` with `const string` fields. `Obligation.Key` remains `string`-typed at the contract layer; the constants class is the canonical source.
+- **Options considered**:
+  - **A. Minimum (audit-log, redact-pii, scope-down + reserve require-step-up) — locked.** Lowest blast radius. Aligns with Bitcraft's PoC scope and the implementation-discipline rule.
+  - **B. Pragmatic (option A + lock require-step-up now).** Declares an MFA seam before MFA exists; pays the cost prematurely.
+  - **C. Defer entirely (keep Key as opaque string).** Every WS6 policy author would coin their own vocabulary; reconciliation later is painful.
+  - **D. Full XACML-style set (log, notify, encrypt, mask, watermark, rate-limit, mfa).** Over-engineered; most keys have no real product trigger today.
+- **Reasoning**: `audit-log` maps directly to the D10 `SaveChanges` audit interceptor and is needed by every mutating action. `redact-pii` and `scope-down` are declared now (enforcement may throw `NotImplementedException("Implementation pending for this capability.")` until WS6) to prevent vocabulary drift across policy authors. `runtime-local-only` is dropped as redundant with D26 build-time flag. `watermark-output` / `rate-limit` are deferred until export and gateway features exist (avoid speculative engineering).
+- **PEP contract** (XACML 3.0 §7.18): the PEP MUST fulfill every returned obligation or convert the decision to Deny. For reserved keys (e.g. `require-step-up`) the PEP throws to make the unimplemented enforcement loud rather than silently permissive.
+- **References**:
+  - [NIST SP 800-162 §2.2 and §3.6](https://csrc.nist.gov/publications/detail/sp/800-162/final) — obligations are PEP-enforced actions tied to a Permit/Deny decision.
+  - [OASIS XACML 3.0 §7.18](https://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html) — `Obligation` MUST be fulfilled or convert to Deny.
+  - [OWASP Access Control Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Access_Control_Cheat_Sheet.html) — explicit audit + step-up on privileged operations.
+- **Blocks/Touches**: WS6 (policy implementations), WS7 (controller migration). Does **not** block WS2 step 2 (resource membership) because step 2 uses the boolean/role-typed `ITutorMembershipReader`, not the obligation-carrying evaluator.
+- **Revision history**: v3.5 — Human lock 2026-05-21 (Option A); brief delivered by Lead Dev.
 
 ### D25 — Backend Migration Sequence (8 Steps)
 
