@@ -29,11 +29,11 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
     }
 
     [Fact]
-    public async Task GetDocuments_WithViewerRole_ReturnsOk()
+    public async Task GetDocuments_WithAuditorRole_ReturnsOk()
     {
         // Arrange
         var client = factory.CreateClient();
-        await AuthorizeAsRoleAsync(client, AppRoles.Viewer);
+        await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
 
         // Act
         var response = await client.GetAsync("/api/documents");
@@ -46,12 +46,12 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
     }
 
     [Fact]
-    public async Task CreateDocument_WithViewerRole_ReturnsForbidden()
+    public async Task CreateDocument_WithAuditorRole_ReturnsForbidden()
     {
         // Arrange
         var client = factory.CreateClient();
-        await AuthorizeAsRoleAsync(client, AppRoles.Viewer);
-        var request = new CreateDocumentRequest("Forbidden", null, "text/plain", "Viewer cannot create.");
+        await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
+        var request = new CreateDocumentRequest("Forbidden", null, "text/plain", "Auditor cannot create.");
 
         // Act
         var response = await client.PostAsJsonAsync("/api/documents", request);

@@ -1,11 +1,20 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-05-21
 creator: ai-ops
 editor: lead-dev
 ai_gen: true
 ---
 # Dev Ops Inbox
+
+- Date: 2026-05-21
+- Status: partially complete (build-flag landed)
+- Source: Lead Dev (plan v3.4 / D26, D9)
+- Target: dev-ops
+- Priority: medium
+- Task: Config-from-env hardening across the stack. Build-time runtime flag landed via `Directory.Build.props` (`BITCRAFT_RUNTIME_LOCAL_ONLY` guarded on `Configuration == 'Local'`); hardcoded admin credentials removed from `IdentityRoleSeeder` in favor of `BITCRAFT_ADMIN_EMAIL` / `BITCRAFT_ADMIN_PASSWORD`. Broader config-from-env work continues (JWT secret default, connection strings, sidecar URLs, Ollama endpoints).
+- Recently completed (2026-05-21): D26 `Directory.Build.props` flag; admin bootstrap env-var gating with skip-and-warn behavior.
+- Acceptance/Cleanup: Close when remaining JWT/DB/Ollama/sidecar defaults are also env-driven.
 
 - Date: 2026-05-19
 - Status: active

@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Bitcraft repository-wide MSBuild defaults.
+
+    BITCRAFT_RUNTIME_LOCAL_ONLY is a build-time guard for code paths that may run
+    only in single-machine local PoC configurations (e.g. permissive defaults,
+    developer ergonomics, in-process shortcuts). The symbol is defined ONLY when
+    the build Configuration is 'Local'. Standard 'Debug' and 'Release' builds —
+    including all CI — leave the symbol undefined.
+
+    Defense-in-depth: this file lives at the repository root so it applies to
+    every project under src/ and tests/ via MSBuild's automatic Directory.Build.props
+    discovery.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Local'">
+    <DefineConstants>$(DefineConstants);BITCRAFT_RUNTIME_LOCAL_ONLY</DefineConstants>
+  </PropertyGroup>
+</Project>

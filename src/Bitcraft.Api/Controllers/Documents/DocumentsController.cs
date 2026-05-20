@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Documents;
 
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
+[Authorize(Policy = AuthorizationPolicies.AuditorOrAbove)]
 [Route("api/documents")]
 [Produces("application/json")]
 public class DocumentsController(ISender sender) : ControllerBase
