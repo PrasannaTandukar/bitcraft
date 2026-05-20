@@ -13,6 +13,7 @@ namespace Bitcraft.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<AppUser, AppRole, Guid>(options), IApplicationDbContext
 {
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
 
     public DbSet<Tutor> Tutors => Set<Tutor>();

@@ -54,7 +54,8 @@ public class DocumentsController(ISender sender) : ControllerBase
             request.Name,
             request.SourcePath,
             request.MimeType,
-            request.RawText);
+            request.RawText,
+            request.FolderId);
         var result = await sender.Send(command, cancellationToken);
         if (result.IsFailure)
         {
@@ -122,8 +123,28 @@ public class DocumentsController(ISender sender) : ControllerBase
             id,
             request.EmbeddingProvider,
             request.EmbeddingModel,
-            request.MaxChunkLength);
+            request.MaxChunkLength,
+            request.EmbeddingModelId);
         var result = await sender.Send(command, cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Value.ToResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Moves a document to a folder (or to the user root when <c>folderId</c> is null).</summary>
+    [HttpPatch("{id:guid}/folder")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
+    [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DocumentResponse>> Move(
+        Guid id,
+        [FromBody] MoveDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new DocumentFeatures.MoveDocumentToFolderCommand(id, request.FolderId), cancellationToken);
         return result.IsSuccess
             ? Ok(result.Value.ToResponse())
             : TutoringMapping.ToActionResult(result.Error);

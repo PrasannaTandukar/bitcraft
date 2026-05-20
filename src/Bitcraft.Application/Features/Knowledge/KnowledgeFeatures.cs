@@ -70,7 +70,8 @@ public static class KnowledgeFeatures
         Guid DocumentId,
         string EmbeddingProvider,
         string EmbeddingModel,
-        int MaxChunkLength = 1000) : IRequest<Result<VectorizeDocumentResult>>;
+        int MaxChunkLength = 1000,
+        Guid? EmbeddingModelId = null) : IRequest<Result<VectorizeDocumentResult>>;
 
     public sealed record VectorizeDocumentResult(Guid DocumentId, int ChunkCount);
 
@@ -78,6 +79,7 @@ public static class KnowledgeFeatures
         IDocumentStore documentStore,
         IVectorStore vectorStore,
         IEmbeddingProvider embeddingProvider,
+        IModelRepository modelRepository,
         ICurrentUserContext currentUser)
         : IRequestHandler<VectorizeDocumentCommand, Result<VectorizeDocumentResult>>
     {
@@ -85,18 +87,52 @@ public static class KnowledgeFeatures
         {
             var userId = currentUser.UserId;
 
-            if (string.IsNullOrWhiteSpace(request.EmbeddingProvider))
+            // D25 step 6: if an EmbeddingModelId is supplied, resolve the admin-managed model
+            // and derive provider/model strings + expected dimensions from it. The legacy free-text
+            // path is preserved for back-compat until callers migrate.
+            string embeddingProviderInput = request.EmbeddingProvider;
+            string embeddingModelInput = request.EmbeddingModel;
+            Domain.Modeling.EmbeddingModel? embeddingModelEntity = null;
+            if (request.EmbeddingModelId is { } modelId)
+            {
+                embeddingModelEntity = await modelRepository.GetEmbeddingModelByIdAsync(modelId, cancellationToken);
+                if (embeddingModelEntity is null)
+                {
+                    return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingModelNotFound", $"Embedding model '{modelId}' not found."));
+                }
+                if (!embeddingModelEntity.IsEnabled)
+                {
+                    return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingModelDisabled", "Embedding model is disabled."));
+                }
+                if (embeddingModelEntity.EmbeddingDimensions <= 0)
+                {
+                    return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingDimensionsInvalid", "Embedding model has no declared dimensions."));
+                }
+                var engine = embeddingModelEntity.RuntimeEngine;
+                if (engine is null)
+                {
+                    return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.RuntimeEngineMissing", "Embedding model is missing its runtime engine."));
+                }
+                if (!engine.IsEnabled)
+                {
+                    return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.RuntimeEngineDisabled", "Runtime engine is disabled."));
+                }
+                embeddingProviderInput = engine.ProviderType.ToString();
+                embeddingModelInput = embeddingModelEntity.ProviderModelName;
+            }
+
+            if (string.IsNullOrWhiteSpace(embeddingProviderInput))
             {
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingProviderRequired", "Embedding provider is required."));
             }
 
-            var embeddingProviderName = EmbeddingProviders.Normalize(request.EmbeddingProvider);
+            var embeddingProviderName = EmbeddingProviders.Normalize(embeddingProviderInput);
             if (embeddingProviderName is null)
             {
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingProviderUnsupported", "Only the Ollama embedding provider is implemented."));
             }
 
-            if (string.IsNullOrWhiteSpace(request.EmbeddingModel))
+            if (string.IsNullOrWhiteSpace(embeddingModelInput))
             {
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingModelRequired", "Embedding model is required."));
             }
@@ -128,13 +164,21 @@ public static class KnowledgeFeatures
             for (var index = 0; index < chunks.Count; index++)
             {
                 var content = chunks[index];
-                var embedding = await embeddingProvider.GenerateEmbeddingAsync(content, request.EmbeddingModel, cancellationToken);
+                var embedding = await embeddingProvider.GenerateEmbeddingAsync(content, embeddingModelInput, cancellationToken);
+                if (embeddingModelEntity is not null && embedding.Length != embeddingModelEntity.EmbeddingDimensions)
+                {
+                    return Result.Failure<VectorizeDocumentResult>(new Error(
+                        "Knowledge.EmbeddingDimensionsMismatch",
+                        $"Embedding provider returned {embedding.Length} dimensions but model '{embeddingModelEntity.Name}' declares {embeddingModelEntity.EmbeddingDimensions}."));
+                }
                 writes.Add(new KnowledgeChunkWriteModel(
                     index,
                     content,
                     embedding,
-                    request.EmbeddingModel.Trim(),
-                    embeddingProviderName));
+                    embeddingModelInput.Trim(),
+                    embeddingProviderName,
+                    embeddingModelEntity?.Id,
+                    embeddingModelEntity?.EmbeddingDimensions ?? embedding.Length));
             }
 
             await vectorStore.ReplaceDocumentChunksAsync(document.Id, writes, cancellationToken);

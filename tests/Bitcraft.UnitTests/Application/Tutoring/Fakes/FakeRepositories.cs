@@ -195,6 +195,12 @@ internal sealed class FakeTutorRepository : ITutorRepository
         return Task.FromResult((max ?? 0) + 1);
     }
 
+    public Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
+    {
+        var max = Snapshots.Where(s => s.TutorId == tutorId).Select(s => (int?)s.VersionNumber).Max();
+        return Task.FromResult((max ?? 0) + 1);
+    }
+
     public Task<KnowledgeSourceLink> AddKnowledgeSourceLinkAsync(KnowledgeSourceLink link, CancellationToken ct = default)
     {
         KnowledgeSources.Add(link);

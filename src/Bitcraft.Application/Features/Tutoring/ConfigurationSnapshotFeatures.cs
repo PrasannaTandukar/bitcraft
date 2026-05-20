@@ -65,6 +65,7 @@ public static class ConfigurationSnapshotFeatures
 
             var snapshot = TutorConfigurationSnapshot.Capture(
                 tutor,
+                await tutorRepository.GetNextSnapshotVersionNumberAsync(tutor.Id, cancellationToken),
                 promptVersion,
                 tutor.TutorModelConnection,
                 toolsJson,

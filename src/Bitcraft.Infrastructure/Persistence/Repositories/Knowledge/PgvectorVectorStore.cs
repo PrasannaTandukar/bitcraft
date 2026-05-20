@@ -33,6 +33,8 @@ public class PgvectorVectorStore(AppDbContext db) : IVectorStore
             Embedding = chunk.Embedding,
             EmbeddingModel = chunk.EmbeddingModel,
             EmbeddingProvider = chunk.EmbeddingProvider,
+            EmbeddingModelId = chunk.EmbeddingModelId,
+            EmbeddingDimensions = chunk.EmbeddingDimensions,
             IngestedUtc = DateTime.UtcNow
         }).ToList();
 

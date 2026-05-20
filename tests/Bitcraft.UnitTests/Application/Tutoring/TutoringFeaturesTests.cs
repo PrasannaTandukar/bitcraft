@@ -380,6 +380,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             embeddingProvider,
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 3);
 
@@ -407,6 +408,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             new FakeVectorStore(),
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
@@ -431,6 +433,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(Guid.NewGuid()));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
@@ -457,6 +460,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "OpenAI", "text-embedding-3-small");
 
@@ -483,6 +487,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, " ollama ", " test-model ", MaxChunkLength: 6);
 

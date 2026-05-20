@@ -1,4 +1,5 @@
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -17,8 +18,12 @@ public class KnowledgeChunkConfiguration : IEntityTypeConfiguration<KnowledgeChu
         entity.Property(x => x.Content)
             .IsRequired();
 
+        // D25 step 6: embeddings are now per-model variable dimension. The column is
+        // declared as an untyped pgvector so rows from different EmbeddingModels can
+        // coexist. ANN indexing (HNSW) requires a fixed-dim column; we defer ANN
+        // until per-model partitioning is introduced.
         var embeddingProperty = entity.Property(x => x.Embedding)
-            .HasColumnType("vector(768)")
+            .HasColumnType("vector")
             .HasConversion(
                 v => v == null ? null : new Vector(v),
                 v => v == null ? null : v.ToArray());
@@ -36,6 +41,8 @@ public class KnowledgeChunkConfiguration : IEntityTypeConfiguration<KnowledgeChu
             .IsRequired()
             .HasMaxLength(100);
 
+        entity.Property(x => x.EmbeddingDimensions);
+
         entity.Property(x => x.IngestedUtc).IsRequired();
 
         entity.HasOne(x => x.Document)
@@ -43,11 +50,14 @@ public class KnowledgeChunkConfiguration : IEntityTypeConfiguration<KnowledgeChu
             .HasForeignKey(x => x.DocumentId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        entity.HasOne(x => x.EmbeddingModelEntity)
+            .WithMany()
+            .HasForeignKey(x => x.EmbeddingModelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         entity.HasIndex(x => new { x.DocumentId, x.ChunkIndex })
             .IsUnique();
 
-        entity.HasIndex(x => x.Embedding)
-            .HasMethod("hnsw")
-            .HasOperators("vector_cosine_ops");
+        entity.HasIndex(x => x.EmbeddingModelId);
     }
 }

@@ -1,11 +1,20 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-20
+edited_at: 2026-05-21
 creator: ai-ops
-editor: ai-ops
+editor: lead-dev
 ai_gen: true
 ---
 # Web Dev Inbox
+
+- Date: 2026-05-21
+- Status: pending (D25 step 9)
+- Source: Lead Dev (plan v3.4 / D25 step 9)
+- Target: web-dev
+- Priority: high
+- Task: Tutor Studio UI for the new backend surface delivered in PR #4-8. Add (1) a per-user folder tree on `FilesPage` driven by `GET /api/document-folders` with create/rename/move/delete; (2) a "Move" affordance on each Document row calling `PATCH /api/documents/{id}/folder`; (3) an embedding-model selector on the vectorize action that posts `EmbeddingModelId` (sourced from `ModelCatalogPage`'s `EmbeddingModel` list) — the legacy free-text provider/model fields remain only as a debug-only fallback.
+- Context: feature-freeze-2026-05-21 WS9. New contracts in `src/Bitcraft.Api/Contracts/Documents/Documents.cs`. Snapshot responses now carry `VersionNumber` — surface it on the snapshot list in `Benchmarking.jsx` and `TutorsPage.jsx`.
+- Acceptance/Cleanup: Folders + move + model-selector work end-to-end against dev API; close after Web Dev opens a follow-up PR.
 
 - Date: 2026-05-20
 - Status: active

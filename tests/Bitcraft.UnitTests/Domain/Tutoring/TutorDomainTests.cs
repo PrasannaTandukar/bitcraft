@@ -175,7 +175,7 @@ public class TutorConfigurationSnapshotTests
 
         // Act
         var snapshot = TutorConfigurationSnapshot.Capture(
-            tutor, prompt, connection, toolsJson: "[]", knowledgeSourcesJson: "[]", profile, capturedById);
+            tutor, versionNumber: 1, prompt, connection, toolsJson: "[]", knowledgeSourcesJson: "[]", profile, capturedById);
 
         // Assert
         Assert.NotEqual(Guid.Empty, snapshot.Id);
@@ -196,7 +196,7 @@ public class TutorConfigurationSnapshotTests
     {
         // Arrange / Act / Assert
         Assert.Throws<ArgumentNullException>(() =>
-            TutorConfigurationSnapshot.Capture(null!, null, null, null, null, null, Guid.NewGuid()));
+            TutorConfigurationSnapshot.Capture(null!, 1, null, null, null, null, null, Guid.NewGuid()));
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class TutorConfigurationSnapshotTests
 
         // Act / Assert
         Assert.Throws<ArgumentException>(() =>
-            TutorConfigurationSnapshot.Capture(tutor, null, null, null, null, null, Guid.Empty));
+            TutorConfigurationSnapshot.Capture(tutor, 1, null, null, null, null, null, Guid.Empty));
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class TutorConfigurationSnapshotTests
     {
         // Arrange
         var tutor = new Tutor { Name = "T" };
-        var snapshot = TutorConfigurationSnapshot.Capture(tutor, null, null, null, null, null, Guid.NewGuid());
+        var snapshot = TutorConfigurationSnapshot.Capture(tutor, 1, null, null, null, null, null, Guid.NewGuid());
 
         // Act
         var settable = typeof(TutorConfigurationSnapshot)

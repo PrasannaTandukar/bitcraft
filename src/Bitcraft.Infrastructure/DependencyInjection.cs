@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IRoleManagementService, IdentityService>();
         services.AddScoped<IDocumentStore, DocumentStore>();
+        services.AddScoped<IDocumentFolderStore, DocumentFolderStore>();
         services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
         services.AddScoped<ILlmGenerationProvider, OllamaGenerationProvider>();
         services.AddKnowledgePersistence(configuration);

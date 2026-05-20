@@ -297,6 +297,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("MimeType")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -323,11 +326,50 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
+                    b.HasIndex("FolderId");
+
                     b.HasIndex("ModifiedById");
 
                     b.HasIndex("Name");
 
                     b.ToTable("Documents");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Documents.DocumentFolder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ParentFolderId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("ParentFolderId");
+
+                    b.HasIndex("CreatedById", "ParentFolderId", "Name");
+
+                    b.ToTable("DocumentFolders", (string)null);
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Identity.AppRole", b =>
@@ -445,12 +487,18 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(768)");
+                        .HasColumnType("vector");
+
+                    b.Property<int?>("EmbeddingDimensions")
+                        .HasColumnType("integer");
 
                     b.Property<string>("EmbeddingModel")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("EmbeddingModelId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("EmbeddingProvider")
                         .IsRequired()
@@ -470,10 +518,7 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("Embedding");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+                    b.HasIndex("EmbeddingModelId");
 
                     b.HasIndex("ModifiedById");
 
@@ -876,6 +921,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CapturedById");
@@ -887,6 +935,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.HasIndex("ModifiedById");
 
                     b.HasIndex("TutorId");
+
+                    b.HasIndex("TutorId", "VersionNumber")
+                        .IsUnique();
 
                     b.ToTable("TutorConfigurationSnapshots", (string)null);
                 });
@@ -1193,6 +1244,11 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Bitcraft.Domain.Documents.DocumentFolder", "Folder")
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
                         .HasForeignKey("ModifiedById")
@@ -1200,7 +1256,34 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Navigation("CreatedBy");
 
+                    b.Navigation("Folder");
+
                     b.Navigation("ModifiedBy");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Documents.DocumentFolder", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bitcraft.Domain.Documents.DocumentFolder", "ParentFolder")
+                        .WithMany()
+                        .HasForeignKey("ParentFolderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
+
+                    b.Navigation("ParentFolder");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Knowledge.KnowledgeChunk", b =>
@@ -1217,6 +1300,11 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Bitcraft.Domain.Modeling.EmbeddingModel", "EmbeddingModelEntity")
+                        .WithMany()
+                        .HasForeignKey("EmbeddingModelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
                         .HasForeignKey("ModifiedById")
@@ -1225,6 +1313,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("Document");
+
+                    b.Navigation("EmbeddingModelEntity");
 
                     b.Navigation("ModifiedBy");
                 });

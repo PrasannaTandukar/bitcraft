@@ -45,7 +45,7 @@ public class ModelRepository(AppDbContext db) : IModelRepository
     }
 
     public Task<EmbeddingModel?> GetEmbeddingModelByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        db.EmbeddingModels.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        db.EmbeddingModels.Include(x => x.RuntimeEngine).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public Task<List<EmbeddingModel>> ListEmbeddingModelsAsync(CancellationToken cancellationToken = default) =>
         db.EmbeddingModels.OrderBy(x => x.Name).ToListAsync(cancellationToken);
