@@ -2,13 +2,18 @@ branch: feature-freeze-2026-05-21
 created_at: 2026-05-19
 updated_at: 2026-05-20
 status: active
+revision: v3.4
 goal: >
   Freeze the Proof-of-Concept Product Core and Tutor Studio feature set before
-  2026-05-21: user bootstrap template, segmented environment/runtime-engine
-  settings, capability-aware model registry and configuration workflow,
-  tutor-specific text document ingestion, vectorization with selected embedding
-  model, tutor configuration, local activation, separate local runtime API, and
-  benchmarking shell.
+  2026-05-21 on a production-grade entity-relational foundation: roles fixed in
+  code (Admin/Editor/Auditor), tracked secrets via template.<name>.<ext>
+  convention, polymorphic Model registry (TPH, capability-typed), resource
+  membership for multi-owner Tutors, Document M:N with stackable virtual
+  folders, dynamic embedding dimensions per embedding model, uniform
+  TutorRevision versioning with derived TutorConfigurationSnapshot, local
+  activation and separate runtime API aligned to revisions, and a benchmarking
+  shell. Frontend work is carved out as a separate planning iteration
+  (plan.frontend.md) and does not start before backend ERM is accepted.
 cil: high
 css: 8
 dis: 8
@@ -21,19 +26,57 @@ agents:
     - dev-ops
     - researcher
 model_family: claude
+artifacts:
+  - plan.md
+  - plan.erm.md
+  - plan.frontend.md
+  - plan.decisions.md
+reports:
+  - docs/architecture.md
+  - docs/change-notes.md
+locked_decisions:
+  - Tenancy model is single-tenant per deployment (Azure SaaS "standalone single-tenant app with single-tenant database" pattern, https://learn.microsoft.com/azure/azure-sql/database/saas-tenancy-app-design-patterns#c-standalone-single-tenant-app-with-single-tenant-database). Multi-owner resource link tables are an internal Clean Architecture pattern, not multi-tenancy.
+  - Authorization is ABAC throughout the application (NIST SP 800-162, https://csrc.nist.gov/Projects/Attribute-Based-Access-Control). Roles (Admin/Editor/Auditor) are coarse subject attributes, not the access decision boundary. Resource attributes (TutorMember role, revision status, document visibility) drive policy decisions via a centralized policy evaluator. No role-only gates outside boundary controllers.
+  - Many-to-many is the default relationship pattern for resource linking; EF Core skip navigations + explicit join entities per https://learn.microsoft.com/ef/core/modeling/relationships/many-to-many. OwnerId columns are not used on aggregates.
+  - Resource membership uses TutorMember(TutorId, UserId, ResourceRole); the same link-table shape is reused for other resource ownership relationships as they emerge.
+  - Model registry is a polymorphic abstract Model + ModelType discriminator (EF Core TPH) per https://learn.microsoft.com/ef/core/modeling/inheritance; concrete leaves InteractionModel, EmbeddingModel, JudgeModel (reserved), RerankerModel (reserved).
+  - Document is tutor-agnostic; TutorDocument (M:N) plus DocumentFolder, DocumentFolderEntry, TutorDocumentFolder model administrative organization. DocumentFolder is an administrative grouping owned by Editor/Admin and is NOT a runtime concept. Tutor runtime consumes Knowledge (vectorized chunks) only. End-user file uploads at chat time are out of PoC scope and will be a separate feature with its own domain shape.
+  - Embedding dimensions are dynamic and bound to the EmbeddingModel; KnowledgeChunk.Embedding is untyped pgvector "vector" (https://github.com/pgvector/pgvector). ANN index strategy is configurable, default HNSW with IVFFlat as supported alternative. Partial indexes per EmbeddingModelId.
+  - Tutor versioning is uniform via TutorRevision (Draft/Published/Active/Archived); TutorConfigurationSnapshot is a derived immutable projection captured at activation/benchmark, following Fowler temporal patterns (https://martinfowler.com/eaaDev/timeNarrative.html). Re-vectorization of Documents into Knowledge produces a new Snapshot and a new TutorRevision activation.
+  - Runtime, activation, and benchmarking all key off TutorRevision/Snapshot, not directly off Tutor.
+  - Activation is TutorRevision.Status(Active) + Snapshot. DeploymentProfile is preserved for future export/release configuration per 12-Factor build/release/run separation (https://12factor.net/build-release-run).
+  - Activation slug is derived from Tutor name (URL-safe, human-readable). Uniqueness enforced; renames recompute the slug and retain the previous slug as a redirect for one revision cycle.
+  - Twelve-Factor App (https://12factor.net/) is the foundational deployment vision. AI Ops reviews all 12 factors and adapts a Bitcraft-specific compliance map under .github/governance/.
+  - Runtime API authentication design target is JWT-always. Local-only anonymous mode is a BUILD-TIME compile flag (MSBuild constant, e.g. BITCRAFT_RUNTIME_LOCAL_ONLY) that physically excludes the anonymous path from non-local builds. There is no runtime configuration switch for anonymous access.
+  - Secrets follow 12-Factor Config (https://12factor.net/config) with environment variables for production-bound deployments. PoC and early iterations use simple local installs and localhost testing without tracked-template ceremony beyond what is essential. The template.<file>.<ext> pattern is used only when a tracked configuration sample is genuinely required.
+  - Membership and aggregate auditing for PoC is BaseModel timestamps + actor FKs via EF Core SaveChanges interceptor (https://learn.microsoft.com/ef/core/logging-events-diagnostics/interceptors#savechanges-interceptor). Future iterations adopt a Message-History-style audit log per https://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageHistory.html.
+  - RuntimeEngine is a first-class admin-managed entity introduced now (provider, endpoint, secret reference, enabled flag). Health checks and richer engine lifecycle are deferred to a post-core iteration.
+  - DocumentFolderMember is omitted; folder access derives from tutor membership.
+  - TutorRevisionTool references ToolDefinition as-is for PoC; per-revision tool configuration/override is planned post-PoC.
+  - Frontend stack changes do not start until plan.frontend.md is accepted. Selections fill gaps in the existing stack; cohesion with backend is a hard constraint and existing libraries are retained unless an architectural decision forces replacement.
+  - Frontend language migrates Tutor Studio to TypeScript now. OpenAPI-generated client is adopted as soon as backend contracts are stable enough that schema regeneration does not break the frontend each iteration; otherwise hand-written TS clients are used until PoC lock.
+  - Server state TanStack Query v5; client state Redux Toolkit narrowed; forms React Hook Form + Zod; data tables TanStack Table v8 headless; design system stays react-bootstrap 5.3 for PoC; testing baseline Vitest + Testing Library with at least one smoke test before freeze.
+  - Migration sequencing is an N-step dependency-ordered series. Step count is recomputed during replanning after each ERM change; current target lives in plan.erm.md §10.
+  - D1.a Document.Visibility enum is the first ABAC resource attribute exposed on Document; values Internal (default), Public (reserved), Restricted (reserved).
+  - D5.a Default ANN strategy per deployment is HNSW; IVFFlat is the alternative selected via a deployment-level setting consumed by EnableEmbeddingModelCommand/DisableEmbeddingModelCommand.
+  - "D11.a RuntimeEngineProviderType enum values surfaced in UI: Ollama, OpenAI, OpenAICompatible, vLLM, LlamaCpp. Reserved-not-surfaced: AzureOpenAI, Anthropic, Bedrock."
+  - D18.a TypeScript migration order is Settings → ModelCatalog → Tutors → Files → Benchmarking; shared modules migrate after at least three pages converted; strict: true and noUncheckedIndexedAccess are enabled at the end of migration.
+  - D22.a Activation slug storage lives on the activation record (not on Tutor); previous slug retained as a one-revision redirect and dropped on the next activation.
+  - D22.b Activation slug is persisted as nullable columns ActivationSlug and PreviousActivationSlug on the TutorRevision row whose Status is Active; no separate TutorActivation entity is introduced for the freeze.
+  - D24 Centralized ABAC policy evaluator lives at Bitcraft.Application/Common/Authorization/IPolicyEvaluator and returns structured Decision + Obligations. Infrastructure supplies attribute-fetching adapters via Bitcraft.Infrastructure/Authorization. Sec Ops co-owns the policy catalog.
+  - D25 The 8-step migration sequence in plan.erm.md §10 is approved as the binding order for all backend schema work (Identity-And-Roles-Vocabulary, Resource-Membership-Tables, RuntimeEngine-Entity, Model-Tph-Hierarchy, Tutor-Document-Mn, Knowledge-Dynamic-Dimensions, Tutor-Revisions, Benchmark-Fk-Realign). Each step builds clean before the next is added.
+  - "D26 Build-time runtime auth gate is the conditional compilation symbol BITCRAFT_RUNTIME_LOCAL_ONLY, defined in repo-root Directory.Build.props under a Condition guard for Configuration == 'Local'. Off in Debug and Release. CI never sets it. When set, runtime chat endpoints permit anonymous local-only access; otherwise JWT is always required."
+  - D27 Frontend OpenAPI-generated client adoption is deferred until at least one full PoC iteration in which backend contracts hold shape without breaking the frontend. Until then, hand-written TypeScript clients are typed from the same Zod schemas used by React Hook Form (D15).
+  - D28 plan.frontend.md v3 library set (TanStack Query v5, React Hook Form + Zod, TanStack Table v8 headless, Vitest + Testing Library, retain react-bootstrap 5.3) and admin-only DocumentFolder UX are approved as cohesive with the backend contract shape produced by the D25 migration. Web Dev owns the @svar-ui/react-filemanager keep-or-replace call within the admin-only constraint.
 human_locks:
-  - approval of tracked bootstrap template shape before implementation
-  - approval of Admin/Editor/Auditor/User role strategy and whether scoped tutor/project membership is in freeze scope
-  - approval of final Product model and vectorization workflow before frontend buildout
-  - approval of Runtime Engine entity now versus vocabulary-only POC
-  - approval of tutor document scoping via TutorId versus TutorDocumentLink
-  - approval of snapshot-only activation versioning versus TutorRevision escalation
-  - approval of local unauthenticated runtime endpoint guard versus JWT-only runtime testing
-  - approval of any product secret storage beyond environment/secret references
+  - approval of any new tracked template.<file>.<ext> shape and content before it lands
+  - approval of any product secret storage beyond environment variables and secret references
   - approval of any Product MCP runtime connector execution before implementation
   - approval of any production endpoint, deployment, migration apply, or Git write operation
+  - approval of branching strategy and per-iteration branch naming convention before development begins
 notes: >
   Production release is out of scope for this POC freeze. Actual production
-  bootstrap scripts and secrets remain human-owned and untracked. Activation is
-  a local testing/benchmarking capability, not deployment/export. The tracked
-  work should provide templates, local/dev/test usage, and Product Core structure.
+  bootstrap scripts and real secrets remain human-owned and untracked. Activation
+  is a local testing/benchmarking capability, not deployment/export. Tracked work
+  provides templates, local/dev/test usage, and the production-grade Product Core
+  ERM defined in plan.erm.md. Agents do not perform Git write operations.

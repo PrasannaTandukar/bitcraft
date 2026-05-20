@@ -35,3 +35,21 @@ ai_gen: true
 - Task: Run the first Security Audit when the human requests an audit cycle or before a high-impact release.
 - Context: Use `.github/audits/templates/audit.template.md`; escalate Critical findings to the human and create remediation inbox items.
 - Acceptance/Cleanup: Audit is completed or converted into concrete remediation tasks; remove this item afterward.
+
+- Date: 2026-05-20
+- Status: active
+- Source: AI Ops (feature-freeze v3.1 seeding)
+- Target: sec-ops
+- Priority: high
+- Task: Review the centralized ABAC policy evaluator contract (D1) and the `Document.Visibility` first resource attribute (D1.a) before NET Dev locks the interface. Confirm the evaluator never branches in controllers, returns `Result<T>`, and that reserved enum values cannot leak into authorization decisions through default fall-through.
+- Context: feature-freeze-2026-05-21 WS1/WS4, D1, D1.a. Pairs with the NET Dev high-priority item of the same date.
+- Acceptance/Cleanup: Contract reviewed and signed off (or remediation item raised); remove this item.
+
+- Date: 2026-05-20
+- Status: active
+- Source: AI Ops (feature-freeze v3.1 seeding)
+- Target: sec-ops
+- Priority: medium
+- Task: Review the `SaveChanges` audit interceptor scope (D10) for PII risk. Confirm the interceptor captures structural metadata only (entity name, key, operation, `CapturedById`), never serialized payloads, and that audit reads honor the same ABAC policy as the underlying aggregate.
+- Context: feature-freeze-2026-05-21 WS8, D10.
+- Acceptance/Cleanup: Review notes added to the freeze plan reviews log; remove this item.
