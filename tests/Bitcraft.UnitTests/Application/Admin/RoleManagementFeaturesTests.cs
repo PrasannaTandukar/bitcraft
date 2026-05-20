@@ -23,7 +23,7 @@ public class RoleManagementFeaturesTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(1, roleManagement.ListCalls);
-        Assert.Equal(new[] { AppRoles.Admin, AppRoles.Editor, AppRoles.Viewer }, result.Value);
+        Assert.Equal(new[] { AppRoles.Admin, AppRoles.Editor, AppRoles.Auditor }, result.Value);
     }
 
     [Fact]
@@ -191,11 +191,11 @@ public class RoleManagementFeaturesTests
         // Arrange
         var userId = Guid.NewGuid();
         var roleManagement = new FakeRoleManagementService();
-        roleManagement.Memberships[userId] = new UserRoleMembership(userId, "user@example.com", [AppRoles.Editor, AppRoles.Viewer]);
+        roleManagement.Memberships[userId] = new UserRoleMembership(userId, "user@example.com", [AppRoles.Editor, AppRoles.Auditor]);
         var handler = new RoleManagementFeatures.RevokeUserRoleHandler(
             roleManagement,
             new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: true));
-        var command = new RoleManagementFeatures.RevokeUserRoleCommand(userId, AppRoles.Viewer);
+        var command = new RoleManagementFeatures.RevokeUserRoleCommand(userId, AppRoles.Auditor);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -214,7 +214,7 @@ public class RoleManagementFeaturesTests
         var handler = new RoleManagementFeatures.RevokeUserRoleHandler(
             roleManagement,
             new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: false));
-        var command = new RoleManagementFeatures.RevokeUserRoleCommand(Guid.NewGuid(), AppRoles.Viewer);
+        var command = new RoleManagementFeatures.RevokeUserRoleCommand(Guid.NewGuid(), AppRoles.Auditor);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -231,7 +231,7 @@ public class RoleManagementFeaturesTests
         // Arrange
         var userId = Guid.NewGuid();
         var roleManagement = new FakeRoleManagementService();
-        roleManagement.Memberships[userId] = new UserRoleMembership(userId, "viewer@example.com", [AppRoles.Viewer]);
+        roleManagement.Memberships[userId] = new UserRoleMembership(userId, "viewer@example.com", [AppRoles.Auditor]);
         var handler = new RoleManagementFeatures.RevokeUserRoleHandler(
             roleManagement,
             new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: true));
@@ -244,7 +244,7 @@ public class RoleManagementFeaturesTests
         Assert.True(result.IsFailure);
         Assert.Equal(1, roleManagement.RevokeCalls);
         Assert.Equal("Role.NotAssigned", result.Error.Code);
-        Assert.Equal(new[] { AppRoles.Viewer }, roleManagement.Memberships[userId].Roles);
+        Assert.Equal(new[] { AppRoles.Auditor }, roleManagement.Memberships[userId].Roles);
     }
 }
 
@@ -253,7 +253,7 @@ public class AppRolesTests
     [Theory]
     [InlineData("admin", AppRoles.Admin)]
     [InlineData(" EDITOR ", AppRoles.Editor)]
-    [InlineData("Viewer", AppRoles.Viewer)]
+    [InlineData("Auditor", AppRoles.Auditor)]
     public void Normalize_WithSupportedRole_ReturnsCanonicalRole(string role, string expected)
     {
         // Arrange / Act
@@ -278,7 +278,7 @@ public class AppRolesTests
     [Theory]
     [InlineData("admin")]
     [InlineData(" EDITOR ")]
-    [InlineData("Viewer")]
+    [InlineData("Auditor")]
     public void IsSupported_WithSupportedRole_ReturnsTrue(string role)
     {
         // Arrange / Act

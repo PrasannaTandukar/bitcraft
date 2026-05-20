@@ -17,7 +17,7 @@ internal sealed class FakeCurrentUserContext(Guid userId, bool isAdmin = false) 
 
 internal sealed class FakeRoleManagementService : IRoleManagementService
 {
-    public List<string> Roles { get; } = [AppRoles.Admin, AppRoles.Editor, AppRoles.Viewer];
+    public List<string> Roles { get; } = [AppRoles.Admin, AppRoles.Editor, AppRoles.Auditor];
     public Dictionary<Guid, UserRoleMembership> Memberships { get; } = new();
     public int ListCalls { get; private set; }
     public int GetCalls { get; private set; }
@@ -51,7 +51,7 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         var normalizedRole = AppRoles.Normalize(role);
         if (normalizedRole is null)
         {
-            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer.")));
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Auditor.")));
         }
 
         var existing = Memberships.TryGetValue(userId, out var membership)
@@ -75,7 +75,7 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         var normalizedRole = AppRoles.Normalize(role);
         if (normalizedRole is null)
         {
-            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer.")));
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Auditor.")));
         }
 
         if (!Memberships.TryGetValue(userId, out var membership) || !membership.Roles.Contains(normalizedRole))

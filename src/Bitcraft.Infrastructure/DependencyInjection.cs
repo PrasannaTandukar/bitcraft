@@ -63,7 +63,7 @@ public static class DependencyInjection
         {
             options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(AppRoles.Admin));
             options.AddPolicy(AuthorizationPolicies.EditorOrAdmin, policy => policy.RequireRole(AppRoles.Editor, AppRoles.Admin));
-            options.AddPolicy(AuthorizationPolicies.ViewerOrAbove, policy => policy.RequireRole(AppRoles.Viewer, AppRoles.Editor, AppRoles.Admin));
+            options.AddPolicy(AuthorizationPolicies.AuditorOrAbove, policy => policy.RequireRole(AppRoles.Auditor, AppRoles.Editor, AppRoles.Admin));
         });
 
         services.AddScoped<IIdentityService, IdentityService>();

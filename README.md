@@ -281,7 +281,7 @@ tutor-studio/                  # React + Vite frontend
 - **Knowledge** — vectorized retrieval derived from documents and scoped through tutors
 - **Tutoring** — tutor configuration, prompts, tools, model connections, knowledge links, deployment profiles, snapshots, and benchmark runs
 - **Benchmarking** — reusable benchmark templates and asynchronous tutor benchmark runs executed through the sidecar
-- **Admin** — model catalog management and Admin/Editor/Viewer role management
+- **Admin** — model catalog management and Admin/Editor/Auditor role management
 - **Infrastructure/Persistence** — database mappings, repository implementations, migrations, pgvector, Identity, Ollama adapters, and benchmark sidecar integration
 - **Api** — thin controllers using request/response contracts, Swagger metadata, JWT auth, and role policies
 
