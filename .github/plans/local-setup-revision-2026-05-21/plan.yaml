@@ -1,0 +1,291 @@
+---
+created_at: 2026-05-21
+edited_at: 2026-05-21
+creator: planner
+editor: planner
+ai_gen: true
+---
+plan_id: local-setup-revision-2026-05-21
+branch_slug: local-setup-revision-2026-05-21
+branch_base: feature-freeze/05-tutor-document-mn
+status: proposed
+lead: lead-dev
+cil: medium
+css: 6
+dis: 6
+created_at: 2026-05-21
+
+summary: >-
+  Make the Bitcraft local container stack work cohesively across Windows + Docker
+  Desktop, macOS (Intel + Apple Silicon) + Docker Desktop, Linux + Docker Engine,
+  Linux + NVIDIA GPU, and NVIDIA Jetson Orin (JetPack 6.x) from one compose set,
+  one launcher surface, and one setup doc. Follow-on to the TutorRevision /
+  dynamic-embedding / sidecar-UDS work just landed on
+  feature-freeze/05-tutor-document-mn.
+
+goals:
+  - One compose set + one docs page covers all 5 supported local environments.
+  - Backend exposes a real HTTP healthcheck and tutor-studio waits on it before starting.
+  - Jetson compose is buildable, current, and feature-complete (chat model pull + healthcheck + arm64 platform pin).
+  - Cross-platform launcher (Taskfile primary, run.sh + run.ps1 as safety nets) replaces the bash-only run.sh.
+  - .env.example documents every variable the stack reads (chat model, embed dims, vite polling).
+  - Tutor Studio supports host hot-reload on Win/Mac/Linux without manual rebuilds.
+
+non_goals:
+  - Web stack feature work (D25 step 9).
+  - Production deployment, CI/CD, or release automation.
+  - Database migrations (tracked in dev-ops inbox separately).
+  - Secrets management / JWT rotation (tracked elsewhere).
+  - Renaming compose files to compose.yaml (style-only, defer).
+  - pgvector image major bump pg17 -> pg18 (destructive local data reset; deferred as separate human decision).
+  - Any Git config change (.gitattributes, .gitignore).
+
+human_decisions:
+  - id: HD-1
+    title: pgvector image version
+    detail: >-
+      Stay on pgvector/pgvector:pg17 (recommended, no local data reset) vs bump
+      to pg18-trixie (cleaner long-term, invalidates every developer's local DB
+      volume).
+    recommendation: stay on pg17 for this batch; schedule pg18 as a separate planned migration.
+  - id: HD-2
+    title: Orphaned db/Dockerfile
+    detail: >-
+      Delete db/Dockerfile (drift: compose pins pgvector image directly and
+      never builds this) vs keep with a header comment for one more release.
+    recommendation: delete.
+  - id: HD-3
+    title: Launcher strategy
+    detail: >-
+      Adopt Taskfile (taskfile.dev) as primary cross-platform launcher and keep
+      revamped run.sh + new run.ps1 as safety nets, vs shell-only (run.sh +
+      run.ps1) with no Taskfile.
+    recommendation: Taskfile primary + both shell launchers as fallback.
+  - id: HD-4
+    title: .gitattributes LF normalization
+    detail: >-
+      Add LF normalization for *.sh, *.sql, docker-compose*.yml, Taskfile.yml so
+      Windows checkouts don't corrupt shell scripts. Touches Git config -> human approval required.
+    recommendation: approve in a follow-up commit; out of scope for this plan's automated work.
+  - id: HD-5
+    title: Backend /api/health endpoint shape
+    detail: >-
+      Confirm whether to use AspNetCore.HealthChecks (rich, with DB + sidecar
+      probes) or a trivial inline minimal-API endpoint returning 200. Used by
+      compose healthcheck only at this stage.
+    recommendation: trivial endpoint now (200 + version JSON); rich health checks deferred.
+
+steps:
+  - id: S1
+    title: Backend /api/health endpoint
+    owner: net-dev
+    depends_on: []
+    risk: low
+    human_lock: false
+    outputs:
+      - modify: src/Bitcraft.Api/Program.cs (or new Controllers/HealthController.cs)
+      - add: tests/Bitcraft.ApiIntegrationTests covering GET /api/health -> 200
+    validation:
+      - dotnet build bitcraft.slnx
+      - dotnet test tests/Bitcraft.ApiIntegrationTests/Bitcraft.ApiIntegrationTests.csproj
+    notes: >-
+      Minimal-API endpoint that returns 200 with { status: "ok", version: <assembly version> }.
+      No DB or sidecar probe yet (HD-5).
+
+  - id: S2
+    title: Compose cleanup + backend healthcheck wiring
+    owner: dev-ops
+    depends_on: [S1]
+    risk: low
+    human_lock: false
+    outputs:
+      - modify: docker-compose.yml (remove any obsolete `version:` key; add backend healthcheck via curl/wget on /api/health; ensure extra_hosts host-gateway on backend, migrator, tutor-studio)
+      - modify: docker-compose.dev.yml (tutor-studio.depends_on.backend.condition = service_healthy)
+      - modify: docker-compose.prod.yml (tutor-studio.depends_on.backend.condition = service_healthy)
+    validation:
+      - docker compose -f docker-compose.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+
+  - id: S3
+    title: Jetson compose fix
+    owner: dev-ops
+    depends_on: [S2]
+    risk: medium
+    human_lock: false
+    outputs:
+      - modify: docker-compose.ai.jetson.yml
+        details:
+          - bump image to dustynv/ollama:0.6.8-r36.4-cu126-22.04
+          - keep runtime nvidia and network_mode host
+          - add platform linux/arm64
+          - add ollama-pull-chat service mirroring ollama-pull-embed but pulling ${OLLAMA_CHAT_MODEL:-llama3.2:1b}
+          - add curl-based healthcheck on ollama (http://localhost:11434/api/tags)
+          - update backend depends_on to wait on both pulls
+    validation:
+      - docker compose -f docker-compose.yml -f docker-compose.ai.yml -f docker-compose.ai.jetson.yml config --quiet
+
+  - id: S4
+    title: GPU compose review
+    owner: dev-ops
+    depends_on: [S2]
+    risk: low
+    human_lock: false
+    outputs:
+      - modify: docker-compose.ai.gpu.yml (keep deploy.resources.reservations.devices; add commented `# gpus: all` alt syntax; no behavior change)
+    validation:
+      - docker compose -f docker-compose.yml -f docker-compose.ai.yml -f docker-compose.ai.gpu.yml config --quiet
+
+  - id: S5
+    title: .env.example completion
+    owner: lead-dev
+    depends_on: []
+    risk: low
+    human_lock: false
+    outputs:
+      - modify: .env.example
+        details:
+          - add OLLAMA_CHAT_MODEL=llama3.2:3b (comment Jetson alt llama3.2:1b)
+          - add OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b (comment 1024-dim)
+          - add OLLAMA_EMBED_DIMENSIONS=1024
+          - add VITE_USE_POLLING=false (comment: set true on WSL2 or some Mac setups)
+    validation:
+      - grep-style readthrough; no executable validation
+
+  - id: S6
+    title: Tutor Studio dev bind-mount + Vite config
+    owner: lead-dev
+    depends_on: [S2]
+    risk: medium
+    human_lock: false
+    outputs:
+      - modify: docker-compose.dev.yml (tutor-studio service: bind-mount ./tutor-studio:/app + anonymous volume /app/node_modules; env VITE_USE_POLLING)
+      - modify: tutor-studio/vite.config.js (server.host '0.0.0.0', server.watch.usePolling driven by env VITE_USE_POLLING)
+    validation:
+      - docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+      - (human smoke) npm run dev inside container, edit a file, observe HMR
+    notes: >-
+      Borderline frontend; Web Dev should approve. Acceptable here since change
+      is local-dev infra not UI behavior.
+
+  - id: S7
+    title: Orphaned db/Dockerfile decision
+    owner: dev-ops
+    depends_on: [S2]
+    risk: low
+    human_lock: true
+    outputs:
+      - delete: db/Dockerfile (if HD-2 = delete)
+      - OR modify: db/Dockerfile prepend header comment "NOT WIRED; retained for future custom-pg build"
+    validation:
+      - docker compose -f docker-compose.yml config --quiet (verify still resolves)
+
+  - id: S8
+    title: Taskfile + run.ps1 + run.sh refresh
+    owner: dev-ops
+    depends_on: [S2, S3, S5, S6]
+    risk: medium
+    human_lock: true
+    outputs:
+      - add: Taskfile.yml with tasks up:core, up:dev, up:ai, up:ai-gpu, up:ai-jetson, up:prod, down, reset, status, logs, rebuild
+      - modify: run.sh (add Jetson menu option; reuse Taskfile internally if installed, else raw compose)
+      - add: run.ps1 (PowerShell mirror of run.sh menu surface)
+    validation:
+      - task --list (if Task installed)
+      - bash -n run.sh
+      - pwsh -NoLogo -Command "Get-Command ./run.ps1 | Out-Null"
+    notes: human_lock because HD-3 decides whether Taskfile is adopted.
+
+  - id: S9
+    title: docs/local-setup.md
+    owner: typewriter
+    depends_on: [S2, S3, S5, S6, S8]
+    risk: low
+    human_lock: false
+    outputs:
+      - add: docs/local-setup.md
+        sections:
+          - Prerequisites per OS (Windows + Docker Desktop, macOS Intel/AS + Docker Desktop, Linux + Docker Engine, Linux + NVIDIA Container Toolkit, Jetson Orin + JetPack 6.x)
+          - Taskfile usage
+          - Raw compose commands per mode
+          - Model defaults table (chat, embed, dims)
+          - Hot-reload caveats (WSL2, Mac VirtioFS, polling fallback)
+          - GPU prerequisites and verification
+          - Jetson notes (image tag, arm64, network_mode host)
+          - Troubleshooting (UDS volume, port collisions, pgvector volume reset)
+    validation:
+      - markdown lint (manual readthrough)
+      - frontmatter check (ai_gen: true, creator: typewriter)
+
+  - id: S10
+    title: README cross-reference
+    owner: typewriter
+    depends_on: [S9]
+    risk: low
+    human_lock: false
+    outputs:
+      - modify: README.md "Container Deployment Modes" -> 5-line quickstart linking to docs/local-setup.md
+    validation:
+      - manual readthrough; ensure no dead links
+
+  - id: S11
+    title: Compose validation pass
+    owner: dev-ops
+    depends_on: [S2, S3, S4, S6, S7]
+    risk: low
+    human_lock: false
+    outputs:
+      - report: pasted output of `docker compose -f ... config --quiet` for all 6 combos
+    validation:
+      - docker compose -f docker-compose.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml -f docker-compose.ai.gpu.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.ai.yml -f docker-compose.ai.jetson.yml config --quiet
+      - docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+
+  - id: S12
+    title: Inbox updates
+    owner: lead-dev
+    depends_on: [S11]
+    risk: low
+    human_lock: false
+    outputs:
+      - modify: .github/inboxes/dev-ops/inbox.md (note new launcher + Jetson fix landed)
+      - modify: .github/inboxes/web-dev/inbox.md (Vite config + bind-mount FYI; request smoke test)
+      - modify: .github/inboxes/sec-ops/inbox.md (no new tracked secrets; .env.example expanded)
+
+validation_strategy:
+  build:
+    - dotnet build bitcraft.slnx
+  test:
+    - dotnet test tests/Bitcraft.UnitTests/Bitcraft.UnitTests.csproj
+    - dotnet test tests/Bitcraft.ApiIntegrationTests/Bitcraft.ApiIntegrationTests.csproj
+  compose_config:
+    - all 6 combinations from S11
+  human_smoke:
+    - task up:dev on Windows (Docker Desktop / WSL2) -> backend healthy + tutor-studio HMR
+    - task up:dev on macOS -> same
+    - task up:ai-gpu on Linux + NVIDIA -> ollama serves on :11434
+    - task up:ai-jetson on Jetson Orin -> chat + embed pulls complete
+  intentionally_not_run:
+    - Production deploy
+    - DB migration apply
+    - Live model inference benchmark
+
+rollout:
+  order:
+    - Land S1 (backend health) first; this is the only code-shape change.
+    - Land S2-S7 in any order on top; compose-only and env-only.
+    - Land S8 after S2-S7 (launcher consumes them).
+    - Land S9-S10 once shape is final.
+    - Run S11 as gate before merging.
+    - S12 last.
+  smoke_tests:
+    - Each owner runs the validation listed for their step.
+    - Lead Dev runs S11 before requesting human merge.
+  rollback:
+    - All compose changes are additive or surgical; rollback = git checkout previous commit and `docker compose down && docker compose up -d`.
+    - Backend /api/health is additive; no rollback risk.
+    - Taskfile + run.ps1 additive; deleting them restores prior state.
+    - db/Dockerfile deletion is recoverable from Git history.

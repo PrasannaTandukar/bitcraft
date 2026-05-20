@@ -8,6 +8,24 @@ ai_gen: true
 # Web Dev Inbox
 
 - Date: 2026-05-21
+- Status: FYI (local-setup-revision-2026-05-21)
+- Source: Lead Dev (plan `.github/plans/local-setup-revision-2026-05-21/plan.yaml`)
+- Target: web-dev
+- Priority: low
+- Task: `tutor-studio/vite.config.js` now sets `server.host = '0.0.0.0'` + `server.port = 5173` + `server.strictPort = true`, and `server.watch.usePolling` is driven by `VITE_USE_POLLING` (default `false`, set `true` on WSL2 or some macOS VirtioFS setups). `docker-compose.dev.yml` mounts the host repo into the dev container (`./tutor-studio:/app`) with an anonymous `/app/node_modules` volume so the in-container install is preserved. Please smoke-test HMR on your normal dev host and file a follow-up if hot reload misses changes — that's the `VITE_USE_POLLING` toggle.
+- Context: Pure local-dev infra change. No UI behavior changed.
+- Acceptance/Cleanup: Close after a quick HMR smoke test (`task up:dev`, edit `tutor-studio/src/App.jsx`, observe browser update).
+
+- Date: 2026-05-21
+- Status: pending (D25 step 9 — revision UI slice)
+- Source: Lead Dev (plan v3.4 / D25 steps 7-8)
+- Target: web-dev
+- Priority: high
+- Task: Tutor Studio UI for the new `TutorRevision` aggregate. Add a revisions tab on the tutor detail page driven by `GET /api/tutors/{tutorId}/revisions` with: list revisions (newest first, badge by `Status`), create-draft, edit-draft (prompt / interaction model / query embedding model / interaction params JSON / deployment target / deployment config JSON), publish, activate (POST `.../activate`), archive, and discard-draft (DELETE). Surface `ActivationSlug` + `PreviousActivationSlug` on the row. On activate-success refresh `Tutor.ActiveRevisionId` and show the captured snapshot. Existing snapshot/benchmark UIs do **not** need changes for this slice — they continue to work because the new FKs are nullable.
+- Context: feature-freeze-2026-05-21 WS9. Contracts in `src/Bitcraft.Api/Contracts/Tutoring/TutorRevisions.cs`. Controller is `TutorRevisionsController` at `/api/tutors/{tutorId}/revisions`. Read endpoints require `AuditorOrAbove`; mutations require `EditorOrAdmin`.
+- Acceptance/Cleanup: Folder/document UI for step 5 ships first; revision UI can ship in a separate Web Dev PR. Close after Web Dev opens the follow-up PR.
+
+- Date: 2026-05-21
 - Status: pending (D25 step 9)
 - Source: Lead Dev (plan v3.4 / D25 step 9)
 - Target: web-dev

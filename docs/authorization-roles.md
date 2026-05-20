@@ -35,6 +35,11 @@ Policy and role names are centralized in `Bitcraft.Application.Common.Security` 
 | Knowledge search | `AuditorOrAbove` | Search remains tutor-scoped and owner-checked. |
 | Tutors read/list | `AuditorOrAbove` | Application handlers still enforce tutor ownership. |
 | Tutor create/update and sub-resources | `EditorOrAdmin` | Includes prompts, tools, model connections, knowledge links, deployment profiles, and snapshots. |
+| Tutor revisions read/list | `AuditorOrAbove` | Scoped to a specific tutor `{tutorId}`. |
+| Tutor revision mutations (create, publish, activate, archive, discard) | `EditorOrAdmin` | Includes all state-machine transitions. |
+| Document folders (admin grouping) | `EditorOrAdmin` | Administrative organization only; folders are never visible at tutor runtime. |
+| Health check | Anonymous | `GET /api/health` returns `{ status, version }`. |
+
 
 ## Seeding
 

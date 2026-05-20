@@ -7,6 +7,11 @@ namespace Bitcraft.Domain.Benchmarking;
 public class BenchmarkRun : BaseModel
 {
     public Guid TutorId { get; set; }
+
+    /// <summary>FK <see cref="TutorRevision"/> (D25 step 8, plan.erm.md §8). Restrict on delete. Nullable for legacy benchmark rows captured before revisions existed.</summary>
+    public Guid? TutorRevisionId { get; set; }
+    public TutorRevision? TutorRevision { get; set; }
+
     public Guid? TutorConfigurationSnapshotId { get; set; }
     public Guid BenchmarkTemplateId { get; set; }
     public Guid? InteractionModelId { get; set; }

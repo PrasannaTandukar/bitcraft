@@ -12,7 +12,7 @@ ai_gen: true
 > **Audience**: developers and team members. Concise, referenced, learner-friendly.
 > **Sister doc**: [`docs/architecture.md`](architecture.md) for the architectural narrative; locked decisions live in [`.github/plans/<plan-slug>/plan.decisions.md`](../.github/plans/feature-freeze-2026-05-21/plan.decisions.md).
 
-> **Status**: scaffold — first real entry will be the feature-freeze 2026-05-21 batch, drafted by Secretary once the freeze closes.
+> **Status**: active — entries below document the feature-freeze 2026-05-21 batch (planning and implementation). New entries added per-merged-batch.
 
 ## Format
 
@@ -30,6 +30,29 @@ Each batch entry follows this template:
 ```
 
 ## Entries
+
+### 2026-05-21 — Feature Freeze D25 Implementation (steps 1–8) + Local Setup Revision
+
+This entry documents the code that has actually shipped on `feature-freeze/05-tutor-document-mn`. D25 steps 1–8 are all landed; the local-setup revision is included in the same uncommitted batch.
+
+- **Plan**: [feature-freeze-2026-05-21/plan.md](../.github/plans/feature-freeze-2026-05-21/plan.md). Local-setup revision: [local-setup-revision-2026-05-21/plan.yaml](../.github/plans/local-setup-revision-2026-05-21/plan.yaml).
+- **Decisions**: D25 steps 1–8, D8 (`BITCRAFT_RUNTIME_LOCAL_ONLY`), D9 (admin bootstrap env vars), D26 (`Directory.Build.props`), D22/D22.b (activation slug).
+- **What changed (developer-facing)**:
+  - All eight D25 migration steps landed: Identity/Roles vocabulary → Resource-Membership-Tables → RuntimeEngine entity → Model TPH hierarchy → Tutor-Document M:N + DocumentFolders → dynamic-dimension Knowledge (HNSW index removed; sequential scan until re-enabled per ANN strategy) → TutorRevision aggregate (state machine: Draft → Published → Active → Archived; `ActivationSlug` generated on activation; snapshot captured) → BenchmarkRun.TutorRevisionId FK realignment.
+  - `BITCRAFT_RUNTIME_LOCAL_ONLY` lives in repo-root `Directory.Build.props`, active only for `Configuration == 'Local'`. Admin bootstrap reads `BITCRAFT_ADMIN_EMAIL` / `BITCRAFT_ADMIN_PASSWORD` env vars; seeder skips with a warning if either is absent (D9).
+  - New anonymous endpoint `GET /api/health` → `{ status, version }` for Docker health-gating. Backend Dockerfile installs `curl` for the HEALTHCHECK CMD. `tutor-studio` waits for `service_healthy` on backend before starting in dev and prod overrides.
+  - New `Taskfile.yml` and `run.ps1` launchers. `docs/local-setup.md` documents all six compose combinations, per-OS prereqs, and GPU/Jetson notes.
+- **Why it changed**: Delivering the full data model and API surface for TutorRevisions, folder-backed documents, and the authorization skeleton. Local-setup revision makes the compose stack self-healing and the developer onboarding path explicit.
+- **What you must do differently**:
+  - Apply EF migrations in D25 order — dev-ops inbox has each `dotnet ef database update` command per step.
+  - When activating a revision, a slug is auto-generated from the title; uniqueness is enforced at the DB level (`WHERE ActivationSlug IS NOT NULL`). Do not add your own uniqueness check in code.
+  - Use `task up:dev` (Taskfile), `./run.ps1` (PowerShell), or `./run.sh` (bash) — see [docs/local-setup.md](local-setup.md).
+  - Never set `BITCRAFT_RUNTIME_LOCAL_ONLY` in `Debug` or `Release` build configurations.
+- **Where to read more**:
+  - [docs/local-setup.md](local-setup.md) — full setup guide.
+  - [src/Bitcraft.Api/Contracts/Tutoring/TutorRevisions.cs](../src/Bitcraft.Api/Contracts/Tutoring/TutorRevisions.cs) — revision contracts.
+  - [src/Bitcraft.Application/Features/Tutoring/TutorRevisionFeatures.cs](../src/Bitcraft.Application/Features/Tutoring/TutorRevisionFeatures.cs) — CQRS handlers.
+  - [dev-ops inbox](../.github/inboxes/dev-ops/inbox.md) — EF migration commands and smoke-test checklist.
 
 ### 2026-05-20 — Feature Freeze v3.1 Planning Pass (pre-development)
 
@@ -94,6 +117,7 @@ Same-day follow-up that closes the remaining Open Human Decisions and resolves t
 
 ## Revision History
 
+- 2026-05-21 — added implementation landing entry: D25 steps 1–8 + local-setup revision (Secretary).
 - 2026-05-20 — added v3.3 closing-pass entry covering D22.b, D24, D25, D26, D27 (Secretary follow-up).
 - 2026-05-20 — first real entry: Feature Freeze v3.1 planning pass (Secretary).
 - 2026-05-20 — scaffold introduced by Planner.

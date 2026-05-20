@@ -79,6 +79,7 @@ public static class DependencyInjection
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();
         services.AddScoped<ITutorMembershipReader, TutorMembershipReader>();
+        services.AddScoped<IRevisionEffectiveSetReader, RevisionEffectiveSetReader>();
         services.AddScoped<IModelRepository, ModelRepository>();
         services.AddScoped<IRuntimeEngineRepository, RuntimeEngineRepository>();
 

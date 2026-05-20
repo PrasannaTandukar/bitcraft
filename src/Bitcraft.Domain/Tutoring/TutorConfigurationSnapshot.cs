@@ -13,7 +13,11 @@ public class TutorConfigurationSnapshot : BaseModel
 {
     public Guid TutorId { get; private set; }
 
-    /// <summary>Sequential per-tutor revision number assigned at capture time. Forms the logical "tutor revision" identity (D25 step 7).</summary>
+    /// <summary>FK <see cref="TutorRevision"/> (D25 step 7, plan.erm.md §7.4). Restrict on delete. Nullable for legacy snapshots captured before revisions existed.</summary>
+    public Guid? TutorRevisionId { get; private set; }
+    public TutorRevision? TutorRevision { get; private set; }
+
+    /// <summary>Sequential per-tutor revision number assigned at capture time. Mirrors <see cref="TutorRevision.VersionNumber"/> when the snapshot was captured against a revision.</summary>
     public int VersionNumber { get; private set; }
 
     public string TutorName { get; private set; } = string.Empty;
@@ -25,6 +29,13 @@ public class TutorConfigurationSnapshot : BaseModel
     public string? ModelSettingsJson { get; private set; }
     public string? ToolsJson { get; private set; }
     public string? KnowledgeSourcesJson { get; private set; }
+
+    /// <summary>Materialized effective document set (plan.erm.md §7.4). JSON array of document ids resolved from direct attachments + attached folders at activation time.</summary>
+    public string? EffectiveDocumentIdsJson { get; private set; }
+
+    /// <summary>Materialized <c>(DocumentId, EmbeddingModelId)</c> pairs the runtime depends on (plan.erm.md §7.4).</summary>
+    public string? EffectiveKnowledgeBindingJson { get; private set; }
+
     public string? DeploymentProfileJson { get; private set; }
     public DateTime CapturedUtc { get; private set; } = DateTime.UtcNow;
     public Guid CapturedById { get; private set; }
@@ -40,7 +51,10 @@ public class TutorConfigurationSnapshot : BaseModel
         string? toolsJson,
         string? knowledgeSourcesJson,
         DeploymentProfile? deploymentProfile,
-        Guid capturedById)
+        Guid capturedById,
+        TutorRevision? tutorRevision = null,
+        string? effectiveDocumentIdsJson = null,
+        string? effectiveKnowledgeBindingJson = null)
     {
         ArgumentNullException.ThrowIfNull(tutor);
         if (capturedById == Guid.Empty)
@@ -57,6 +71,7 @@ public class TutorConfigurationSnapshot : BaseModel
         return new TutorConfigurationSnapshot
         {
             TutorId = tutor.Id,
+            TutorRevisionId = tutorRevision?.Id,
             VersionNumber = versionNumber,
             TutorName = tutor.Name,
             PromptVersionId = promptVersion?.Id,
@@ -67,6 +82,8 @@ public class TutorConfigurationSnapshot : BaseModel
             ModelSettingsJson = tutorModelConnection?.OverrideSettingsJson ?? interactionModel?.SettingsJson,
             ToolsJson = toolsJson,
             KnowledgeSourcesJson = knowledgeSourcesJson,
+            EffectiveDocumentIdsJson = effectiveDocumentIdsJson,
+            EffectiveKnowledgeBindingJson = effectiveKnowledgeBindingJson,
             DeploymentProfileJson = deploymentProfile?.ConfigurationJson,
             CapturedUtc = DateTime.UtcNow,
             CapturedById = capturedById

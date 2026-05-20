@@ -8,6 +8,26 @@ ai_gen: true
 # Dev Ops Inbox
 
 - Date: 2026-05-21
+- Status: pending Human review (local-setup-revision-2026-05-21)
+- Source: Lead Dev (plan `.github/plans/local-setup-revision-2026-05-21/plan.yaml`)
+- Target: dev-ops
+- Priority: high
+- Task: Smoke-test the revised local container stack on every supported host. Compose set now ships: backend `HEALTHCHECK` on `/api/health` (curl baked into the runtime image), `tutor-studio.depends_on.backend = service_healthy` in dev + prod overrides, `extra_hosts: host.docker.internal:host-gateway` on tutor-studio, refreshed `docker-compose.ai.jetson.yml` (`dustynv/ollama:0.6.8-r36.4-cu126-22.04`, `platform: linux/arm64`, new `ollama-pull-chat` service, curl-based healthcheck), `docker-compose.ai.gpu.yml` annotated with the `gpus: all` shorthand alt, orphan `db/Dockerfile` deleted (HD-2), and new `Taskfile.yml` + `run.ps1` launchers (HD-3). All 6 documented compose combinations pass `docker compose config --quiet` on Windows + Docker Desktop.
+- Smoke tests requested: (1) `task up:dev` on Windows + Docker Desktop / WSL2 — verify backend healthy + tutor-studio HMR; (2) `task up:dev` on macOS; (3) `task up:ai-gpu` on Linux + NVIDIA — verify `nvidia-smi` inside ollama container; (4) `task up:ai-jetson` on Jetson Orin — verify both pulls complete + backend reaches Ollama via host-gateway.
+- Notes: Setup doc landed at [docs/local-setup.md](../../../docs/local-setup.md); README quickstart now links to it. No Git config changes (HD-4 `.gitattributes` LF normalization remains deferred — separate human approval needed).
+- Acceptance/Cleanup: Close after each smoke test passes or files a follow-up item.
+
+- Date: 2026-05-21
+- Status: pending Human action after PR #7-8 merge
+- Source: Lead Dev (plan v3.4 / D25 steps 7-8)
+- Target: dev-ops
+- Priority: high (release-blocking for any env running merged step 7-8 code)
+- Task: Apply EF migration `20260520200241_TutorRevisions_BenchmarkRealign_20260521`. Migration is purely additive: creates `TutorRevisions` (+ partial unique index `IX_TutorRevisions_ActivationSlug WHERE "ActivationSlug" IS NOT NULL`), `TutorRevisionTools`, `TutorDocuments`, `TutorDocumentFolders`; adds `Tutors.ActiveRevisionId` (FK Restrict), `TutorConfigurationSnapshots.TutorRevisionId` (FK Restrict, nullable) + `EffectiveDocumentIdsJson` + `EffectiveKnowledgeBindingJson` (jsonb), and `BenchmarkRuns.TutorRevisionId` (FK Restrict, nullable). No data backfill required; existing rows remain valid because the new FKs are nullable.
+- Command: `dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api`.
+- Notes: Apply only after the prior step 4-8 migration has landed on the target environment. The two migrations are independent but the consolidated step 4-8 migration is the strict prerequisite.
+- Acceptance/Cleanup: Close after migration applied in dev + staging + prod.
+
+- Date: 2026-05-21
 - Status: pending Human action after PR #4-8 merge
 - Source: Lead Dev (plan v3.4 / D25 steps 4-8)
 - Target: dev-ops

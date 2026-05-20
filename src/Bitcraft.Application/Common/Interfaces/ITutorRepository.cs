@@ -26,4 +26,14 @@ public interface ITutorRepository
 
     /// <summary>Returns 1 for the first snapshot of a tutor, otherwise <c>max(VersionNumber) + 1</c>.</summary>
     Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
+
+    // D25 step 7: TutorRevision aggregate.
+    Task<TutorRevision> AddRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default);
+    Task<TutorRevision?> GetRevisionByIdAsync(Guid revisionId, CancellationToken cancellationToken = default);
+    Task<List<TutorRevision>> ListRevisionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task UpdateRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default);
+    Task RemoveRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default);
+    Task<bool> ActivationSlugExistsAsync(string slug, Guid? excludeRevisionId, CancellationToken cancellationToken = default);
 }

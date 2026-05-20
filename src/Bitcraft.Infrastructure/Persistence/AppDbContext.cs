@@ -25,6 +25,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<EmbeddingModel> EmbeddingModels => Set<EmbeddingModel>();
     public DbSet<TutorModelConnection> TutorModelConnections => Set<TutorModelConnection>();
     public DbSet<KnowledgeSourceLink> TutorKnowledgeSources => Set<KnowledgeSourceLink>();
+    public DbSet<TutorDocument> TutorDocuments => Set<TutorDocument>();
+    public DbSet<TutorDocumentFolder> TutorDocumentFolders => Set<TutorDocumentFolder>();
+    public DbSet<TutorRevision> TutorRevisions => Set<TutorRevision>();
+    public DbSet<TutorRevisionTool> TutorRevisionTools => Set<TutorRevisionTool>();
     public DbSet<ToolDefinition> ToolDefinitions => Set<ToolDefinition>();
     public DbSet<DeploymentProfile> DeploymentProfiles => Set<DeploymentProfile>();
     public DbSet<TutorConfigurationSnapshot> TutorConfigurationSnapshots => Set<TutorConfigurationSnapshot>();

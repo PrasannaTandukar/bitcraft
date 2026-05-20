@@ -1,3 +1,8 @@
+# NVIDIA discrete-GPU override for Linux + Docker Engine and Windows + Docker Desktop (WSL2 backend).
+# Requires NVIDIA Container Toolkit on Linux hosts:
+#   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+# Compose v2 honors `deploy.resources.reservations.devices` natively (no `--compatibility` flag needed).
+# Alternative shorthand (Compose 2.30+): replace the `deploy:` block with `gpus: all`.
 services:
   ollama:
     deploy:
@@ -7,3 +12,4 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    # gpus: all   # Equivalent shorthand if you prefer the newer syntax.

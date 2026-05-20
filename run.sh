@@ -5,12 +5,18 @@ set -euo pipefail
 PROJECT="bitcraft"
 
 BASE_FILE="docker-compose.yml"
+DEV_FILE="docker-compose.dev.yml"
+PROD_FILE="docker-compose.prod.yml"
 AI_FILE="docker-compose.ai.yml"
 GPU_FILE="docker-compose.ai.gpu.yml"
+JETSON_FILE="docker-compose.ai.jetson.yml"
 
 BASE_ARGS=(-f "$BASE_FILE")
+DEV_ARGS=(-f "$DEV_FILE")
+PROD_ARGS=(-f "$PROD_FILE")
 AI_ARGS=(-f "$AI_FILE")
 GPU_ARGS=(-f "$GPU_FILE")
+JETSON_ARGS=(-f "$JETSON_FILE")
 
 RED="\033[0;31m"
 GREEN="\033[0;32m"
@@ -191,18 +197,42 @@ run_core_ai_gpu() {
   compose_up "Core + AI + GPU Stack" "${BASE_ARGS[@]}" "${AI_ARGS[@]}" "${GPU_ARGS[@]}"
 }
 
+run_core_ai_jetson() {
+  if [[ ! -f "$AI_FILE" ]]; then
+    error "$AI_FILE not found."
+    return
+  fi
+
+  if [[ ! -f "$JETSON_FILE" ]]; then
+    error "$JETSON_FILE not found."
+    return
+  fi
+
+  if [[ "$(uname -m)" != "aarch64" ]]; then
+    warn "Jetson stack expects an aarch64 host; you are on $(uname -m)."
+    read -rp "Continue anyway? (y/N): " confirm
+    if [[ ! "${confirm:-N}" =~ ^[Yy]$ ]]; then
+      info "Jetson launch cancelled."
+      return
+    fi
+  fi
+
+  compose_up "Core + AI + Jetson Stack" "${BASE_ARGS[@]}" "${AI_ARGS[@]}" "${JETSON_ARGS[@]}"
+}
+
 main_menu() {
   while true; do
     print_header
     echo "1) Run Core Stack"
     echo "2) Run Core + AI"
     echo "3) Run Core + AI + GPU"
-    echo "4) Show Status"
-    echo "5) Show Logs"
-    echo "6) Rebuild Specific Service"
-    echo "7) Stop Stack"
-    echo "8) Reset Stack (delete volumes)"
-    echo "9) Exit"
+    echo "4) Run Core + AI + Jetson"
+    echo "5) Show Status"
+    echo "6) Show Logs"
+    echo "7) Rebuild Specific Service"
+    echo "8) Stop Stack"
+    echo "9) Reset Stack (delete volumes)"
+    echo "0) Exit"
     echo
     read -rp "Select option: " choice
     echo
@@ -211,12 +241,13 @@ main_menu() {
       1) run_core; pause ;;
       2) run_core_ai; pause ;;
       3) run_core_ai_gpu; pause ;;
-      4) show_status; pause ;;
-      5) show_logs ;;
-      6) rebuild_service; pause ;;
-      7) compose_down_all; pause ;;
-      8) compose_reset_all; pause ;;
-      9) exit 0 ;;
+      4) run_core_ai_jetson; pause ;;
+      5) show_status; pause ;;
+      6) show_logs ;;
+      7) rebuild_service; pause ;;
+      8) compose_down_all; pause ;;
+      9) compose_reset_all; pause ;;
+      0) exit 0 ;;
       *) warn "Invalid option."; pause ;;
     esac
   done
