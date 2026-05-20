@@ -1,0 +1,91 @@
+# Bitcraft cross-platform launcher (taskfile.dev).
+# Install Task once per machine: https://taskfile.dev/installation/
+# Then run `task --list` to see the menu, or `task up:dev` for the day-to-day flow.
+version: '3'
+
+env:
+  COMPOSE_PROJECT_NAME: bitcraft
+
+vars:
+  BASE: docker-compose.yml
+  DEV: docker-compose.dev.yml
+  PROD: docker-compose.prod.yml
+  AI: docker-compose.ai.yml
+  GPU: docker-compose.ai.gpu.yml
+  JETSON: docker-compose.ai.jetson.yml
+
+tasks:
+  default:
+    desc: List available tasks.
+    cmds:
+      - task --list
+
+  up:core:
+    desc: Backend + DB + sidecar + tutor-studio (no AI). Production-style image, no HMR.
+    cmds:
+      - docker compose -f {{.BASE}} up --build -d
+
+  up:dev:
+    desc: Core stack + tutor-studio HMR bind-mount on :5173.
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.DEV}} up --build -d
+
+  up:ai:
+    desc: Core stack + local Ollama (CPU). Pulls embed + chat models on first run.
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.AI}} up --build -d
+
+  up:ai-gpu:
+    desc: Core + AI with NVIDIA discrete GPU acceleration (Linux + NVIDIA Container Toolkit, or Windows + Docker Desktop WSL2).
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.AI}} -f {{.GPU}} up --build -d
+
+  up:ai-jetson:
+    desc: Core + AI on NVIDIA Jetson Orin (JetPack 6.x, aarch64).
+    preconditions:
+      - sh: '[ "$(uname -m)" = "aarch64" ]'
+        msg: "Jetson stack requires an aarch64 host. Override with `task up:ai-jetson --force` if you know what you're doing."
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.AI}} -f {{.JETSON}} up --build -d
+
+  up:prod:
+    desc: Core stack + nginx-served tutor-studio on :8080.
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.PROD}} up --build -d
+
+  down:
+    desc: Stop every stack variant (idempotent).
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.DEV}} -f {{.PROD}} -f {{.AI}} -f {{.GPU}} -f {{.JETSON}} down
+
+  reset:
+    desc: Stop every stack variant AND delete all named volumes (DB + models + sidecar socket).
+    prompt: This deletes the Postgres volume and the Ollama model cache. Continue?
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.DEV}} -f {{.PROD}} -f {{.AI}} -f {{.GPU}} -f {{.JETSON}} down -v
+
+  status:
+    desc: Show container status across every stack variant.
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.DEV}} -f {{.PROD}} -f {{.AI}} -f {{.GPU}} -f {{.JETSON}} ps
+
+  logs:
+    desc: Tail logs from the running core+AI stack (Ctrl+C detaches).
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.AI}} logs -f
+
+  rebuild:
+    desc: Force-rebuild a specific service. Usage `task rebuild -- backend`.
+    cmds:
+      - docker compose -f {{.BASE}} -f {{.AI}} up --build -d {{.CLI_ARGS}}
+
+  validate:
+    desc: Validate every documented compose-file combination with `docker compose config --quiet`.
+    cmds:
+      - docker compose -f {{.BASE}} config --quiet
+      - docker compose -f {{.BASE}} -f {{.DEV}} config --quiet
+      - docker compose -f {{.BASE}} -f {{.PROD}} config --quiet
+      - docker compose -f {{.BASE}} -f {{.AI}} config --quiet
+      - docker compose -f {{.BASE}} -f {{.AI}} -f {{.GPU}} config --quiet
+      - docker compose -f {{.BASE}} -f {{.AI}} -f {{.JETSON}} config --quiet
+      - docker compose -f {{.BASE}} -f {{.DEV}} -f {{.AI}} -f {{.GPU}} config --quiet

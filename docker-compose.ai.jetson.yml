@@ -1,6 +1,8 @@
 services:
   ollama:
-    image: dustynv/ollama:r36.2.0
+    # Pinned dustynv image for JetPack 6.x (L4T r36.4). Bump in lockstep with the host JetPack release.
+    image: dustynv/ollama:0.6.8-r36.4-cu126-22.04
+    platform: linux/arm64
     container_name: ollama
     runtime: nvidia
     network_mode: host
@@ -16,19 +18,20 @@ services:
 
     restart: unless-stopped
 
-    # 🚨 HARD OVERRIDE
-    entrypoint: [ "/usr/bin/ollama" ]
-    command: [ "serve" ]
+    # Hard override: image default entrypoint wraps a shell; bypass it to avoid r36.x init bugs.
+    entrypoint: ["/usr/bin/ollama"]
+    command: ["serve"]
 
     healthcheck:
-      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || exit 1" ]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
       start_period: 20s
 
   ollama-pull-embed:
-    image: dustynv/ollama:r36.2.0
+    image: dustynv/ollama:0.6.8-r36.4-cu126-22.04
+    platform: linux/arm64
     container_name: ollama-pull-embed
     network_mode: host
 
@@ -39,9 +42,30 @@ services:
     volumes:
       - ollama:/ollama
 
-    # 🚀 no shell = no bug
-    entrypoint: [ "ollama" ]
-    command: [ "pull", "${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}" ]
+    entrypoint: ["ollama"]
+    command: ["pull", "${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}"]
+
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  ollama-pull-chat:
+    image: dustynv/ollama:0.6.8-r36.4-cu126-22.04
+    platform: linux/arm64
+    container_name: ollama-pull-chat
+    network_mode: host
+
+    environment:
+      OLLAMA_HOST: http://127.0.0.1:11434
+      OLLAMA_MODELS: /ollama
+
+    volumes:
+      - ollama:/ollama
+
+    entrypoint: ["ollama"]
+    # Jetson default skews to the smaller llama3.2:1b; override via OLLAMA_CHAT_MODEL on Orin AGX / Orin Nano Super.
+    command: ["pull", "${OLLAMA_CHAT_MODEL:-llama3.2:1b}"]
 
     restart: "no"
     depends_on:
@@ -50,7 +74,9 @@ services:
 
   backend:
     environment:
+      # Ollama runs in network_mode: host on the Jetson, so backend (bridge) reaches it via the host-gateway shim.
       OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:1b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -59,7 +85,8 @@ services:
         condition: service_healthy
       ollama-pull-embed:
         condition: service_completed_successfully
+      ollama-pull-chat:
+        condition: service_completed_successfully
 
 volumes:
   ollama: {}
-  ollama-data: {}

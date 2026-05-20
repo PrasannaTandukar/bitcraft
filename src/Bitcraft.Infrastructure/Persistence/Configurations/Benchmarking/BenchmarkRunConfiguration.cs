@@ -62,7 +62,13 @@ public class BenchmarkRunConfiguration : IEntityTypeConfiguration<BenchmarkRun>
             .HasForeignKey(x => x.InteractionModelId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        entity.HasOne(x => x.TutorRevision)
+            .WithMany()
+            .HasForeignKey(x => x.TutorRevisionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         entity.HasIndex(x => new { x.TutorId, x.QueuedUtc });
+        entity.HasIndex(x => x.TutorRevisionId);
         entity.HasIndex(x => x.TutorConfigurationSnapshotId);
         entity.HasIndex(x => x.InteractionModelId);
         entity.HasIndex(x => x.Status);

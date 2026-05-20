@@ -132,6 +132,28 @@ internal static class TutoringMapping
         s.TutorModelConnectionId, s.InteractionModelId, s.ModelName, s.ModelSettingsJson,
         s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById);
 
+    public static TutorRevisionResponse ToResponse(this TutorRevision r) => new(
+        r.Id,
+        r.TutorId,
+        r.VersionNumber,
+        r.Status,
+        r.PromptVersionId,
+        r.InteractionModelId,
+        r.QueryEmbeddingModelId,
+        r.InteractionParametersJson,
+        r.DeploymentTarget,
+        r.DeploymentConfigJson,
+        r.PublishedUtc,
+        r.PublishedById,
+        r.ActivatedUtc,
+        r.ActivatedById,
+        r.ArchivedUtc,
+        r.ArchivedById,
+        r.ActivationSlug,
+        r.PreviousActivationSlug,
+        r.CreatedUtc,
+        r.ModifiedUtc);
+
     public static BenchmarkTemplateResponse ToResponse(this BenchmarkTemplate template) => new(
         template.Id,
         template.OwnerId,

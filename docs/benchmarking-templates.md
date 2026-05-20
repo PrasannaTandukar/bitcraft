@@ -31,3 +31,5 @@ Each case should include:
 ## Progress
 
 Benchmark runs are asynchronous. The API returns a `runId` immediately after a run is queued. The web app can poll the run progress endpoint with that ID until the status becomes `Completed` or `Failed`. Current progress is coarse-grained across queued, running, completed, and failed states; case-level progress can be added later through the benchmark engine contract.
+
+From the D25 step 8 landing, each run optionally carries a `TutorRevisionId` linking it to the exact revision snapshot that was active when the run was triggered. This enables audit trails across revision history.

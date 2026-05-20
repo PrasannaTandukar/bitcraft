@@ -21,12 +21,16 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libkrb5-3 \
-    libgssapi-krb5-2 && \
+    libgssapi-krb5-2 \
+    curl && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 
 EXPOSE 8000
 ENV ASPNETCORE_URLS=http://+:8000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=10 \
+    CMD curl -fsS http://127.0.0.1:8000/api/health || exit 1
 
 ENTRYPOINT ["dotnet", "Bitcraft.Api.dll"]

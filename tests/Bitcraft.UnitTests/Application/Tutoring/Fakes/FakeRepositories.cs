@@ -233,6 +233,46 @@ internal sealed class FakeTutorRepository : ITutorRepository
         Snapshots.Add(s);
         return Task.FromResult(s);
     }
+
+    // ---- TutorRevision (D25 step 7) ----
+    public List<TutorRevision> Revisions { get; } = new();
+
+    public Task<TutorRevision> AddRevisionAsync(TutorRevision r, CancellationToken ct = default)
+    {
+        Revisions.Add(r);
+        return Task.FromResult(r);
+    }
+
+    public Task<TutorRevision?> GetRevisionByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.FirstOrDefault(r => r.Id == id));
+
+    public Task<List<TutorRevision>> ListRevisionsByTutorAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.Where(r => r.TutorId == tutorId).OrderByDescending(r => r.VersionNumber).ToList());
+
+    public Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.FirstOrDefault(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active));
+
+    public Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
+    {
+        var max = Revisions.Where(r => r.TutorId == tutorId).Select(r => (int?)r.VersionNumber).Max();
+        return Task.FromResult((max ?? 0) + 1);
+    }
+
+    public Task UpdateRevisionAsync(TutorRevision r, CancellationToken ct = default)
+    {
+        var idx = Revisions.FindIndex(x => x.Id == r.Id);
+        if (idx >= 0) Revisions[idx] = r;
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveRevisionAsync(TutorRevision r, CancellationToken ct = default)
+    {
+        Revisions.RemoveAll(x => x.Id == r.Id);
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> ActivationSlugExistsAsync(string slug, Guid? excludeRevisionId, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.Any(r => r.ActivationSlug == slug && (excludeRevisionId == null || r.Id != excludeRevisionId)));
 }
 
 internal sealed class FakeModelRepository : IModelRepository

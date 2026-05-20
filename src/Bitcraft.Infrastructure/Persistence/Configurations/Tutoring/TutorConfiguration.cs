@@ -69,5 +69,25 @@ public class TutorConfiguration : IEntityTypeConfiguration<Tutor>
             .WithOne(r => r.Tutor!)
             .HasForeignKey(r => r.TutorId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(x => x.ActiveRevision)
+            .WithMany()
+            .HasForeignKey(x => x.ActiveRevisionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(x => x.Revisions)
+            .WithOne(r => r.Tutor!)
+            .HasForeignKey(r => r.TutorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(x => x.TutorDocuments)
+            .WithOne(td => td.Tutor!)
+            .HasForeignKey(td => td.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasMany(x => x.TutorDocumentFolders)
+            .WithOne(tdf => tdf.Tutor!)
+            .HasForeignKey(tdf => tdf.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

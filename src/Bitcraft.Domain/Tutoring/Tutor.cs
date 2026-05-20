@@ -22,11 +22,18 @@ public class Tutor : BaseModel
     /// <summary>Currently active prompt version (nullable until first version is promoted).</summary>
     public Guid? ActivePromptVersionId { get; set; }
 
+    /// <summary>Currently active <see cref="TutorRevision"/> (D25 step 7, plan.erm.md §7.1). Mirrors the row whose Status is Active.</summary>
+    public Guid? ActiveRevisionId { get; set; }
+    public TutorRevision? ActiveRevision { get; set; }
+
     public TutorModelConnection? TutorModelConnection { get; set; }
     public PromptVersion? ActivePromptVersion { get; set; }
     public DeploymentProfile? DeploymentProfile { get; set; }
     public ICollection<PromptVersion> PromptVersions { get; set; } = new List<PromptVersion>();
     public ICollection<KnowledgeSourceLink> KnowledgeSources { get; set; } = new List<KnowledgeSourceLink>();
+    public ICollection<TutorDocument> TutorDocuments { get; set; } = new List<TutorDocument>();
+    public ICollection<TutorDocumentFolder> TutorDocumentFolders { get; set; } = new List<TutorDocumentFolder>();
+    public ICollection<TutorRevision> Revisions { get; set; } = new List<TutorRevision>();
     public ICollection<ToolDefinition> Tools { get; set; } = new List<ToolDefinition>();
     public ICollection<TutorConfigurationSnapshot> Snapshots { get; set; } = new List<TutorConfigurationSnapshot>();
     public ICollection<BenchmarkRun> BenchmarkRuns { get; set; } = new List<BenchmarkRun>();
