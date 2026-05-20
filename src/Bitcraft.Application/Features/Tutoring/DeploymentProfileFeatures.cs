@@ -17,7 +17,10 @@ public static class DeploymentProfileFeatures
         DeploymentTarget Target,
         string? ConfigurationJson) : IRequest<Result<DeploymentProfile>>;
 
-    public sealed class SaveDeploymentProfileHandler(ITutorRepository tutorRepository, ICurrentUserContext currentUser)
+    public sealed class SaveDeploymentProfileHandler(
+        ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
         : IRequestHandler<SaveDeploymentProfileCommand, Result<DeploymentProfile>>
     {
         public async Task<Result<DeploymentProfile>> Handle(SaveDeploymentProfileCommand request, CancellationToken cancellationToken)
@@ -40,9 +43,11 @@ public static class DeploymentProfileFeatures
                 return Result.Failure<DeploymentProfile>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: deployment profile is a configuration mutation → Editor or Owner.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
             {
-                return Result.Failure<DeploymentProfile>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<DeploymentProfile>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var profile = new DeploymentProfile

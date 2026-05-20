@@ -16,6 +16,7 @@ public static class TutorModelConnectionFeatures
     public sealed class SaveTutorModelConnectionHandler(
         ITutorRepository tutorRepository,
         IModelCatalogRepository modelCatalogRepository,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<SaveTutorModelConnectionCommand, Result<TutorModelConnection>>
     {
@@ -40,9 +41,11 @@ public static class TutorModelConnectionFeatures
                 return Result.Failure<TutorModelConnection>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != userId)
+            // D2/D3: model connection mutates tutor config → Editor or Owner.
+            var role = await membership.GetRoleAsync(tutor.Id, userId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
             {
-                return Result.Failure<TutorModelConnection>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<TutorModelConnection>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var catalogEntry = await modelCatalogRepository.GetByIdAsync(request.ModelCatalogEntryId, cancellationToken);

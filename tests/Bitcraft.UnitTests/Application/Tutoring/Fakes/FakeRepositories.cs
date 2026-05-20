@@ -89,6 +89,57 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
     }
 }
 
+/// <summary>
+/// In-memory <see cref="ITutorMembershipReader"/> for tests. Resolves roles from two sources, in
+/// order of precedence: (1) explicit <see cref="Grant"/> overrides; (2) the founding membership
+/// graph on tutors held in an optional <see cref="FakeTutorRepository"/>. Missing membership
+/// returns <see langword="null"/> (i.e. forbidden), matching the production reader contract.
+/// </summary>
+internal sealed class FakeTutorMembershipReader : ITutorMembershipReader
+{
+    private readonly FakeTutorRepository? _repository;
+    private readonly Dictionary<(Guid TutorId, Guid UserId), ResourceRole> _overrides = new();
+
+    public FakeTutorMembershipReader() { }
+
+    public FakeTutorMembershipReader(FakeTutorRepository repository)
+    {
+        _repository = repository;
+    }
+
+    /// <summary>Grant an explicit role to a user on a tutor (takes precedence over the repository's <c>Members</c> graph).</summary>
+    public void Grant(Guid tutorId, Guid userId, ResourceRole role) => _overrides[(tutorId, userId)] = role;
+
+    public Task<ResourceRole?> GetRoleAsync(Guid tutorId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (_overrides.TryGetValue((tutorId, userId), out var role))
+        {
+            return Task.FromResult<ResourceRole?>(role);
+        }
+
+        if (_repository is not null && _repository.Tutors.TryGetValue(tutorId, out var tutor))
+        {
+            var member = tutor.Members.FirstOrDefault(m => m.UserId == userId);
+            if (member is not null)
+            {
+                return Task.FromResult<ResourceRole?>(member.Role);
+            }
+        }
+
+        return Task.FromResult<ResourceRole?>(null);
+    }
+
+    public Task<IReadOnlyList<TutorMember>> ListMembersAsync(Guid tutorId, CancellationToken cancellationToken = default)
+    {
+        if (_repository is not null && _repository.Tutors.TryGetValue(tutorId, out var tutor))
+        {
+            return Task.FromResult<IReadOnlyList<TutorMember>>(tutor.Members.ToList());
+        }
+
+        return Task.FromResult<IReadOnlyList<TutorMember>>([]);
+    }
+}
+
 internal sealed class FakeTutorRepository : ITutorRepository
 {
     public Dictionary<Guid, Tutor> Tutors { get; } = new();
@@ -123,7 +174,7 @@ internal sealed class FakeTutorRepository : ITutorRepository
     }
 
     public Task<List<Tutor>> ListByOwnerAsync(Guid ownerId, CancellationToken ct = default) =>
-        Task.FromResult(Tutors.Values.Where(t => t.OwnerId == ownerId).ToList());
+        Task.FromResult(Tutors.Values.Where(t => t.Members.Any(m => m.UserId == ownerId)).ToList());
 
     public Task UpdateAsync(Tutor tutor, CancellationToken ct = default)
     {

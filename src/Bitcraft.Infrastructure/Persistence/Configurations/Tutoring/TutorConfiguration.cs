@@ -24,13 +24,11 @@ public class TutorConfiguration : IEntityTypeConfiguration<Tutor>
             .HasConversion<int>()
             .IsRequired();
 
-        entity.HasIndex(x => x.OwnerId);
-        entity.HasIndex(x => new { x.OwnerId, x.Name });
-
-        entity.HasOne(x => x.Owner)
-            .WithMany()
-            .HasForeignKey(x => x.OwnerId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // D2/D3: ownership now lives in TutorMembers; see TutorMemberConfiguration.
+        entity.HasMany(x => x.Members)
+            .WithOne(m => m.Tutor!)
+            .HasForeignKey(m => m.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         entity.HasOne(x => x.ActivePromptVersion)
             .WithMany()

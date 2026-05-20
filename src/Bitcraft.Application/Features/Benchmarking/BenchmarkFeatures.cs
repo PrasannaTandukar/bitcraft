@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Benchmarking;
+using Bitcraft.Domain.Tutoring;
 using MediatR;
 
 namespace Bitcraft.Application.Features.Benchmarking;
@@ -164,6 +165,7 @@ public static class BenchmarkFeatures
         IModelCatalogRepository modelCatalog,
         IBenchmarkRunRepository runs,
         IBenchmarkRunQueue queue,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<CreateTutorBenchmarkRunCommand, Result<BenchmarkRun>>
     {
@@ -212,9 +214,11 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: launching a benchmark run mutates tutor state → Editor or Owner.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<BenchmarkRun>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var template = await templates.GetByIdAsync(request.BenchmarkTemplateId, cancellationToken);
@@ -301,6 +305,7 @@ public static class BenchmarkFeatures
     public sealed class ListTutorBenchmarkRunsHandler(
         ITutorRepository tutors,
         IBenchmarkRunRepository runs,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<ListTutorBenchmarkRunsQuery, Result<List<BenchmarkRun>>>
     {
@@ -312,9 +317,11 @@ public static class BenchmarkFeatures
                 return Result.Failure<List<BenchmarkRun>>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: read-only listing → any membership role.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is null)
             {
-                return Result.Failure<List<BenchmarkRun>>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<List<BenchmarkRun>>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var list = await runs.ListByTutorAsync(request.TutorId, cancellationToken);
@@ -329,6 +336,7 @@ public static class BenchmarkFeatures
     public sealed class GetTutorBenchmarkRunHandler(
         ITutorRepository tutors,
         IBenchmarkRunRepository runs,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<GetTutorBenchmarkRunQuery, Result<BenchmarkRun>>
     {
@@ -340,9 +348,11 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: read-only detail fetch → any membership role.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is null)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<BenchmarkRun>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var run = await runs.GetByIdWithCasesAsync(request.BenchmarkRunId, cancellationToken);
@@ -358,6 +368,7 @@ public static class BenchmarkFeatures
     public sealed class GetTutorBenchmarkRunProgressHandler(
         ITutorRepository tutors,
         IBenchmarkRunRepository runs,
+        ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<GetTutorBenchmarkRunProgressQuery, Result<BenchmarkRun>>
     {
@@ -369,9 +380,11 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: read-only progress fetch → any membership role.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is null)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<BenchmarkRun>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var run = await runs.GetByIdAsync(request.BenchmarkRunId, cancellationToken);

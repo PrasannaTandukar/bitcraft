@@ -64,7 +64,6 @@ internal static class TutoringMapping
 
     public static TutorResponse ToResponse(this Tutor tutor) => new(
         tutor.Id,
-        tutor.OwnerId,
         tutor.Name,
         tutor.Description,
         tutor.Status,

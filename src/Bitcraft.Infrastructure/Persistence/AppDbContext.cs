@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
 
     public DbSet<Tutor> Tutors => Set<Tutor>();
+    public DbSet<TutorMember> TutorMembers => Set<TutorMember>();
     public DbSet<PromptVersion> PromptVersions => Set<PromptVersion>();
     public DbSet<ModelCatalogEntry> ModelCatalogEntries => Set<ModelCatalogEntry>();
     public DbSet<TutorModelConnection> TutorModelConnections => Set<TutorModelConnection>();
