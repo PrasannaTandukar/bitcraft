@@ -82,7 +82,13 @@ services:
       - benchmark_sidecar_socket:/var/run/bitcraft
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock'); s.close()\""]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import socket; s=socket.socket(socket.AF_UNIX,
+            socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock');
+            s.close()\"",
+        ]
       interval: 10s
       timeout: 3s
       retries: 15
