@@ -38,8 +38,8 @@ function AdminRoute({ children }) {
 function EditorRoute({ children }) {
   const { token, roles } = useSelector((state) => state.auth);
   if (!token) return <Navigate to="/login" />;
-  if (roles.includes("Admin")) return <Navigate to="/model-catalog" />;  // 👈 changed
-  if (!roles.includes("Editor")) return <Navigate to="/settings" />;
+  // TODO post-PoC: extract role-check abstraction when framework hooks (e.g., TanStack Query auth context) are installed.
+  if (!(roles.includes("Editor") || roles.includes("Admin"))) return <Navigate to="/settings" />;
   return children;
 }
 

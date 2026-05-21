@@ -2,7 +2,7 @@
 created_at: 2026-05-21
 edited_at: 2026-05-21
 creator: lead-dev
-editor: lead-dev
+editor: dev-ops
 ai_gen: true
 ---
 # Bitcraft Local Setup
@@ -109,6 +109,39 @@ docker compose -f docker-compose.yml -f docker-compose.ai.yml -f docker-compose.
 | `VITE_USE_POLLING` | `false` | Vite file-watch mode in the dev container. | Set to `true` on WSL2 and some macOS VirtioFS setups. |
 
 The full reference is in [`.env.example`](../.env.example).
+
+## Database Connection: Compose vs Host Shell
+
+The API resolves Postgres differently depending on where it runs:
+
+| Run context | Configuration source | Host / Port |
+| --- | --- | --- |
+| Inside Compose (`backend`, `migrator`) | `appsettings.json` + `ConnectionStrings__DefaultConnection` env override from `docker-compose.yml` | `db:5432` (Docker network) |
+| Host shell (e.g. `dotnet ef database update` run on your laptop) | `appsettings.Development.json` (local, not tracked) overriding `appsettings.json` | `localhost:5433` (Compose-published port) |
+
+The shipped `appsettings.json` uses `Host=db;Port=5432` so the in-network services resolve correctly. When you run EF tooling or `dotnet run` directly from a host shell, ASP.NET Core loads `appsettings.Development.json` on top — that is where the `localhost:5433` override belongs.
+
+To set it up:
+
+1. Start (or have running) the Compose `db` service so port `5433` is published on the host.
+2. Copy the tracked sample into place:
+
+   ```powershell
+   # from repo root
+   Copy-Item src/Bitcraft.Api/appsettings.Development.example.json src/Bitcraft.Api/appsettings.Development.json
+   ```
+
+   ```bash
+   cp src/Bitcraft.Api/appsettings.Development.example.json src/Bitcraft.Api/appsettings.Development.json
+   ```
+
+3. Run migrations from the host shell:
+
+   ```bash
+   dotnet ef database update --project src/Bitcraft.Infrastructure --startup-project src/Bitcraft.Api
+   ```
+
+`appsettings.Development.json` is developer-local and SHOULD NOT be committed. (Adding it to `.gitignore` is queued as a human decision; until that lands, do not stage the file.) The tracked `appsettings.Development.example.json` is the canonical template.
 
 ## Hot-reload Caveats
 

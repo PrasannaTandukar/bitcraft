@@ -8,31 +8,32 @@ ai_gen: true
 # NET Dev Inbox
 
 - Date: 2026-05-21
-- Status: active
-- Source: Sec Ops (feature-freeze security sweep 2026-05-21)
+- Status: complete (Iteration 1 — pending PR review)
+- Source: Secretary (D33 lock 2026-05-21)
 - Target: net-dev
-- Priority: medium
-- Task: Defense-in-depth IDOR guard for TutorRevisions. Add `TutorId` to every command and query record in `TutorRevisionFeatures.cs`. In each handler, assert `revision.TutorId == request.TutorId` and return an opaque `NotFound` if they differ. Currently only the membership check prevents cross-tutor probing; the route `{tutorId}` segment is unused in the command/query path.
+- Priority: complete
+- Task: `DocumentResponse` split (D33). Verified by Net Dev: production code already implemented as `DocumentSummaryResponse` (list) + `DocumentDetailResponse` (detail). Added integration test coverage in `tests/Bitcraft.ApiIntegrationTests/DocumentResponseShapeTests.cs`. Build green, 190/190 unit tests pass.
+- Acceptance/Cleanup: Close after Iteration 1 PR merges.
+
+ Add `TutorId` to every command and query record in `TutorRevisionFeatures.cs`. In each handler, assert `revision.TutorId == request.TutorId` and return an opaque `NotFound` if they differ. Currently only the membership check prevents cross-tutor probing; the route `{tutorId}` segment is unused in the command/query path.
 - Context: Sec Ops finding M-1. Files: `src/Bitcraft.Api/Controllers/Tutoring/TutorRevisionsController.cs`, `src/Bitcraft.Application/Features/Tutoring/TutorRevisionFeatures.cs`. No live exploit today; membership check saves it. Defense-in-depth ensures any accidental handler omission does not silently expose the gap.
 - Acceptance/Cleanup: All command/query records carry `TutorId`; all handlers assert match; unit test covers mismatch case; close this item.
 
 - Date: 2026-05-21
-- Status: active
+- Status: complete (Iteration 1)
 - Source: Sec Ops (feature-freeze security sweep 2026-05-21)
 - Target: net-dev
-- Priority: medium
-- Task: Lock `PolicyEffect.NotApplicable = deny` contract before any caller of `IPolicyEvaluator` is written. (1) Add XML doc to `IPolicyEvaluator.EvaluateAsync` stating `NotApplicable` must be treated as deny. (2) Add XML doc to `PolicyEffect.NotApplicable` with the same statement. (3) Add `bool IsPermit()` helper to `PolicyDecision` returning `Effect == PolicyEffect.Permit` — making the safe check idiomatic and hard to misread.
-- Context: Sec Ops finding M-2. File: `src/Bitcraft.Application/Common/Authorization/`. A caller written as `if (decision.Effect != PolicyEffect.Deny)` would silently permit on `NotApplicable`. Must be locked before WS6 concrete evaluator implementation. Also closes the sec-ops 2026-05-20 high item requesting evaluator contract review.
-- Acceptance/Cleanup: `PolicyDecision.IsPermit()` added; XML docs on interface and enum present; unit test covers `NotApplicable` treated as deny; sec-ops 2026-05-20 item closed; remove this item.
+- Priority: complete
+- Task: `PolicyEffect.NotApplicable` deny-by-default contract. Verified production code already has `PolicyDecision.IsPermit()` plus XML docs on `IPolicyEvaluator.EvaluateAsync` and `PolicyEffect.NotApplicable`. Added test `PolicyDecisionTests.cs` locking the contract (only `Permit` returns true; `Deny` and `NotApplicable` return false).
+- Acceptance/Cleanup: Close after Iteration 1 PR merges.
 
 - Date: 2026-05-21
-- Status: active
+- Status: complete (Iteration 1)
 - Source: Sec Ops (feature-freeze security sweep 2026-05-21)
 - Target: net-dev
-- Priority: low
-- Task: Gate assembly version in the `GET /api/health` response for non-Development deployments. Check `IHostEnvironment.IsDevelopment()` and omit or stub the `version` field in non-dev environments. Also add a fixed-window `AddRateLimiter` policy to the health endpoint (or globally) to prevent saturating requests.
-- Context: Sec Ops finding L-1. File: `src/Bitcraft.Api/Controllers/HealthController.cs`, `src/Bitcraft.Api/Program.cs`. Low severity; no DB calls in handler so DoS is limited. Version string helps attackers target specific CVEs in production.
-- Acceptance/Cleanup: `version` field gated behind `IsDevelopment()`; rate limiter wired for the `/api/health` route or globally; close this item.
+- Priority: complete
+- Task: `/api/health` version gate + rate limiter (L-1). Verified production code: `HealthController` injects `IHostEnvironment` and nulls `version` outside Development; `Program.cs` wires global fixed-window `AddRateLimiter` (10 req/sec/IP, queue 0, 429 rejection).
+- Acceptance/Cleanup: Close after Iteration 1 PR merges.
 
 - Date: 2026-05-21
 - Status: partially complete (skeleton only)

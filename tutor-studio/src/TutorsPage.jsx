@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { apiFetch } from "./api/client.js";
 
-const TUTORS_URL = "http://localhost:8000/api/tutors";
+const TUTORS_PATH = "/api/tutors";
 
 const inputStyle = {
   fontFamily: "'DM Mono', monospace",
@@ -25,7 +25,7 @@ const labelStyle = {
   display: "block",
 };
 
-function AddTutorModal({ onClose, onSaved, token }) {
+function AddTutorModal({ onClose, onSaved }) {
   const [form, setForm] = useState({ name: "", description: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -37,13 +37,10 @@ function AddTutorModal({ onClose, onSaved, token }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(TUTORS_URL, {
+      const newTutor = await apiFetch(TUTORS_PATH, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name.trim(), description: form.description || null }),
+        json: { name: form.name.trim(), description: form.description || null },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      const newTutor = await res.json();
       onSaved(newTutor);
     } catch (err) {
       setError(err.message);
@@ -174,17 +171,10 @@ export default function TutorsPage() {
   const [showModal, setShowModal] = useState(false);
   const [refreshHovered, setRefreshHovered] = useState(false);
   const [addHovered, setAddHovered] = useState(false);
-  const token = useSelector((state) => state.auth.token);
 
   const fetchTutors = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    fetch(TUTORS_URL, {
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
+    apiFetch(TUTORS_PATH)
       .then((data) => { setTutors(data); setError(null); })
       .catch((err) => setError(err.message))
       .finally(() => { setLoading(false); setRefreshing(false); });
@@ -212,7 +202,6 @@ export default function TutorsPage() {
         <AddTutorModal
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
-          token={token}
         />
       )}
 

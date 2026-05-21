@@ -7,7 +7,13 @@ namespace Bitcraft.Application.Common.Authorization;
 /// </summary>
 public enum PolicyEffect
 {
+    /// <summary>Explicit allow. The action MAY proceed (subject to any obligations).</summary>
     Permit,
+    /// <summary>Explicit deny. The action MUST NOT proceed.</summary>
     Deny,
+    /// <summary>
+    /// No policy applied to this request. Callers MUST treat this as deny
+    /// (deny-by-default); it is NOT a permit.
+    /// </summary>
     NotApplicable
 }

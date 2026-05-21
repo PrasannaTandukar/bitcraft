@@ -263,7 +263,7 @@ Each decision row contains:
 - **D15 Forms**: React Hook Form + Zod. ([React Hook Form](https://react-hook-form.com/))
 - **D16 Tables**: TanStack Table v8 headless. ([TanStack Table](https://tanstack.com/table/latest))
 - **D17 Document/Folder UI**: Folder UI is administrative; re-evaluate `@svar-ui/react-filemanager` fit during frontend planning.
-- **D18 Language**: **Migrate Tutor Studio to TypeScript now.** Adopt OpenAPI-generated client when backend contracts are stable enough not to break the frontend each iteration. ([TypeScript](https://www.typescriptlang.org/))
+- **D18 Language**: ~~Migrate Tutor Studio to TypeScript now.~~ **Superseded by D29 (2026-05-21):** TypeScript migration is deferred to post-PoC. Plain JavaScript/JSX is the PoC frontend language.
 - **D19 Testing**: Vitest + Testing Library scaffold with at least one smoke test before freeze. ([Vitest](https://vitest.dev/))
 - **D20 Design system**: Keep react-bootstrap 5.3 for PoC.
 - **Reasoning**: These selections fill clear gaps in the existing stack without forcing an unnecessary design-system migration mid-freeze. TS-now removes the pain of a later JS→TS rewrite once OpenAPI codegen is adopted.
@@ -272,7 +272,7 @@ Each decision row contains:
 
 ### D18.a — TypeScript Migration Order
 
-- **Status**: Locked (v3.1).
+- **Status**: ~~Locked (v3.1)~~ **Superseded by D29 (2026-05-21).**
 - **Decision**: Tutor Studio is migrated to TypeScript in this order: **Settings → ModelCatalog → Tutors → Files → Benchmarking**. Shared modules (API client, store, hooks) are migrated only after at least three pages are converted, so shared types are extracted from real usage. `strict: true` and `noUncheckedIndexedAccess` are enabled at the **end** of the migration, after all pages compile, to avoid noise during incremental conversion.
 - **Reasoning**: Settings and ModelCatalog have the simplest local state and the cleanest backend contracts, so they catch contract-shape bugs early. Tutors and Files are the largest surfaces and benefit from already-migrated shared modules. Enabling strict flags last avoids a wall of errors that block the migration mid-flight.
 - **References**: D18, [TypeScript handbook — strict mode](https://www.typescriptlang.org/tsconfig/#strict).
@@ -387,6 +387,126 @@ Each decision row contains:
 - **Reasoning**: All Open Decisions on which this gate depended are now closed: D25 fixes the contract evolution order, D27 defers OpenAPI codegen until contracts hold shape (avoiding regenerate-break churn during frontend buildout), D18 / D18.a lock TypeScript-now and the migration order, and D4b / D17 keep `DocumentFolder` out of the runtime surface. There is no remaining frontend↔backend contract conflict to resolve before Web Dev starts.
 - **Blocks/Touches**: All frontend WS (WS9).
 - **Revision history**: v3.4 — Human approval (closes Open Decision O4).
+
+### D29 — TypeScript Deferred To Post-PoC
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: TypeScript migration of Tutor Studio is **deferred to after PoC completion**. All PoC frontend work is written and maintained in plain JavaScript/JSX. The frontend architecture and API client structure must be designed to support future TypeScript adoption (typed Zod schemas, centralized API client module) without requiring a rewrite; this ensures D29 adds no compounding migration cost.
+- **Supersedes**: D18 (TypeScript now), D18.a (migration order). Both are retained in this register as historical reference but are inactive for PoC scope.
+- **Options considered**:
+  - **A. TypeScript now (D18 — superseded).** Adds setup + migration overhead to every PoC page; slower delivery.
+  - **B. TypeScript post-PoC (locked).** Minimises PoC development work; acceptable because contracts are still churning during backend stabilization.
+- **Reasoning**: PoC scope is frontend parity with the backend + basic smoke path. TypeScript adds value at post-PoC stabilization and codegen adoption stages, not during initial feature buildout where backend contracts are still evolving (D27 precedent).
+- **Blocks/Touches**: All frontend WS. D27 remains valid (OpenAPI codegen also deferred).
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D30 — Delivery In 2–3 Iterations
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: All remaining PoC work is planned and delivered in **2–3 iterations (batches)**. Planner sizes and sequences each batch; Lead Dev owns iteration gating. Human reviews and confirms the pre-final plan before automated final-planning and development begins.
+- **Reasoning**: Prevents scope fragmentation and reduces pause-gate overhead. Tighter batch size forces prioritization of blocking work over nice-to-have polish.
+- **Blocks/Touches**: All WS. Planner must reflect this constraint in the next plan revision.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D31 — Document/Folder Authorization: EditorOrAdmin For Both
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: Both `Document` CRUD (create/upload/delete/vectorize) and `DocumentFolder` CRUD (create/rename/delete) are accessible to **EditorOrAdmin** — not Admin-only. Folders are **flat** (no nesting). Users can create multiple flat folders and aggregate documents into them. The goal is minimal frontend customisation and simple data management.
+- **Supersedes**: D4b / D17 "admin-only folder UX" language from v3 and D28. The admin-only framing was overly restrictive; the backend policy is `EditorOrAdmin` and the plan aligns to it.
+- **Options considered**:
+  - **A. Admin-only folders + EditorOrAdmin documents.** Was D28 recommendation; overly restrictive.
+  - **B. EditorOrAdmin both, flat folder structure (locked).** Simpler; matches existing backend policy; enables editor self-service.
+  - **C. Admin-only for both.** Rejected; editors could not create their own documents.
+- **Reasoning**: Keeps the frontend authorization surface simple (one role check for all document and folder operations), reduces the number of role-gated UI branches, and aligns exactly with the backend `EditorOrAdmin` policy.
+- **Blocks/Touches**: WS4, frontend FilesPage, App.jsx routing.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D32 — JWT Token Stored In LocalStorage (PoC Accepted)
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: JWT token, user, and roles remain in `localStorage` for the PoC. No in-memory or HttpOnly-cookie migration is in PoC scope. Mitigation: (1) clear auth state on 401/403 response in the API client, (2) add `Content-Security-Policy` header to `nginx.conf`. HttpOnly-cookie rotation is scheduled post-PoC.
+- **Options considered**:
+  - **A. LocalStorage + CSP mitigation (locked).** Lean; local-focused.
+  - **B. In-memory token (Redux only, no persistence).** Requires re-login on tab refresh; rejected for PoC UX.
+  - **C. HttpOnly cookie / BFF pattern.** Post-PoC scope.
+- **Reasoning**: Private local PoC posture; XSS risk is accepted with the CSP mitigation as partial control. Production deployment will require the HttpOnly-cookie approach.
+- **Blocks/Touches**: authSlice.js, nginx.conf.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D33 — DocumentResponse Split Into List And Detail Contracts
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: The `DocumentResponse` contract is **split** into `DocumentSummaryResponse` (no `RawText` — used for list endpoints) and `DocumentDetailResponse` (includes `RawText` — used for single-document GET). Frontend architecture is designed to support this from the start so TypeScript adoption post-PoC adds no retrofit cost. Frontend list components bind to `DocumentSummaryResponse`; the document edit/view panel fetches and binds to `DocumentDetailResponse`.
+- **Reasoning**: Prevents full document content being transferred on every file list page load; reduces blast radius for any auth compromise; aligns with Sec Ops F-2 finding.
+- **Blocks/Touches**: `src/Bitcraft.Api/Contracts/Documents/Documents.cs`, `DocumentsController`, `FilesPage`.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D34 — Lint And Quality Fixes Deferred To End Of Implementation
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: Existing lint errors (9 errors, 12 warnings) and quality fixes are **deferred** to when implementation is nearly complete, as structural changes during feature work may make pre-fixing wasted effort. The lint gate is enforced as the last validation step before freeze sign-off, not as a blocker for each iteration.
+- **Reasoning**: Frontend pages may be restructured during feature parity work; fixing `react-hooks/set-state-in-effect` errors before restructuring adds churn. The quality pass is scheduled as the final polish step in Iteration 3.
+- **Blocks/Touches**: All frontend WS. The final iteration must include a clean lint gate.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D35 — EditorRoute Fix: Admit Both Editor And Admin
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: `EditorRoute` in `App.jsx` is fixed to admit both `Editor` and `Admin` roles (`roles.includes('Editor') || roles.includes('Admin')`). `AdminRoute` continues to guard Admin-only pages (Settings, RuntimeEngines, Users, Models). If a shared role-checking abstraction (helper function or custom hook) is not available in the current stack, a workaround using the inline check is acceptable **with a code comment** noting: `// TODO post-PoC: extract role-check abstraction when framework hooks (e.g. TanStack Query auth context) are installed.`
+- **Reasoning**: Admins were incorrectly blocked from Files, Tutors, and Benchmarking. The fix aligns routing with backend `EditorOrAdmin` policy.
+- **Blocks/Touches**: `tutor-studio/src/App.jsx`.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D36 — Frontend Must Surface All Backend Functionality
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: The Tutor Studio frontend must implement UI for every meaningful backend surface introduced in D25 steps 1–8 so that the application is actually usable and testable end-to-end. Acceptance criteria for each iteration include explicit "frontend exposes X backend capability" checkpoints. Gaps between frontend and backend (M:N links, revision workflow, folder CRUD, embedding model selector, activation slug display, membership management, benchmark revision linkage) are treated as blocking items, not deferred polish.
+- **Reasoning**: An untestable PoC has no value. The backend D25 migration added significant new surface (TutorRevision, TutorDocument M:N, TutorMember, dynamic embedding, DocumentFolder) that the frontend currently does not expose at all.
+- **Blocks/Touches**: All frontend WS. Planner scopes each iteration around this acceptance criterion.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D37 — Document Folders As Component In Settings/Admin Page
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: `DocumentFolder` management is implemented as a **component within an existing settings or admin page**, not as a separate route. Folder UI uses the Human Web Dev's existing code style and approach. Frontend changes are minimal and targeted — no new pages, no new navigation items for folders alone. The component renders a flat folder list (no tree nesting per D31). Ugly workarounds that break the existing style/UX are explicitly rejected even if they would be faster.
+- **Reasoning**: Keeps admin workflow cohesive; respects the Human Web Dev's ownership of the frontend style. D31 (flat folders) means a full folder tree component is not needed, so a simple list component suffices.
+- **Blocks/Touches**: `FilesPage.jsx` or an admin-section equivalent, Web Dev.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D38 — Activation Slug Derived From Tutor Title Only
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: `ActivationSlug` is always derived from the Tutor title (URL-safe). **No manual override** is exposed in the UI. The slug is displayed in the Tutor detail view as a read-only copyable field once activated. The one-revision redirect (`PreviousActivationSlug`) is a backend concern only; it is not surfaced in the frontend for PoC.
+- **Reasoning**: Simplifies the activation UI; eliminates slug conflict UI complexity; aligns with D22/D22.b storage shape. Manual slug override is a post-PoC feature.
+- **Blocks/Touches**: `TutorsPage.jsx`, TutorRevision UI.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D39 — Frontend Cohesion With Backend M:N Migration
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: All frontend deviations from the backend M:N migration (D25 steps 4–8) are treated as **blocking items** in the first iteration, not deferred. This includes: `TutorDocument` M:N attach/detach replacing the old `KnowledgeSourceLink` pattern, `TutorDocumentFolder` link, embedding model selector (replacing free-text provider/model fields), `TutorMember` membership management, `TutorRevision` workflow, and `BenchmarkRun.TutorRevisionId` linkage. Docs and plan artifacts (feature-freeze plan, ERM, architecture doc) are the authoritative reference for what the backend now expects.
+- **Blocks/Touches**: `FilesPage.jsx`, `TutorsPage.jsx`, `BenchmarkTemplatesPage.jsx`, all new revision/membership UI.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D40 — No Hardcoded URLs In Frontend; Centralized API Client
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: All API calls must go through a centralized `src/api/client.js` module. The API base URL is read from `import.meta.env.VITE_API_BASE_URL` (defaulting to `http://localhost:8000` only via `.env.development`). No component file may hardcode a `http://` URL. This mirrors the backend's 12-Factor Config principle (D9). A future production deployment switches the URL via environment variable only. The `.env.development` file is git-ignored; `.env.development.example` is tracked.
+- **Options considered**:
+  - **A. Centralized client module + VITE env var (locked).** Mirrors backend D9 12-Factor Config.
+  - **B. Fix per page during TS migration.** Inconsistent gap until migration completes.
+  - **C. Nginx reverse-proxy `/api` prefix (production path).** Valid long-term; deferred post-PoC.
+- **Reasoning**: Prevents the 7-file URL hardcoding situation from recurring; enables easy backend retargeting for different environments.
+- **Blocks/Touches**: All frontend components, `vite.config.js`, new `.env.development.example`.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
+
+### D41 — Dev/Test/Production Configuration Separation
+
+- **Status**: Locked (v3.6, Human-approved 2026-05-21).
+- **Decision**: Clear separation of development, test, and production configuration must be maintained across **all package/library providers** in the project (Node/frontend, .NET/backend, Python/sidecar). Specifically: (a) `.env.development` (git-ignored), `.env.production` (git-ignored), `.env.*.example` (tracked) for the frontend; (b) `appsettings.json` (container defaults only, no secrets), `appsettings.Development.json` (git-ignored, host-shell overrides), `.env.example` (tracked) for the backend; (c) separate `requirements.txt` / `requirements-dev.txt` (or `pyproject.toml` groups) for the sidecar. No production secret or credential may appear in any tracked file. Production integrity and security config (CSP, HSTS, rate limiting) must be explicitly present in the production paths and absent from development paths only for convenience, not for security.
+- **Reasoning**: Mirrors D9 (12-Factor Config) and D26 (build-level flags). Enforces the principle that environment-specific config is an environment responsibility, not a source code responsibility.
+- **Blocks/Touches**: `tutor-studio/`, `src/Bitcraft.Api/`, `sidecar/`, Dev Ops.
+- **Revision history**: v3.6 — Human lock 2026-05-21.
 
 ## Open Decisions (Tracking)
 

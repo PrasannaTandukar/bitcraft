@@ -14,7 +14,6 @@ function RegisterForm() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading, error, token } = useSelector((state) => state.auth);
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,10 +50,6 @@ function RegisterForm() {
   const validateForm = () => {
     const nextErrors = {};
 
-    if (!fullName.trim()) {
-      nextErrors.fullName = 'Full name is required.';
-    }
-
     if (!email.trim()) {
       nextErrors.email = 'Email is required.';
     } else if (!EMAIL_PATTERN.test(email.trim())) {
@@ -88,7 +83,6 @@ function RegisterForm() {
     dispatch(clearError());
     dispatch(
         registerUser({
-          fullName: fullName.trim(),
           email: email.trim(),
           password,
         }),
@@ -106,23 +100,6 @@ function RegisterForm() {
 
           <Form className="auth-form" onSubmit={handleSubmit} noValidate>
             {error && <p className="auth-error">{error}</p>}
-
-            <Form.Group className="auth-field" controlId="registerFullName">
-              <Form.Label className="visually-hidden">Full Name</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Full Name"
-                value={fullName}
-                onChange={(event) => {
-                  setFullName(event.target.value);
-                  clearFieldError('fullName');
-                }}
-                isInvalid={Boolean(validationErrors.fullName)}
-              />
-              <Form.Control.Feedback type="invalid">
-                {validationErrors.fullName}
-              </Form.Control.Feedback>
-            </Form.Group>
 
             <Form.Group className="auth-field" controlId="registerEmail">
               <Form.Label className="visually-hidden">Email address</Form.Label>

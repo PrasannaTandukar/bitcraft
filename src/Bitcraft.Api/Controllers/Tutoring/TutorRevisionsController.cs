@@ -36,7 +36,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TutorRevisionResponse>> GetById(Guid tutorId, Guid revisionId, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new TutorRevisionFeatures.GetRevisionByIdQuery(revisionId), cancellationToken);
+        var result = await sender.Send(new TutorRevisionFeatures.GetRevisionByIdQuery(tutorId, revisionId), cancellationToken);
         if (result.IsFailure)
         {
             return TutoringMapping.ToActionResult(result.Error);
@@ -73,6 +73,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new TutorRevisionFeatures.UpdateDraftRevisionCommand(
+            tutorId,
             revisionId,
             request.PromptVersionId,
             request.InteractionModelId,
@@ -95,7 +96,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TutorRevisionResponse>> Publish(Guid tutorId, Guid revisionId, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new TutorRevisionFeatures.PublishRevisionCommand(revisionId), cancellationToken);
+        var result = await sender.Send(new TutorRevisionFeatures.PublishRevisionCommand(tutorId, revisionId), cancellationToken);
         if (result.IsFailure)
         {
             return TutoringMapping.ToActionResult(result.Error);
@@ -111,7 +112,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TutorRevisionResponse>> Activate(Guid tutorId, Guid revisionId, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new TutorRevisionFeatures.ActivateRevisionCommand(revisionId), cancellationToken);
+        var result = await sender.Send(new TutorRevisionFeatures.ActivateRevisionCommand(tutorId, revisionId), cancellationToken);
         if (result.IsFailure)
         {
             return TutoringMapping.ToActionResult(result.Error);
@@ -127,7 +128,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TutorRevisionResponse>> Archive(Guid tutorId, Guid revisionId, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new TutorRevisionFeatures.ArchiveRevisionCommand(revisionId), cancellationToken);
+        var result = await sender.Send(new TutorRevisionFeatures.ArchiveRevisionCommand(tutorId, revisionId), cancellationToken);
         if (result.IsFailure)
         {
             return TutoringMapping.ToActionResult(result.Error);
@@ -143,7 +144,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DiscardDraft(Guid tutorId, Guid revisionId, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new TutorRevisionFeatures.DiscardDraftRevisionCommand(revisionId), cancellationToken);
+        var result = await sender.Send(new TutorRevisionFeatures.DiscardDraftRevisionCommand(tutorId, revisionId), cancellationToken);
         if (result.IsFailure)
         {
             return TutoringMapping.ToActionResult(result.Error);

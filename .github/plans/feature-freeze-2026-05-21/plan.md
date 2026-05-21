@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-20
+edited_at: 2026-05-21
 creator: planner
-editor: lead-dev
+editor: planner
 ai_gen: true
 ---
 # Plan: Feature Freeze 2026-05-21
@@ -478,3 +478,164 @@ Three artifacts are introduced alongside this plan and persist beyond the freeze
 ## Inbox Updates Queued
 
 - Pending Human plan approval; after approval, Lead Dev should create NET Dev, Web Dev, Sec Ops, Dev Ops, and Researcher inbox items from the work streams above rather than duplicating this entire plan.
+
+---
+
+## Pre-Final Plan v3.6 — 3-Iteration PoC Delivery (2026-05-21)
+
+> Origin: Planner, 2026-05-21. All decisions D29–D41 are locked (Human-approved 2026-05-21). This section supersedes the Iteration Schedule table above and is the binding delivery plan for the remaining PoC work. TypeScript migration is deferred to post-PoC (D29). All frontend work is plain JavaScript/JSX.
+
+### Library Install List for Human
+
+Run the following before Iteration 2 development starts (after Iteration 1 PR is merged and Human has confirmed the plan). No new packages are needed for Iteration 1 itself.
+
+```
+npm install --prefix tutor-studio @tanstack/react-query@^5 react-hook-form zod @hookform/resolvers @tanstack/react-table@^8 --save
+npm install --prefix tutor-studio vitest @testing-library/react @testing-library/user-event jsdom --save-dev
+```
+
+> **Human action**: Run these commands from the workspace root (or `cd tutor-studio && npm install ...` without `--prefix`) before Iteration 2 development begins. Confirm versions installed to Net Dev and Web Dev before they start feature work.
+
+### Iteration Plan
+
+| Iteration | Owner | CIL | Scope | Acceptance Criteria | Human Gate |
+|-----------|-------|-----|-------|---------------------|------------|
+| **1 — Foundation & Preflight** | Web Dev + Net Dev + Dev Ops | medium | See §Iteration 1 detail below | All items in §Iteration 1 scope are complete; `npm run build` is clean; `dotnet build` passes | Review Iteration 1 PR; install npm packages listed above before Iteration 2 starts |
+| **2 — Feature Parity** | Web Dev + Net Dev | high | See §Iteration 2 detail below | Every backend surface from D25 steps 1–8 has a working frontend UI; smoke path (login → create doc → vectorize → create tutor → attach doc → activate → ask) verified end-to-end | Review Iteration 2 PRs; confirm smoke path passes manually |
+| **3 — Integration, Quality & Freeze** | Web Dev + Net Dev + Sec Ops + Dev Ops | medium | See §Iteration 3 detail below | Lint green; benchmarking shows real data; change-notes + architecture docs updated; freeze declared | Declare feature freeze; create post-freeze backlog |
+
+---
+
+#### Iteration 1 — Foundation & Preflight (CIL: medium)
+
+Goal: land all correctness, security-baseline, and configuration-separation fixes that block Iteration 2 feature work. No new libraries consumed yet.
+
+**Web Dev tasks:**
+
+- **API client centralization (D40)**: create `tutor-studio/src/api/client.js` that reads `import.meta.env.VITE_API_BASE_URL` (no default hardcoded); add `.env.development.example` tracked with `VITE_API_BASE_URL=http://localhost:8000`; add `.env.development` and `.env.production` to `.gitignore`; replace all 7+ hardcoded `http://localhost:8000` occurrences across all component files.
+- **EditorRoute fix (D35)**: update `App.jsx` `EditorRoute` to admit both `Editor` and `Admin` roles (`roles.includes('Editor') || roles.includes('Admin')`); add `// TODO post-PoC: extract role-check abstraction` comment.
+- **`vite.config.js` `process` fix**: replace `process.env.VITE_USE_POLLING` with `import.meta.env.VITE_USE_POLLING` (this is a build error, not a lint-only issue — D34 lint deferral does not apply here).
+- **Register.jsx form drift**: remove the `fullName` field; align form payload to backend `RegisterRequest` (email + password only).
+- **CSP header (D32 mitigation)**: add `Content-Security-Policy` response header to `tutor-studio/nginx.conf`.
+- **Env file structure (D41)**: confirm `.env.development.example` and `.env.production.example` are tracked; confirm actual env files are git-ignored.
+
+**Net Dev tasks:**
+
+- **`DocumentResponse` split (D33)**: split `DocumentResponse` into `DocumentSummaryResponse` (no `RawText`, for list endpoints) and `DocumentDetailResponse` (includes `RawText`, for single GET). Update `DocumentsController`, `DocumentMapper`, and relevant unit tests.
+- **`PolicyDecision.IsPermit()` + `NotApplicable` XML docs (M-2)**: add `bool IsPermit()` helper returning `Effect == PolicyEffect.Permit`; add XML doc to `IPolicyEvaluator.EvaluateAsync` and `PolicyEffect.NotApplicable` stating `NotApplicable` must be treated as Deny; add unit test covering this contract.
+- **TutorRevision IDOR guard (M-1)**: add `TutorId` to all command/query records in `TutorRevisionFeatures.cs`; assert `revision.TutorId == request.TutorId` in each handler; return opaque `NotFound` on mismatch; add unit test for mismatch case.
+- **`/api/health` version gate + rate limiter (L-1)**: gate the `version` field behind `IHostEnvironment.IsDevelopment()`; add fixed-window rate limiter to the health endpoint or globally via `AddRateLimiter`.
+
+**Dev Ops task:**
+
+- **`appsettings.Development.json` host-shell override (HD-11, D41)**: add `src/Bitcraft.Api/appsettings.Development.json` (git-ignored) with `ConnectionStrings.DefaultConnection` pointing to `Host=localhost;Port=5433`; add tracked `appsettings.Development.example.json` with placeholder values; update `docs/local-setup.md` to document both Compose-run and host-shell migration paths.
+
+**Acceptance criteria:**
+- `npm run build` passes; no `process.env` references remain in `vite.config.js`.
+- All API calls in `tutor-studio/src/` route through `src/api/client.js`; no hardcoded `http://` URLs in component files.
+- Admin role can access Files, Tutors, and Benchmarking routes.
+- `Register.jsx` sends only email and password.
+- CSP header present in `nginx.conf`.
+- `DocumentSummaryResponse` and `DocumentDetailResponse` both present; list endpoint omits `RawText`.
+- `PolicyDecision.IsPermit()` exists and is covered by a unit test.
+- TutorRevision IDOR guard covered by a unit test.
+- `appsettings.Development.example.json` tracked; `appsettings.Development.json` git-ignored.
+- `dotnet build bitcraft.slnx` passes.
+
+**Human gate:** Review and merge Iteration 1 PR. Run the `npm install` command above before Iteration 2 development starts.
+
+---
+
+#### Iteration 2 — Feature Parity (CIL: high)
+
+Goal: every backend surface introduced in D25 steps 1–8 has a working frontend UI. By the end of this iteration the PoC is end-to-end testable by a human reviewer.
+
+**Web Dev tasks:**
+
+- **TutorRevision CRUD workflow**: revisions tab on the tutor detail page driven by `GET /api/tutors/{tutorId}/revisions`; list revisions newest-first with `Status` badge; create-draft; edit-draft (prompt / interaction model / query embedding model / interaction params JSON / deployment target); publish; activate; archive. Surface `ActivationSlug` as a read-only copyable field derived from Tutor title (D38) — no manual slug override. Refresh `Tutor.ActiveRevisionId` on activate-success.
+- **`TutorMember` management panel**: list members on the tutor detail page; grant member (Owner-only); revoke member (Owner-only); change role. Calls `GrantTutorMembership` / `RevokeTutorMembership` / `ChangeTutorMemberRole` endpoints (provided by Net Dev this iteration).
+- **`TutorDocument` M:N**: replace the old `KnowledgeSourceLink`-style single-attach UI with multi-attach/detach. Document picker on the tutor detail page calls `POST /api/tutors/{tutorId}/documents` and `DELETE /api/tutors/{tutorId}/documents/{documentId}`.
+- **`DocumentFolder` flat-list component (D37, D31)**: embedded in `FilesPage` (or an admin section); create/rename/delete folders; "Move to Folder" affordance per document row calling `PATCH /api/documents/{id}/folder`. No separate route needed; no tree nesting (D31 flat only).
+- **Embedding model selector**: on the vectorize dialog, replace the free-text provider/model fields with a dropdown sourced from `GET /api/models?type=EmbeddingModel`; post `EmbeddingModelId` (D39).
+- **Document create fix**: ensure the create-document payload sends actual `RawText` content (currently `null`); use a real textarea field.
+- **Models page aligned to TPH (D3/D4)**: surface `InteractionModel` and `EmbeddingModel` types from `/api/models`; remove the old flat `ModelCatalogEntry` shape. Model type badge distinguishes types in the list.
+- **`BenchmarkRun.TutorRevisionId` (D39)**: surface the active revision as a read-only column in the benchmark run list.
+- **Dashboard stale route**: fix `/benchmarking` link to `/benchmark-templates`.
+- **`DocumentSummaryResponse` vs `DocumentDetailResponse` (D33)**: list view binds to summary (no `RawText`); detail/edit panel fetches `GET /api/documents/{id}` for full content.
+
+**Net Dev tasks:**
+
+- **`GrantTutorMembership` / `RevokeTutorMembership` / `ChangeTutorMemberRole` endpoints**: Owner-only invariant enforced; `WouldLeaveNoOwner` guard on revoke/role-change; unit + API integration tests.
+- **ABAC `IPolicyEvaluator` concrete implementation + policy catalog (D24/D24.a, WS6)**: implement the evaluator in `src/Bitcraft.Infrastructure/Authorization/`; wire `audit-log`, `redact-pii`, `scope-down` obligations; `require-step-up` throws `NotImplementedException("Implementation pending for this capability.")`; policy catalog for locked obligation vocabulary; unit tests per policy.
+
+**Acceptance criteria:**
+- TutorRevision lifecycle (Draft → Published → Active → Archived) is operable end-to-end through the UI.
+- `ActivationSlug` is visible as a read-only copyable field after activation.
+- Tutor member list is visible; Owner can grant/revoke/change-role; non-Owners cannot.
+- Documents can be attached/detached M:N on a tutor.
+- Folders can be created/renamed/deleted; documents can be moved to a folder.
+- Embedding model selector uses `EmbeddingModelId` from the model catalog.
+- Document create sends non-null `RawText`.
+- Models page shows `InteractionModel` and `EmbeddingModel` types correctly.
+- BenchmarkRun list shows `TutorRevisionId` linkage.
+- `IPolicyEvaluator` concrete implementation present; policy catalog wired for locked obligations.
+- Smoke path manual verification: login → create text document → vectorize (select embedding model) → create tutor → attach document → create revision → publish → activate → verify activation slug shown.
+
+**Human gate:** Review Iteration 2 PRs. Confirm the manual smoke path passes end-to-end in the local dev stack.
+
+---
+
+#### Iteration 3 — Integration, Quality & Freeze (CIL: medium)
+
+Goal: close all remaining quality, documentation, and integration gaps; declare feature freeze.
+
+**Web Dev tasks:**
+- **Lint green gate (D34)**: fix all 9 ESLint errors and 12 warnings to achieve a clean `npm run lint` pass.
+- **Benchmarking shell real data (WS8)**: replace placeholder state with real data — list benchmark templates (`GET /api/benchmark-templates`) and benchmark runs (`GET /api/benchmark-runs`) including the new `TutorRevisionId` column.
+
+**Sec Ops task:**
+- **`SaveChanges` audit interceptor PII scope review (D10)**: review `EntitySaveChangesInterceptor.cs` for PII leakage in audit metadata fields; file an inbox item for any remediation needed.
+
+**Dev Ops tasks:**
+- **Compose smoke tests**: validate all supported host combinations (Windows + Docker Desktop, macOS, Linux + NVIDIA GPU, Jetson Orin) per the smoke-test matrix in Dev Ops inbox.
+- **Confirm configuration separation (D41)**: verify production security config (CSP, HSTS, rate limiting) is present in all production paths; sidecar `requirements.txt` / `requirements-dev.txt` are separated.
+
+**Documentation tasks (Typewriter / Secretary):**
+- `docs/change-notes.md`: add entry for Iterations 1–3 covering D29–D41 and the 3-iteration delivery.
+- `docs/architecture.md`: update to reflect D29–D41 decisions and frontend architectural changes (centralized API client, D29 TS deferral, TutorRevision workflow).
+
+**Acceptance criteria:**
+- `npm run lint` exits 0; no ESLint errors or warnings.
+- `npm run build` exits 0.
+- `dotnet build bitcraft.slnx` exits 0.
+- `dotnet test tests/Bitcraft.UnitTests/Bitcraft.UnitTests.csproj` passes all tests.
+- Benchmarking page shows real template and run data.
+- Sec Ops PII review complete or follow-up items filed.
+- Compose smoke tests complete or follow-up items filed.
+- `docs/change-notes.md` and `docs/architecture.md` updated.
+
+**Human gate:** Declare feature freeze. Create post-PoC backlog from the list below.
+
+---
+
+### Post-PoC Backlog (do not plan — list only)
+
+The following items are explicitly deferred and must not be added to any PoC iteration:
+
+- TypeScript migration of Tutor Studio (D29 deferred)
+- OpenAPI codegen adoption (D27 deferred)
+- HttpOnly-cookie auth rotation (D32 deferred)
+- Nginx reverse-proxy `/api` prefix for production (D40 deferred)
+- Activation slug manual override UI (D38 deferred)
+- `DocumentFolderMember` ACL (D12 deferred)
+- MCP server security audit (Sec Ops batch 2)
+- Metrics capture implementation (parked, pending Human decision on capture surface)
+- Vitest scaffold + first smoke test (D19 deferred to post-PoC — TS adoption is the natural trigger)
+
+---
+
+### CSS / DIS / CIL (v3.6)
+
+- **CSS**: 7 (touches auth routing, ABAC evaluator, membership endpoints, document contracts, TutorRevision frontend, API client centralization, nginx config).
+- **DIS**: 7 (API, Application, Infrastructure, frontend components, nginx config, docs, agent inboxes).
+- **CIL overall**: medium for Iterations 1 and 3; high for Iteration 2. No critical-CIL items (no secrets, no production deployment, no destructive migration).

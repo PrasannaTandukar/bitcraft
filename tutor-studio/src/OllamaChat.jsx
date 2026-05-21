@@ -8,10 +8,10 @@ import Container from 'react-bootstrap/Container';
 import Form from 'react-bootstrap/Form';
 import Row from 'react-bootstrap/Row';
 import Spinner from 'react-bootstrap/Spinner';
-import { useSelector } from 'react-redux';
+import { apiFetch, ApiError } from './api/client.js';
 import './OllamaChat.css';
 
-const TUTOR_ASK_URL = 'http://localhost:8000/api/tutor/ask';
+const TUTOR_ASK_PATH = '/api/tutor/ask';
 
 const examplePrompts = [
     'Explain Docker Compose simply',
@@ -54,32 +54,29 @@ const getErrorMessage = (status, payload) => {
     return 'Something went wrong while generating a response.';
 };
 
-async function askTutor({ question, model, useMemory, saveToMemory, token }) {
-    let response;
+async function askTutor({ question, model, useMemory, saveToMemory }) {
+    let payload;
 
     try {
-        response = await fetch(TUTOR_ASK_URL, {
+        payload = await apiFetch(TUTOR_ASK_PATH, {
             method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+            json: {
                 question,
                 ...(model ? { model } : {}),
                 useMemory,
                 saveToMemory,
                 topK: 5,
-            }),
+            },
         });
-    } catch {
+    } catch (err) {
+        if (err instanceof ApiError) {
+            let parsed = null;
+            if (err.body) {
+                try { parsed = JSON.parse(err.body); } catch { parsed = null; }
+            }
+            throw new Error(getErrorMessage(err.status, parsed));
+        }
         throw new Error('Could not connect to the backend. Please try again.');
-    }
-
-    const payload = await response.json().catch(() => null);
-
-    if (!response.ok) {
-        throw new Error(getErrorMessage(response.status, payload));
     }
 
     if (
@@ -115,7 +112,6 @@ const getSourceLabel = (source) => source.sourceType === 'conversation'
     : 'Document';
 
 function OllamaChat() {
-    const token = useSelector((state) => state.auth.token);
     const [prompt, setPrompt] = useState('');
     const [model, setModel] = useState('');
     const [useMemory, setUseMemory] = useState(true);
@@ -147,7 +143,6 @@ function OllamaChat() {
                 model: trimmedModel,
                 useMemory,
                 saveToMemory,
-                token,
             });
             setResult(nextResult);
         } catch (requestError) {

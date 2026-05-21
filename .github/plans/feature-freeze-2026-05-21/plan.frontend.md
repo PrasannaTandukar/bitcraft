@@ -1,10 +1,12 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-05-20
+edited_at: 2026-05-21
 creator: lead-dev
-editor: lead-dev
+editor: planner
 ai_gen: true
 ---
+> **Updated 2026-05-21 (v3.6):** TypeScript migration deferred to post-PoC (D29). All PoC frontend work is plain JavaScript/JSX. Sections below that reference TypeScript-now are superseded by D29 and retained for historical reference. The active frontend plan is the 3-Iteration delivery plan in [plan.md §Pre-Final Plan v3.6](plan.md#pre-final-plan-v36--3-iteration-poc-delivery-2026-05-21).
+
 # Plan Addendum: Tutor Studio Frontend Iteration (v3)
 
 > Origin: Lead Dev, 2026-05-20. Companion to [plan.md](plan.md) and [plan.erm.md](plan.erm.md). The user explicitly carved frontend work out as a separate iteration because it is "impactful". This document captures the baseline, the candidate libraries, the recommendation, and the gates that block frontend implementation. **No frontend code lands until the recommendations in §6 are accepted by the human reviewer.**
