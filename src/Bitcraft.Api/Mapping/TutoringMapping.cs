@@ -30,7 +30,18 @@ internal static class TutoringMapping
         _ => new BadRequestObjectResult(new ApiError(error.Code, error.Description)),
     };
 
-    public static DocumentResponse ToResponse(this Document document) => new(
+    public static DocumentSummaryResponse ToSummaryResponse(this Document document) => new(
+        document.Id,
+        document.Name,
+        document.SourcePath,
+        document.MimeType,
+        document.FolderId,
+        document.CreatedUtc,
+        document.CreatedById,
+        document.ModifiedUtc,
+        document.ModifiedById);
+
+    public static DocumentDetailResponse ToDetailResponse(this Document document) => new(
         document.Id,
         document.Name,
         document.SourcePath,

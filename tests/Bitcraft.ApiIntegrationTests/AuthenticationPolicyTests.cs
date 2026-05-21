@@ -40,7 +40,7 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var documents = await response.Content.ReadFromJsonAsync<List<DocumentResponse>>();
+        var documents = await response.Content.ReadFromJsonAsync<List<DocumentSummaryResponse>>();
         Assert.NotNull(documents);
         Assert.Empty(documents);
     }
@@ -75,7 +75,7 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
         // Assert
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
-        var documents = await listResponse.Content.ReadFromJsonAsync<List<DocumentResponse>>();
+        var documents = await listResponse.Content.ReadFromJsonAsync<List<DocumentSummaryResponse>>();
         Assert.NotNull(documents);
         Assert.Contains(documents, document => document.Name == "Editor document");
     }

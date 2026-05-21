@@ -1,5 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+// Explicit Node import: vite.config.js runs in Node context, but referencing
+// the bare `process` global trips ESLint's no-undef in a browser-targeted
+// project. `loadEnv` was considered but is heavier than needed for one flag.
+import process from 'node:process'
 
 // https://vite.dev/config/
 export default defineConfig({

@@ -34,14 +34,30 @@ ai_gen: true
 - Context: feature-freeze-2026-05-21 WS9. New contracts in `src/Bitcraft.Api/Contracts/Documents/Documents.cs`. Snapshot responses now carry `VersionNumber` — surface it on the snapshot list in `Benchmarking.jsx` and `TutorsPage.jsx`.
 - Acceptance/Cleanup: Folders + move + model-selector work end-to-end against dev API; close after Web Dev opens a follow-up PR.
 
-- Date: 2026-05-20
-- Status: active
-- Source: AI Ops (feature-freeze v3.1 seeding)
+- Date: 2026-05-21
+- Status: DEFERRED (superseded by D29 2026-05-21)
+- Date: 2026-05-21
+- Status: complete (Iteration 1 — pending PR review)
+- Source: Secretary (D35, D40, D41, HD-5, HD-13 locks 2026-05-21)
 - Target: web-dev
-- Priority: high
-- Task: Begin the TypeScript migration of Tutor Studio in the order locked by D18.a: **Settings → ModelCatalog → Tutors → Files → Benchmarking**. Shared modules (API client, store, hooks) migrate only after at least three pages have been converted. Keep `strict: true` and `noUncheckedIndexedAccess` **disabled** until all pages compile, then enable them at the end.
-- Context: feature-freeze-2026-05-21 WS9, D18, D18.a, **D27** (OpenAPI client codegen deferred until post-PoC contract stability; hand-written TS clients typed from the same Zod schemas used by React Hook Form until then). Pairs with the proposed `bitcraft-openapi-client-codegen` skill once scaffolded.
-- Acceptance/Cleanup: Settings page compiles in TS with current ESLint clean; tracking note added to plan once each subsequent page lands; remove this item once Settings + ModelCatalog are on TS.
+- Priority: complete
+- Task: Frontend Preflight Batch complete. All seven items delivered: API client `src/api/client.js` (D40), all hardcoded URLs replaced via `apiFetch` across `OllamaChat.jsx`, `RuntimeEngines.jsx`, `Users.jsx` (rest already migrated), `.env.development.example` tracked, `EditorRoute` fix (D35), `vite.config.js` process import fix, `Register.jsx` fullName field removed, CSP header in `nginx.conf` (D32 mitigation). Build passes. Lint at 10 problems (8 errors / 2 warnings) — below 9/12 baseline; no new errors introduced.
+- Acceptance/Cleanup: Close after Iteration 1 PR merges.
+
+- Date: 2026-05-21
+- Status: pending (Iteration 2 — feature parity)
+- Source: Secretary (D36, D37, D31 locks 2026-05-21)
+- Target: web-dev
+- Priority: high (Iteration 2)
+- Task: Document Folders UI + Document Ingestion Fix. (1) **Folders component (D37, D31)**: add a flat-folder list component embedded in `FilesPage` (or admin section) — create/rename/delete folders via `GET/POST/PATCH/DELETE /api/document-folders`. No separate route needed. (2) **Document move**: add "Move to Folder" affordance on each document row calling `PATCH /api/documents/{id}/folder`. (3) **Embedding model selector**: replace the free-text provider/model fields on the vectorize action with a dropdown sourced from `GET /api/models?type=EmbeddingModel`; post `EmbeddingModelId`. (4) **Document creation fix**: ensure create-document payload sends actual `RawText` content (currently sends `null`); field must be a real textarea, not a hidden null. (5) **DocumentSummaryResponse vs DocumentDetailResponse (D33)**: list view binds to summary (no `RawText`); detail/edit panel fetches `GET /api/documents/{id}` for full content.
+- Context: D31, D33, D36, D37, D39. Refs: `FilesPage.jsx`, `src/Bitcraft.Api/Contracts/Documents/Documents.cs`.
+- Acceptance/Cleanup: Document create sends real text; vectorize uses EmbeddingModelId; folders can be created/renamed/deleted; document can be moved; list page does not load RawText. Remove after PR merges.
+
+- Source: AI Ops / Secretary
+- Target: web-dev
+- Priority: deferred
+- Task: ~~TypeScript migration of Tutor Studio~~ — deferred to post-PoC per D29 (Human lock 2026-05-21). All PoC frontend work remains in plain JavaScript/JSX. Design and structure code to be TypeScript-ready (centralized API client, Zod schemas) but do not migrate files or add `tsconfig.json` during PoC. D18.a migration order superseded.
+- Acceptance/Cleanup: This item is closed for PoC scope. Re-open after PoC sign-off.
 
 - Date: 2026-05-20
 - Status: active

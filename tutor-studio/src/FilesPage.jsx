@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { apiFetch } from "./api/client.js";
 
-const DOCUMENTS_URL = "http://localhost:8000/api/documents";
+const DOCUMENTS_PATH = "/api/documents";
 
 const mimeIcon = (mimeType) => {
   if (!mimeType) return "📄";
@@ -91,7 +91,7 @@ function ConfirmDialog({ fileName, onConfirm, onCancel, loading }) {
   );
 }
 
-function VectorizeModal({ doc, token, onClose }) {
+function VectorizeModal({ doc, onClose }) {
   const [form, setForm] = useState({
     embeddingProvider: "",
     embeddingModel: "",
@@ -109,20 +109,15 @@ function VectorizeModal({ doc, token, onClose }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${DOCUMENTS_URL}/${doc.id}/vectorize`, {
+      await apiFetch(`${DOCUMENTS_PATH}/${doc.id}/vectorize`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           embeddingProvider: form.embeddingProvider || null,
           embeddingModel: form.embeddingModel || null,
           maxChunkLength: Number(form.maxChunkLength) || 512,
           embeddingModelId: form.embeddingModelId,
-        }),
+        },
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HTTP ${res.status}: ${body}`);
-      }
       setSuccess(true);
     } catch (err) {
       setError(err.message);
@@ -351,17 +346,10 @@ export default function FilesPage() {
   const [addHovered, setAddHovered] = useState(false);
   const [refreshHovered, setRefreshHovered] = useState(false);
   const fileInputRef = useRef(null);
-  const token = useSelector((state) => state.auth.token);
 
   const fetchDocs = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    fetch(DOCUMENTS_URL, {
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
+    apiFetch(DOCUMENTS_PATH)
       .then((data) => { setDocs(data); setError(null); })
       .catch((err) => setError(err.message))
       .finally(() => { setLoading(false); setRefreshing(false); });
@@ -375,13 +363,10 @@ export default function FilesPage() {
     setUploading(true);
     setUploadError(null);
     try {
-      const res = await fetch(DOCUMENTS_URL, {
+      const newDoc = await apiFetch(DOCUMENTS_PATH, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: file.name, mimeType: file.type || null, sourcePath: null, rawText: null }),
+        json: { name: file.name, mimeType: file.type || null, sourcePath: null, rawText: null },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      const newDoc = await res.json();
       setDocs((prev) => [newDoc, ...prev]);
     } catch (err) {
       setUploadError(err.message);
@@ -395,11 +380,10 @@ export default function FilesPage() {
     if (!confirmDoc) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${DOCUMENTS_URL}/${confirmDoc.id}`, {
+      await apiFetch(`${DOCUMENTS_PATH}/${confirmDoc.id}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` },
+        parse: "none",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       setDocs((prev) => prev.filter((d) => d.id !== confirmDoc.id));
       setConfirmDoc(null);
     } catch (err) {
@@ -433,7 +417,6 @@ export default function FilesPage() {
       {vectorizeDoc && (
         <VectorizeModal
           doc={vectorizeDoc}
-          token={token}
           onClose={() => setVectorizeDoc(null)}
         />
       )}

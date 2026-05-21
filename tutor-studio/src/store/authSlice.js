@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { apiFetch, ApiError } from "../api/client.js";
 
-const AUTH_API_URL = "http://localhost:8000/api/auth";
+const AUTH_PATH = "/api/auth";
 
 const ROLE_CLAIM =
     "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
@@ -18,12 +19,8 @@ const decodeRoles = (token) => {
   }
 };
 
-const getBackendErrorMessage = async (response) => {
-  let data = null;
-
-  try {
-    data = await response.json();
-  } catch {
+const getBackendErrorMessage = (data, status) => {
+  if (data === null || data === undefined) {
     return "Something went wrong. Please try again.";
   }
 
@@ -36,13 +33,6 @@ const getBackendErrorMessage = async (response) => {
   }
 
   // Case 2: ASP.NET validation error format
-  // Example:
-  // {
-  //   errors: {
-  //     Email: ["Email already exists"],
-  //     Password: ["Password is too short"]
-  //   }
-  // }
   if (data?.errors && typeof data.errors === "object") {
     const errors = Object.values(data.errors)
         .flat()
@@ -54,11 +44,6 @@ const getBackendErrorMessage = async (response) => {
   }
 
   // Case 3: Common backend error fields
-  // Example:
-  // { message: "Email already exists" }
-  // { error: "Invalid credentials" }
-  // { title: "One or more validation errors occurred." }
-  // { detail: "User already exists." }
   if (data?.message) return data.message;
   if (data?.error) return data.error;
   if (data?.detail) return data.detail;
@@ -69,19 +54,34 @@ const getBackendErrorMessage = async (response) => {
     return data;
   }
 
-  if (response.status === 400) {
+  if (status === 400) {
     return "Please check your details and try again.";
   }
 
-  if (response.status === 401) {
+  if (status === 401) {
     return "Invalid email or password.";
   }
 
-  if (response.status === 409) {
+  if (status === 409) {
     return "An account with this email already exists.";
   }
 
   return "Something went wrong. Please try again.";
+};
+
+const extractApiErrorMessage = (err) => {
+  if (err instanceof ApiError) {
+    let parsed = null;
+    if (err.body) {
+      try {
+        parsed = JSON.parse(err.body);
+      } catch {
+        parsed = err.body;
+      }
+    }
+    return getBackendErrorMessage(parsed, err.status);
+  }
+  return err?.message || "Could not connect to the server. Please try again.";
 };
 
 const persistAuthSession = (data) => {
@@ -109,59 +109,32 @@ export const loginUser = createAsyncThunk(
     "auth/loginUser",
     async ({ email, password }, { rejectWithValue }) => {
       try {
-        const response = await fetch(`${AUTH_API_URL}/login`, {
+        // auth: false — no Bearer header to attach pre-login, and we don't
+        // want a 401 from a failed login to trigger the global logout cleanup.
+        const data = await apiFetch(`${AUTH_PATH}/login`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
+          json: { email, password },
+          auth: false,
         });
-
-        if (!response.ok) {
-          const errorMessage = await getBackendErrorMessage(response);
-          return rejectWithValue(errorMessage);
-        }
-
-        const data = await response.json();
         return persistAuthSession(data);
       } catch (err) {
-        return rejectWithValue(
-            err.message || "Could not connect to the server. Please try again.",
-        );
+        return rejectWithValue(extractApiErrorMessage(err));
       }
     },
 );
 
 export const registerUser = createAsyncThunk(
     "auth/registerUser",
-    async ({ fullName, email, password }, { rejectWithValue }) => {
+    async ({ email, password }, { rejectWithValue }) => {
       try {
-        const response = await fetch(`${AUTH_API_URL}/register`, {
+        const data = await apiFetch(`${AUTH_PATH}/register`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fullName,
-            email,
-            password,
-          }),
+          json: { email, password },
+          auth: false,
         });
-
-        if (!response.ok) {
-          const errorMessage = await getBackendErrorMessage(response);
-          return rejectWithValue(errorMessage);
-        }
-
-        const data = await response.json();
         return persistAuthSession(data);
       } catch (err) {
-        return rejectWithValue(
-            err.message || "Could not connect to the server. Please try again.",
-        );
+        return rejectWithValue(extractApiErrorMessage(err));
       }
     },
 );

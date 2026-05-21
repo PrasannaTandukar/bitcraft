@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
 import { Filemanager, getMenuOptions } from "@svar-ui/react-filemanager";
 import "@svar-ui/react-filemanager/all.css";
 import { Willow } from "@svar-ui/react-filemanager";
@@ -7,6 +6,7 @@ import '@svar-ui/react-core/style.css';
 import '@svar-ui/react-menu/style.css';
 import '@svar-ui/react-grid/style.css';
 import '@svar-ui/react-uploader/style.css';
+import { apiFetch } from "./api/client.js";
 
 const menuOptions = (mode) => {
   switch (mode) {
@@ -24,19 +24,9 @@ const menuOptions = (mode) => {
 
 function BaseManager() {
   const [data, setData] = useState([]);
-  const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/documents", {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
+    apiFetch("/api/documents")
       .then((documents) => {
         const mapped = documents.map((doc) => ({
           id: doc.id,

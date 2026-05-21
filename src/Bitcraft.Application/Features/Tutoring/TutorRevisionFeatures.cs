@@ -59,6 +59,7 @@ public static class TutorRevisionFeatures
 
     // ---------- Update Draft ----------
     public sealed record UpdateDraftRevisionCommand(
+        Guid TutorId,
         Guid RevisionId,
         Guid? PromptVersionId,
         Guid? InteractionModelId,
@@ -76,7 +77,7 @@ public static class TutorRevisionFeatures
         public async Task<Result<TutorRevision>> Handle(UpdateDraftRevisionCommand request, CancellationToken cancellationToken)
         {
             var revision = await tutorRepository.GetRevisionByIdAsync(request.RevisionId, cancellationToken);
-            if (revision is null)
+            if (revision is null || revision.TutorId != request.TutorId)
             {
                 return Result.Failure<TutorRevision>(NotFound);
             }
@@ -105,7 +106,7 @@ public static class TutorRevisionFeatures
     }
 
     // ---------- Publish ----------
-    public sealed record PublishRevisionCommand(Guid RevisionId) : IRequest<Result<TutorRevision>>;
+    public sealed record PublishRevisionCommand(Guid TutorId, Guid RevisionId) : IRequest<Result<TutorRevision>>;
 
     public sealed class PublishRevisionHandler(
         ITutorRepository tutorRepository,
@@ -116,7 +117,7 @@ public static class TutorRevisionFeatures
         public async Task<Result<TutorRevision>> Handle(PublishRevisionCommand request, CancellationToken cancellationToken)
         {
             var revision = await tutorRepository.GetRevisionByIdAsync(request.RevisionId, cancellationToken);
-            if (revision is null)
+            if (revision is null || revision.TutorId != request.TutorId)
             {
                 return Result.Failure<TutorRevision>(NotFound);
             }
@@ -143,7 +144,7 @@ public static class TutorRevisionFeatures
     }
 
     // ---------- Activate ----------
-    public sealed record ActivateRevisionCommand(Guid RevisionId) : IRequest<Result<TutorRevision>>;
+    public sealed record ActivateRevisionCommand(Guid TutorId, Guid RevisionId) : IRequest<Result<TutorRevision>>;
 
     public sealed class ActivateRevisionHandler(
         ITutorRepository tutorRepository,
@@ -155,7 +156,7 @@ public static class TutorRevisionFeatures
         public async Task<Result<TutorRevision>> Handle(ActivateRevisionCommand request, CancellationToken cancellationToken)
         {
             var revision = await tutorRepository.GetRevisionByIdAsync(request.RevisionId, cancellationToken);
-            if (revision is null)
+            if (revision is null || revision.TutorId != request.TutorId)
             {
                 return Result.Failure<TutorRevision>(NotFound);
             }
@@ -291,7 +292,7 @@ public static class TutorRevisionFeatures
     }
 
     // ---------- Archive ----------
-    public sealed record ArchiveRevisionCommand(Guid RevisionId) : IRequest<Result<TutorRevision>>;
+    public sealed record ArchiveRevisionCommand(Guid TutorId, Guid RevisionId) : IRequest<Result<TutorRevision>>;
 
     public sealed class ArchiveRevisionHandler(
         ITutorRepository tutorRepository,
@@ -302,7 +303,7 @@ public static class TutorRevisionFeatures
         public async Task<Result<TutorRevision>> Handle(ArchiveRevisionCommand request, CancellationToken cancellationToken)
         {
             var revision = await tutorRepository.GetRevisionByIdAsync(request.RevisionId, cancellationToken);
-            if (revision is null)
+            if (revision is null || revision.TutorId != request.TutorId)
             {
                 return Result.Failure<TutorRevision>(NotFound);
             }
@@ -338,7 +339,7 @@ public static class TutorRevisionFeatures
     }
 
     // ---------- Discard Draft ----------
-    public sealed record DiscardDraftRevisionCommand(Guid RevisionId) : IRequest<Result<bool>>;
+    public sealed record DiscardDraftRevisionCommand(Guid TutorId, Guid RevisionId) : IRequest<Result<bool>>;
 
     public sealed class DiscardDraftRevisionHandler(
         ITutorRepository tutorRepository,
@@ -349,7 +350,7 @@ public static class TutorRevisionFeatures
         public async Task<Result<bool>> Handle(DiscardDraftRevisionCommand request, CancellationToken cancellationToken)
         {
             var revision = await tutorRepository.GetRevisionByIdAsync(request.RevisionId, cancellationToken);
-            if (revision is null)
+            if (revision is null || revision.TutorId != request.TutorId)
             {
                 return Result.Failure<bool>(NotFound);
             }
@@ -370,7 +371,7 @@ public static class TutorRevisionFeatures
     }
 
     // ---------- Queries ----------
-    public sealed record GetRevisionByIdQuery(Guid RevisionId) : IRequest<Result<TutorRevision>>;
+    public sealed record GetRevisionByIdQuery(Guid TutorId, Guid RevisionId) : IRequest<Result<TutorRevision>>;
 
     public sealed class GetRevisionByIdHandler(
         ITutorRepository tutorRepository,
@@ -381,7 +382,7 @@ public static class TutorRevisionFeatures
         public async Task<Result<TutorRevision>> Handle(GetRevisionByIdQuery request, CancellationToken cancellationToken)
         {
             var revision = await tutorRepository.GetRevisionByIdAsync(request.RevisionId, cancellationToken);
-            if (revision is null)
+            if (revision is null || revision.TutorId != request.TutorId)
             {
                 return Result.Failure<TutorRevision>(NotFound);
             }

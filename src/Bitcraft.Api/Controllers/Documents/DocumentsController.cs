@@ -18,35 +18,35 @@ public class DocumentsController(ISender sender) : ControllerBase
 {
     /// <summary>Lists source documents created by the authenticated user.</summary>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<DocumentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<DocumentSummaryResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IReadOnlyList<DocumentResponse>>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<DocumentSummaryResponse>>> List(CancellationToken cancellationToken)
     {
         var documents = await sender.Send(new DocumentFeatures.ListDocumentsQuery(), cancellationToken);
-        return Ok(documents.Select(x => x.ToResponse()).ToList());
+        return Ok(documents.Select(x => x.ToSummaryResponse()).ToList());
     }
 
     /// <summary>Gets a source document by id when owned by the authenticated user.</summary>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DocumentDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DocumentResponse>> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<DocumentDetailResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await sender.Send(new DocumentFeatures.GetDocumentByIdQuery(id), cancellationToken);
         return result.IsSuccess
-            ? Ok(result.Value.ToResponse())
+            ? Ok(result.Value.ToDetailResponse())
             : TutoringMapping.ToActionResult(result.Error);
     }
 
     /// <summary>Creates a source document for later vectorization.</summary>
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
-    [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(DocumentDetailResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<DocumentResponse>> Create(
+    public async Task<ActionResult<DocumentDetailResponse>> Create(
         [FromBody] CreateDocumentRequest request,
         CancellationToken cancellationToken)
     {
@@ -62,19 +62,19 @@ public class DocumentsController(ISender sender) : ControllerBase
             return TutoringMapping.ToActionResult(result.Error);
         }
 
-        var response = result.Value.ToResponse();
+        var response = result.Value.ToDetailResponse();
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
     /// <summary>Updates a source document owned by the authenticated user.</summary>
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
-    [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DocumentDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DocumentResponse>> Update(
+    public async Task<ActionResult<DocumentDetailResponse>> Update(
         Guid id,
         [FromBody] UpdateDocumentRequest request,
         CancellationToken cancellationToken)
@@ -87,7 +87,7 @@ public class DocumentsController(ISender sender) : ControllerBase
             request.RawText);
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess
-            ? Ok(result.Value.ToResponse())
+            ? Ok(result.Value.ToDetailResponse())
             : TutoringMapping.ToActionResult(result.Error);
     }
 
@@ -134,19 +134,19 @@ public class DocumentsController(ISender sender) : ControllerBase
     /// <summary>Moves a document to a folder (or to the user root when <c>folderId</c> is null).</summary>
     [HttpPatch("{id:guid}/folder")]
     [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
-    [ProducesResponseType(typeof(DocumentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DocumentDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DocumentResponse>> Move(
+    public async Task<ActionResult<DocumentDetailResponse>> Move(
         Guid id,
         [FromBody] MoveDocumentRequest request,
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new DocumentFeatures.MoveDocumentToFolderCommand(id, request.FolderId), cancellationToken);
         return result.IsSuccess
-            ? Ok(result.Value.ToResponse())
+            ? Ok(result.Value.ToDetailResponse())
             : TutoringMapping.ToActionResult(result.Error);
     }
 }

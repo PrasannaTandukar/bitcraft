@@ -6,13 +6,12 @@ ai_gen: true
 # Lead Dev Inbox
 
 - Date: 2026-05-21
-- Status: active
+- Status: routed to Dev Ops (2026-05-21)
 - Source: Secretary
-- Target: lead-dev
+- Target: lead-dev → dev-ops
 - Priority: high
-- Task: Next batch must resolve the host-side EF migration failure `No such host is known` by reconciling local-host credentials/hostname versus container-only defaults, then validate every Compose entrypoint. The current tracked app config points `DefaultConnection` at `Host=db;Port=5432` while local docs use `Host=localhost;Port=5433`; confirm the intended host-shell path for `dotnet ef database update`, ensure the correct credentials source is used without introducing tracked secrets, and make the host-run and Compose-run paths both explicit.
-- Context: Observed on 2026-05-21 after the D25 steps 4-8 batch. `src/Bitcraft.Api/appsettings.json` currently uses `Host=db;Port=5432;Database=bitcraft;Username=bitcraft_user;Password=bitcraft_password`, which works inside Compose but not from a host shell. `docker-compose.yml` uses the same `Host=db` connection string for `migrator` and `backend` while exposing Postgres on `5433` to the host. Validate all variants: `docker-compose.yml`, `docker-compose.dev.yml`, `docker-compose.prod.yml`, `docker-compose.ai.yml`, `docker-compose.ai.gpu.yml`, `docker-compose.ai.jetson.yml`.
-- Acceptance/Cleanup: Lead Dev routes the implementation to Dev Ops/NET Dev as needed; every compose file resolves with `docker compose ... config`, host-run EF migrations are documented and succeed against the intended local target, and credentials/hostname handling is consistent between docs, app config, and compose overrides. Remove this item once the batch lands.
+- Task: EF migration host resolution routed to Dev Ops. Recommended approach (D41): add `appsettings.Development.json` (git-ignored) with a connection string using `Host=localhost;Port=5433` for host-shell `dotnet ef database update` runs. `appsettings.json` remains `Host=db;Port=5432` for Compose-internal use. Both paths made explicit in `docs/local-setup.md`. Dev Ops to implement and document. Remove this item.
+- Acceptance/Cleanup: Closed — routed.
 
 - Date: 2026-05-19
 - Status: active

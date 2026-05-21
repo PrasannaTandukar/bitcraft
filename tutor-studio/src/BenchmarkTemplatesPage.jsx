@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { apiFetch } from "./api/client.js";
 
-const API_URL = "http://localhost:8000/api/benchmark/templates";
+const API_PATH = "/api/benchmark/templates";
 
 const EMPTY_FORM = {
   key: "",
@@ -37,7 +37,7 @@ const labelStyle = {
 const SUPPORTED_METRICS = ["faithfulness", "answer_relevancy", "hallucination", "correctness"];
 const DEFAULT_METRICS = SUPPORTED_METRICS.map((key) => ({ key, threshold: 0.5, enabled: true }));
 
-function AddTemplateModal({ onClose, onSaved, token }) {
+function AddTemplateModal({ onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [metrics, setMetrics] = useState(DEFAULT_METRICS);
   const [saving, setSaving] = useState(false);
@@ -58,23 +58,17 @@ function AddTemplateModal({ onClose, onSaved, token }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(API_URL, {
+      const newTemplate = await apiFetch(API_PATH, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           key: form.key,
           name: form.name,
           description: form.description || null,
           guidancePath: form.guidancePath || null,
           metricsJson,
           isEnabled: form.isEnabled,
-        }),
+        },
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HTTP ${res.status}: ${body}`);
-      }
-      const newTemplate = await res.json();
       onSaved(newTemplate);
     } catch (err) {
       setError(err.message);
@@ -297,17 +291,10 @@ export default function BenchmarkTemplatesPage() {
   const [showModal, setShowModal] = useState(false);
   const [refreshHovered, setRefreshHovered] = useState(false);
   const [addHovered, setAddHovered] = useState(false);
-  const token = useSelector((state) => state.auth.token);
 
   const fetchTemplates = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    fetch(API_URL, {
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
+    apiFetch(API_PATH)
       .then((data) => { setTemplates(data); setError(null); })
       .catch((err) => setError(err.message))
       .finally(() => { setLoading(false); setRefreshing(false); });
@@ -335,7 +322,6 @@ export default function BenchmarkTemplatesPage() {
         <AddTemplateModal
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
-          token={token}
         />
       )}
 

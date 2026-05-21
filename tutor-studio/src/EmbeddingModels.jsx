@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { apiFetch } from "./api/client.js";
 
-const API_URL = "http://localhost:8000/api/admin/embedding-models";
-const ENGINES_URL = "http://localhost:8000/api/admin/runtime-engines";
+const API_PATH = "/api/admin/embedding-models";
+const ENGINES_PATH = "/api/admin/runtime-engines";
 
 const EMPTY_FORM = {
   name: "",
@@ -13,7 +13,7 @@ const EMPTY_FORM = {
   isEnabled: true,
 };
 
-function AddModelModal({ onClose, onSaved, token }) {
+function AddModelModal({ onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -23,13 +23,7 @@ function AddModelModal({ onClose, onSaved, token }) {
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
   useEffect(() => {
-    fetch(ENGINES_URL, {
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    apiFetch(ENGINES_PATH)
       .then((data) => {
         const enabled = data.filter((e) => e.isEnabled);
         setEngines(enabled);
@@ -45,23 +39,17 @@ function AddModelModal({ onClose, onSaved, token }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(API_URL, {
+      const newModel = await apiFetch(API_PATH, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           name: form.name,
           runtimeEngineId: form.runtimeEngineId,
           providerModelName: form.providerModelName || null,
           embeddingDimensions: Number(form.embeddingDimensions),
           settingsJson: form.settingsJson || null,
           isEnabled: form.isEnabled,
-        }),
+        },
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HTTP ${res.status}: ${body}`);
-      }
-      const newModel = await res.json();
       onSaved(newModel);
     } catch (err) {
       setError(err.message);
@@ -287,17 +275,10 @@ export default function ModelCatalogPage() {
   const [showModal, setShowModal] = useState(false);
   const [refreshHovered, setRefreshHovered] = useState(false);
   const [addHovered, setAddHovered] = useState(false);
-  const token = useSelector((state) => state.auth.token);
 
   const fetchModels = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    fetch(API_URL, {
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
+    apiFetch(API_PATH)
       .then((data) => { setModels(data); setError(null); })
       .catch((err) => setError(err.message))
       .finally(() => { setLoading(false); setRefreshing(false); });
@@ -325,7 +306,6 @@ export default function ModelCatalogPage() {
         <AddModelModal
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
-          token={token}
         />
       )}
 

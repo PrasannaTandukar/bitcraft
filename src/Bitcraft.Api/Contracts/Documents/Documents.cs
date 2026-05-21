@@ -18,8 +18,28 @@ public sealed record UpdateDocumentRequest(
 /// <summary>Request to move a document into a folder (or to the user root when null).</summary>
 public sealed record MoveDocumentRequest(Guid? FolderId);
 
-/// <summary>Source document response. Vector chunks are exposed through Knowledge endpoints, not Documents.</summary>
-public sealed record DocumentResponse(
+/// <summary>
+/// Lightweight source document response returned by list endpoints. Excludes
+/// <c>RawText</c> so directory listings stay cheap and avoid streaming large
+/// payloads. Use <see cref="DocumentDetailResponse"/> when the body is needed.
+/// </summary>
+public sealed record DocumentSummaryResponse(
+    Guid Id,
+    string Name,
+    string? SourcePath,
+    string? MimeType,
+    Guid? FolderId,
+    DateTime CreatedUtc,
+    Guid? CreatedById,
+    DateTime? LastModifiedUtc,
+    Guid? LastModifiedById);
+
+/// <summary>
+/// Detailed source document response including <c>RawText</c>. Returned from
+/// single-document endpoints (get-by-id, create, update, move). Vector chunks
+/// are exposed through Knowledge endpoints, not Documents.
+/// </summary>
+public sealed record DocumentDetailResponse(
     Guid Id,
     string Name,
     string? SourcePath,

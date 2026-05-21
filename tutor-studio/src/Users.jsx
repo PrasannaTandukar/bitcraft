@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { apiFetch, ApiError } from "./api/client.js";
 
-const BASE = "http://localhost:8000/api/admin";
-const USERS_URL = `${BASE}/users`;
-const ROLES_URL = `${BASE}/roles`;
+const BASE = "/api/admin";
+const USERS_PATH = `${BASE}/users`;
+const ROLES_PATH = `${BASE}/roles`;
 
 const roleColors = [
   { bg: "#fff0f2", border: "#e94560", text: "#c0293f" },
@@ -61,7 +61,7 @@ const btnBase = (color, hovered) => ({
   transition: "background 0.15s, color 0.15s",
 });
 
-function UserRow({ user: initialUser, index, allRoles, token, onUpdate }) {
+function UserRow({ user: initialUser, index, allRoles, onUpdate }) {
   const [user, setUser] = useState(initialUser);
   const [addRole, setAddRole] = useState("");
   const [revokeRole, setRevokeRole] = useState("");
@@ -85,17 +85,16 @@ function UserRow({ user: initialUser, index, allRoles, token, onUpdate }) {
     if (!addRole) return;
     setAddLoading(true);
     try {
-      const res = await fetch(`${USERS_URL}/${user.userId}/roles`, {
+      await apiFetch(`${USERS_PATH}/${user.userId}/roles`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ role: addRole }),
+        json: { role: addRole },
+        parse: "none",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const updated = { ...user, roles: [...user.roles, addRole] };
       setUser(updated);
       onUpdate(updated);
     } catch (e) {
-      alert(`Failed to add role: ${e.message}`);
+      alert(`Failed to add role: ${e instanceof ApiError ? `HTTP ${e.status}` : e.message}`);
     } finally {
       setAddLoading(false);
     }
@@ -105,16 +104,15 @@ function UserRow({ user: initialUser, index, allRoles, token, onUpdate }) {
     if (!revokeRole) return;
     setRevokeLoading(true);
     try {
-      const res = await fetch(`${USERS_URL}/${user.userId}/roles/${revokeRole}`, {
+      await apiFetch(`${USERS_PATH}/${user.userId}/roles/${revokeRole}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` },
+        parse: "none",
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const updated = { ...user, roles: user.roles.filter((r) => r !== revokeRole) };
       setUser(updated);
       onUpdate(updated);
     } catch (e) {
-      alert(`Failed to revoke role: ${e.message}`);
+      alert(`Failed to revoke role: ${e instanceof ApiError ? `HTTP ${e.status}` : e.message}`);
     } finally {
       setRevokeLoading(false);
     }
@@ -210,13 +208,11 @@ export default function UsersPage() {
   const [allRoles, setAllRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const token = useSelector((state) => state.auth.token);
 
   useEffect(() => {
-    const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
     Promise.all([
-      fetch(USERS_URL, { headers }).then((r) => { if (!r.ok) throw new Error(`Users: HTTP ${r.status}`); return r.json(); }),
-      fetch(ROLES_URL, { headers }).then((r) => { if (!r.ok) throw new Error(`Roles: HTTP ${r.status}`); return r.json(); }),
+      apiFetch(USERS_PATH),
+      apiFetch(ROLES_PATH),
     ])
       .then(([usersData, rolesData]) => {
         setUsers(usersData);
@@ -226,7 +222,7 @@ export default function UsersPage() {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        setError(err instanceof ApiError ? `HTTP ${err.status}: ${err.statusText}` : err.message);
         setLoading(false);
       });
   }, []);
@@ -299,7 +295,6 @@ export default function UsersPage() {
                 user={user}
                 index={i}
                 allRoles={allRoles}
-                token={token}
                 onUpdate={handleUpdate}
               />
             ))}

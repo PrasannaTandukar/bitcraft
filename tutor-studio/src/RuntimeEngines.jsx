@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { apiFetch, ApiError } from "./api/client.js";
 
-const API_URL = "http://localhost:8000/api/admin/runtime-engines";
+const API_PATH = "/api/admin/runtime-engines";
 
 const PROVIDER_TYPES = [
   { value: 0, label: "Ollama" },
@@ -17,7 +17,7 @@ const EMPTY_FORM = {
   isEnabled: true,
 };
 
-function AddEngineModal({ onClose, onSaved, token }) {
+function AddEngineModal({ onClose, onSaved }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -30,25 +30,19 @@ function AddEngineModal({ onClose, onSaved, token }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(API_URL, {
+      const newEngine = await apiFetch(API_PATH, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           name: form.name,
           providerType: Number(form.providerType),
           endpoint: form.endpoint,
           apiKeySecretRef: form.apiKeySecretRef || null,
           isEnabled: form.isEnabled,
-        }),
+        },
       });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HTTP ${res.status}: ${body}`);
-      }
-      const newEngine = await res.json();
       onSaved(newEngine);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof ApiError ? `HTTP ${err.status}: ${err.body || err.statusText}` : err.message);
     } finally {
       setSaving(false);
     }
@@ -277,19 +271,12 @@ export default function RuntimeEnginesPage() {
   const [showModal, setShowModal] = useState(false);
   const [refreshHovered, setRefreshHovered] = useState(false);
   const [addHovered, setAddHovered] = useState(false);
-  const token = useSelector((state) => state.auth.token);
 
   const fetchEngines = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    fetch(API_URL, {
-      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        return res.json();
-      })
+    apiFetch(API_PATH)
       .then((data) => { setEngines(data); setError(null); })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(err instanceof ApiError ? `HTTP ${err.status}: ${err.statusText}` : err.message))
       .finally(() => { setLoading(false); setRefreshing(false); });
   };
 
@@ -315,7 +302,6 @@ export default function RuntimeEnginesPage() {
         <AddEngineModal
           onClose={() => setShowModal(false)}
           onSaved={handleSaved}
-          token={token}
         />
       )}
 

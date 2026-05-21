@@ -18,7 +18,22 @@ ai_gen: true
 - Acceptance/Cleanup: Close after each smoke test passes or files a follow-up item.
 
 - Date: 2026-05-21
-- Status: pending Human action after PR #7-8 merge
+- Status: complete (Iteration 1 — pending PR + Human HD answers)
+- Source: Secretary (routed from Lead Dev, HD-11 + D41)
+- Target: dev-ops
+- Priority: complete
+- Task: EF migration host-shell fix (D41). Delivered: `src/Bitcraft.Api/appsettings.Development.example.json` (tracked) and new "Database Connection: Compose vs Host Shell" section in `docs/local-setup.md`. **Blocked sub-items routed to Human as HDs**: HD-DO-1 (`.gitignore` add `src/Bitcraft.Api/appsettings.Development.json`), HD-DO-2 (`git rm --cached` the currently-tracked logging override file). Agents cannot edit `.gitignore`.
+- Acceptance/Cleanup: Close after PR merges AND Human resolves HD-DO-1/HD-DO-2.
+
+- Date: 2026-05-21
+- Status: complete (Iteration 1 audit) — follow-ups queued as HDs
+- Source: Secretary (D41 lock 2026-05-21)
+- Target: dev-ops
+- Priority: complete
+- Task: D41 configuration separation audit complete. Compose files clean (env-only). Findings queued for Iteration 3 quality pass: HD-DO-3 (sidecar `requirements-dev.txt` split), HD-DO-4 (track `.env.development.example` + `.env.production.example`), HD-DO-5 (replace `appsettings.json` literal `Password=bitcraft_password` with env-var binding).
+- Acceptance/Cleanup: Close after Iteration 3 follow-ups land.
+
+
 - Source: Lead Dev (plan v3.4 / D25 steps 7-8)
 - Target: dev-ops
 - Priority: high (release-blocking for any env running merged step 7-8 code)
