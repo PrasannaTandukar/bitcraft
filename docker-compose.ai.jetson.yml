@@ -18,12 +18,12 @@ services:
 
     restart: unless-stopped
 
-    # Hard override: image default entrypoint wraps a shell; bypass it to avoid r36.x init bugs.
-    entrypoint: ["/usr/bin/ollama"]
-    command: ["serve"]
+    # 🚨 HARD OVERRIDE
+    entrypoint: [ "/usr/bin/ollama" ]
+    command: [ "serve" ]
 
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -42,8 +42,9 @@ services:
     volumes:
       - ollama:/ollama
 
-    entrypoint: ["ollama"]
-    command: ["pull", "${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}"]
+    # 🚀 no shell = no bug
+    entrypoint: [ "ollama" ]
+    command: [ "pull", "${OLLAMA_EMBED_MODEL:-nomic-embed-text}" ]
 
     restart: "no"
     depends_on:
@@ -67,17 +68,11 @@ services:
     # Jetson default skews to the smaller llama3.2:1b; override via OLLAMA_CHAT_MODEL on Orin AGX / Orin Nano Super.
     command: ["pull", "${OLLAMA_CHAT_MODEL:-llama3.2:1b}"]
 
-    restart: "no"
-    depends_on:
-      ollama:
-        condition: service_healthy
-
   backend:
     environment:
-      # Ollama runs in network_mode: host on the Jetson, so backend (bridge) reaches it via the host-gateway shim.
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.2:1b}
-      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

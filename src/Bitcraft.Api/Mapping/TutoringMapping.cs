@@ -2,6 +2,7 @@ using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Admin;
 using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Contracts.Knowledge;
+using Bitcraft.Api.Contracts.Rag;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Knowledge;
@@ -22,6 +23,10 @@ internal static class TutoringMapping
             new NotFoundObjectResult(new ApiError(error.Code, error.Description)),
         var c when c.EndsWith(".Forbidden", StringComparison.Ordinal) =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status403Forbidden },
+        "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
+        "Rag.SearchFailed" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status500InternalServerError },
         _ => new BadRequestObjectResult(new ApiError(error.Code, error.Description)),
     };
 
@@ -59,6 +64,48 @@ internal static class TutoringMapping
         chunk.EmbeddingProvider,
         chunk.IngestedUtc);
 
+    public static AskRagQuestionResponse ToResponse(this RagAnswerResult result) => new(
+        result.Answer,
+        result.Model,
+        result.Sources.Select(source => new RagSourceChunkResponse(
+            source.DocumentId,
+            source.DocumentName,
+            source.ChunkId,
+            source.ChunkIndex,
+            source.Content,
+            source.Score)).ToList());
+
+    public static AskTutorQuestionResponse ToResponse(this TutorAnswerResult result) => new(
+        result.Answer,
+        result.Model,
+        result.Mode,
+        result.ContextUsed,
+        result.MemorySaved,
+        result.Sources.Select(source => new TutorSourceResponse(
+            source.SourceType,
+            source.SourceId,
+            source.DocumentId,
+            source.DocumentName,
+            source.MemoryId,
+            source.ChunkId,
+            source.ChunkIndex,
+            source.Content,
+            source.Score)).ToList(),
+        result.Message);
+
+    public static ModelCatalogEntryResponse ToResponse(this ModelCatalogEntry entry) => new(
+        entry.Id,
+        entry.Name,
+        entry.ProviderType,
+        entry.Endpoint,
+        entry.ModelName,
+        HasApiKey: !string.IsNullOrWhiteSpace(entry.ApiKeySecretRef),
+        entry.SettingsJson,
+        entry.IsEnabled,
+        entry.CreatedUtc,
+        entry.CreatedById,
+        entry.EditedUtc,
+        entry.EditedById);
     public static InteractionModelResponse ToResponse(this InteractionModel model) => new(
         model.Id,
         model.Name,

@@ -38,7 +38,7 @@ cp .env.example .env
 Key variables:
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — PostgreSQL credentials
 - `OLLAMA_BASE_URL` — Ollama service endpoint. Default assumes Ollama running on the host at `http://host.docker.internal:11434`.
-- `OLLAMA_EMBED_MODEL` — Embedding model to use. Default: `qwen3-embedding:0.6b`.
+- `OLLAMA_EMBED_MODEL` — Embedding model to use. Default: `nomic-embed-text`.
 - `OLLAMA_DOCKER_TAG` — Docker tag used by the optional Ollama container override.
 
 ## Build and Test

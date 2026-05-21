@@ -419,6 +419,34 @@ internal sealed class FakeKnowledgeRetriever : IKnowledgeRetriever
     }
 }
 
+internal sealed class FakeTutorMemoryStore : ITutorMemoryStore
+{
+    public List<TutorMemory> Memories { get; } = new();
+    public Guid LastCreatorId { get; private set; }
+    public float[] LastQueryEmbedding { get; private set; } = [];
+    public int LastTopK { get; private set; }
+
+    public Task<TutorMemory> AddAsync(TutorMemory memory, CancellationToken cancellationToken = default)
+    {
+        Memories.Add(memory);
+        return Task.FromResult(memory);
+    }
+
+    public Task<List<TutorMemory>> SearchNearestMemoriesAsync(
+        Guid creatorId,
+        float[] queryEmbedding,
+        int topK = 5,
+        CancellationToken cancellationToken = default)
+    {
+        LastCreatorId = creatorId;
+        LastQueryEmbedding = queryEmbedding;
+        LastTopK = topK;
+        return Task.FromResult(Memories
+            .Where(memory => memory.CreatedById == creatorId || memory.CreatedById is null)
+            .ToList());
+    }
+}
+
 internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
 {
     public List<string> EmbeddedTexts { get; } = new();

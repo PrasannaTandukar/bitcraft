@@ -4,11 +4,13 @@ import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
 import Settings from './Settings.jsx';
 import Benchmarking from './Benchmarking.jsx';
 import LoginForm from './Login.jsx';
+import RegisterForm from './Register.jsx';
 import { useDispatch, useSelector } from 'react-redux';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { logout } from './store/authSlice';
 import UsersPage from './Users.jsx';
 import FilesPage from './FilesPage.jsx';
@@ -17,6 +19,8 @@ import EmbeddingModels from './EmbeddingModels.jsx';
 import InteractionModelsPage from './InteractionModels.jsx';
 import RuntimeEnginesPage from './RuntimeEngines.jsx';
 import BenchmarkTemplatesPage from './BenchmarkTemplatesPage.jsx';
+import Dashboard from './Dashboard.jsx';
+import OllamaChat from "./OllamaChat.jsx";
 
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);
@@ -35,68 +39,88 @@ function EditorRoute({ children }) {
   const { token, roles } = useSelector((state) => state.auth);
   if (!token) return <Navigate to="/login" />;
   if (roles.includes("Admin")) return <Navigate to="/model-catalog" />;  // 👈 changed
-  if (!roles.includes("Editor")) return <Navigate to="/" />;
+  if (!roles.includes("Editor")) return <Navigate to="/settings" />;
   return children;
 }
 
 function AppContent() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, user, roles } = useSelector((state) => state.auth);
   const isAdmin = roles?.includes("Admin");
   const isEditor = roles?.includes("Editor") && !isAdmin;
 
 
   useEffect(() => {
-    if (!token) navigate('/login');
-  }, [token]);
+    const isPublicAuthRoute = location.pathname === '/login' || location.pathname === '/register';
+    if (!token && !isPublicAuthRoute) navigate('/login');
+  }, [token, location.pathname, navigate]);
 
   useEffect(() => {
     if (user) console.log('User updated:', user);
   }, [user]);
 
   return (
-    <div style={{ height: "100%", flexDirection: "column", display: "flex" }}>
-      <Navbar expand="lg" className="bg-body-tertiary" style={{ height: "10vh" }}>
-        <Container>
-          <Navbar.Brand onClick={() => navigate('/')}>
+    <div className="app-shell">
+      <Navbar expand="lg" className="app-navbar">
+        <Container className="app-navbar-container">
+          <Navbar.Brand className="app-brand" onClick={() => navigate('/')}>
             Agentic Tutor
           </Navbar.Brand>
-          <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="me-auto">
+          <Navbar.Toggle aria-controls="app-navbar-nav" />
+          <Navbar.Collapse id="app-navbar-nav">
+            <Nav className="app-nav-links me-auto">
               {token && <>
-                <Nav.Link onClick={() => navigate('/settings')}>Settings</Nav.Link>
+                <Nav.Link as={NavLink} to="/" end>Dashboard</Nav.Link>
+                <Nav.Link as={NavLink} to="/settings">Settings</Nav.Link>
+                <Nav.Link as={NavLink} to="/ai-tutor">AI Tutor</Nav.Link>
+                <Nav.Link as={NavLink} to="/benchmark-templates">Benchmarking</Nav.Link>
                 {isEditor && <>
-                  <Nav.Link onClick={() => navigate('/')}>Files</Nav.Link>
-                                  <Nav.Link onClick={() => navigate('/tutors')}>Tutors</Nav.Link>
-                                  <Nav.Link onClick={() => navigate('/benchmark-templates')}>Benchmark Templates</Nav.Link>
+                  <Nav.Link as={NavLink} to="/files">Files</Nav.Link>
+                  <Nav.Link as={NavLink} to="/tutors">Tutors</Nav.Link>
                 </>}
                 {isAdmin && <>
-                  <Nav.Link onClick={() => navigate('/role-management')}>Role Management</Nav.Link>
-                                  <Nav.Link onClick={() => navigate('/model-catalog')}>Embedding models</Nav.Link>
-                                  <Nav.Link onClick={() => navigate('/interaction-model')}>Interaction models</Nav.Link>
-                                  <Nav.Link onClick={() => navigate('/runtime-engines')}>Runtime engines</Nav.Link>
+                  <Nav.Link as={NavLink} to="/role-management">Role Management</Nav.Link>
+                  <Nav.Link as={NavLink} to="/model-catalog">Model Catalog</Nav.Link>
+                  <Nav.Link as={NavLink} to="/interaction-model">Interaction models</Nav.Link>
+                  <Nav.Link as={NavLink} to="/runtime-engines">Runtime engines</Nav.Link>
                 </>}
-                <Nav.Link onClick={() => dispatch(logout())}>
-                  Logout ({user})
-                </Nav.Link>
               </>}
               {!token && (
-                <Nav.Link onClick={() => navigate('/login')}>Login</Nav.Link>
+                <Nav.Link as={NavLink} to="/login">Login</Nav.Link>
               )}
             </Nav>
+            {token && (
+              <div className="app-account">
+                {user && <span className="app-user-email">{user}</span>}
+                <button
+                  className="app-logout-button"
+                  type="button"
+                  onClick={() => dispatch(logout())}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </Navbar.Collapse>
         </Container>
       </Navbar>
 
       <Routes>
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/register" element={<RegisterForm />} />
         <Route path="/" element={
-          <EditorRoute><FilesPage /></EditorRoute>
+          <ProtectedRoute><Dashboard /></ProtectedRoute>
         } />
         <Route path="/settings" element={
           <ProtectedRoute><Settings /></ProtectedRoute>
+        } />
+        <Route path="/files" element={
+          <EditorRoute><FilesPage /></EditorRoute>
+        } />
+        <Route path="/ai-tutor" element={
+          <ProtectedRoute><OllamaChat /></ProtectedRoute>
         } />
         <Route path="/tutors" element={
           <EditorRoute><TutorsPage /></EditorRoute>
