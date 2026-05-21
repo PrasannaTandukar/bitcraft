@@ -1,36 +1,13 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 
-const MODEL_CATALOG_URL = "http://localhost:8000/api/admin/model-catalog";
-
-const inputStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "12px",
-  padding: "7px 10px",
-  border: "1px solid #e8eaf0",
-  borderRadius: "4px",
-  background: "#fff",
-  color: "#1a1a2e",
-  outline: "none",
-  width: "100%",
-};
-
-const labelStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "10px",
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  color: "#99a",
-  marginBottom: "5px",
-  display: "block",
-};
+const API_URL = "http://localhost:8000/api/admin/interaction-models";
+const ENGINES_URL = "http://localhost:8000/api/admin/runtime-engines";
 
 const EMPTY_FORM = {
   name: "",
-  providerType: 0,
-  endpoint: "",
-  modelName: "",
-  apiKeySecretRef: "",
+  runtimeEngineId: "",
+  providerModelName: "",
   settingsJson: "",
   isEnabled: true,
 };
@@ -39,27 +16,49 @@ function AddModelModal({ onClose, onSaved, token }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [engines, setEngines] = useState([]);
+  const [enginesLoading, setEnginesLoading] = useState(true);
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
+  useEffect(() => {
+    fetch(ENGINES_URL, {
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const enabled = data.filter((e) => e.isEnabled);
+        setEngines(enabled);
+        if (enabled.length > 0) set("runtimeEngineId", enabled[0].id);
+      })
+      .catch(() => setEngines([]))
+      .finally(() => setEnginesLoading(false));
+  }, []);
+
   const handleSubmit = async () => {
     if (!form.name.trim()) { setError("Name is required."); return; }
+    if (!form.runtimeEngineId) { setError("Runtime Engine is required."); return; }
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(MODEL_CATALOG_URL, {
+      const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
-          providerType: Number(form.providerType),
-          apiKeySecretRef: form.apiKeySecretRef || null,
+          name: form.name,
+          runtimeEngineId: form.runtimeEngineId,
+          providerModelName: form.providerModelName || null,
           settingsJson: form.settingsJson || null,
-          endpoint: form.endpoint || null,
-          modelName: form.modelName || null,
+          isEnabled: form.isEnabled,
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`HTTP ${res.status}: ${body}`);
+      }
       const newModel = await res.json();
       onSaved(newModel);
     } catch (err) {
@@ -67,6 +66,29 @@ function AddModelModal({ onClose, onSaved, token }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const inputStyle = {
+    fontFamily: "'DM Mono', monospace",
+    fontSize: "12px",
+    padding: "7px 10px",
+    border: "1px solid #e8eaf0",
+    borderRadius: "4px",
+    background: "#fff",
+    color: "#1a1a2e",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  const labelStyle = {
+    fontFamily: "'DM Mono', monospace",
+    fontSize: "10px",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    color: "#99a",
+    marginBottom: "5px",
+    display: "block",
   };
 
   return (
@@ -83,48 +105,45 @@ function AddModelModal({ onClose, onSaved, token }) {
         maxHeight: "90vh", overflowY: "auto",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <span style={{ fontSize: "13px", fontWeight: "600", color: "#1a1a2e" }}>Add Model</span>
+          <span style={{ fontSize: "13px", fontWeight: "600", color: "#1a1a2e" }}>Add Interaction Model</span>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#999", lineHeight: 1 }}>×</button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Name */}
           <div>
             <label style={labelStyle}>Name *</label>
-            <input style={inputStyle} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="My Model" />
+            <input style={inputStyle} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="My Interaction Model" />
           </div>
 
-          {/* Provider Type */}
           <div>
-            <label style={labelStyle}>Provider Type</label>
-            <input style={inputStyle} type="number" value={form.providerType} onChange={(e) => set("providerType", e.target.value)} placeholder="0" />
+            <label style={labelStyle}>Runtime Engine *</label>
+            {enginesLoading ? (
+              <div style={{ fontSize: "11px", color: "#999", padding: "7px 0" }}>Loading engines…</div>
+            ) : engines.length === 0 ? (
+              <div style={{ fontSize: "11px", color: "#e94560", padding: "7px 0" }}>No enabled runtime engines found. Add one first.</div>
+            ) : (
+              <select
+                style={{ ...inputStyle, cursor: "pointer" }}
+                value={form.runtimeEngineId}
+                onChange={(e) => set("runtimeEngineId", e.target.value)}
+              >
+                {engines.map((engine) => (
+                  <option key={engine.id} value={engine.id}>{engine.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* Endpoint */}
           <div>
-            <label style={labelStyle}>Endpoint</label>
-            <input style={inputStyle} value={form.endpoint} onChange={(e) => set("endpoint", e.target.value)} placeholder="http://localhost:11434" />
+            <label style={labelStyle}>Provider Model Name</label>
+            <input style={inputStyle} value={form.providerModelName} onChange={(e) => set("providerModelName", e.target.value)} placeholder="gpt-4o" />
           </div>
 
-          {/* Model Name */}
-          <div>
-            <label style={labelStyle}>Model Name</label>
-            <input style={inputStyle} value={form.modelName} onChange={(e) => set("modelName", e.target.value)} placeholder="llama3" />
-          </div>
-
-          {/* API Key Secret Ref */}
-          <div>
-            <label style={labelStyle}>API Key Secret Ref</label>
-            <input style={inputStyle} value={form.apiKeySecretRef} onChange={(e) => set("apiKeySecretRef", e.target.value)} placeholder="my-api-key-ref" />
-          </div>
-
-          {/* Settings JSON */}
           <div>
             <label style={labelStyle}>Settings JSON</label>
             <input style={inputStyle} value={form.settingsJson} onChange={(e) => set("settingsJson", e.target.value)} placeholder='{"temperature": 0.7}' />
           </div>
 
-          {/* Is Enabled */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <input
               id="isEnabled"
@@ -156,13 +175,13 @@ function AddModelModal({ onClose, onSaved, token }) {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={saving || engines.length === 0}
             style={{
               fontFamily: "'DM Mono', monospace", fontSize: "11px",
               padding: "7px 16px", border: "1px solid #3b9ede",
               borderRadius: "4px", background: "#3b9ede", color: "#fff",
-              cursor: saving ? "not-allowed" : "pointer",
-              opacity: saving ? 0.6 : 1,
+              cursor: (saving || engines.length === 0) ? "not-allowed" : "pointer",
+              opacity: (saving || engines.length === 0) ? 0.6 : 1,
               display: "flex", alignItems: "center", gap: "6px",
             }}
           >
@@ -196,18 +215,33 @@ function ModelRow({ model, index }) {
         transition: "background 0.15s ease",
         animation: "fadeSlideIn 0.3s ease both",
         animationDelay: `${index * 0.04}s`,
+        borderBottom: "1px solid #f0f0f5",
       }}
     >
-      <span style={{
-        fontFamily: "'DM Mono', monospace",
-        fontSize: "13px",
-        color: "#1a1a2e",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}>
-        {model.name}
-      </span>
+      <div>
+        <span style={{
+          fontFamily: "'DM Mono', monospace",
+          fontSize: "13px",
+          color: "#1a1a2e",
+          display: "block",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {model.name}
+        </span>
+        {model.providerModelName && (
+          <span style={{
+            fontFamily: "'DM Mono', monospace",
+            fontSize: "11px",
+            color: "#999",
+            display: "block",
+            marginTop: "2px",
+          }}>
+            {model.providerModelName}
+          </span>
+        )}
+      </div>
 
       <span style={{
         fontFamily: "'DM Mono', monospace",
@@ -227,7 +261,7 @@ function ModelRow({ model, index }) {
   );
 }
 
-export default function ModelCatalogPage() {
+export default function InteractionModelsPage() {
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -239,7 +273,7 @@ export default function ModelCatalogPage() {
 
   const fetchModels = (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
-    fetch(MODEL_CATALOG_URL, {
+    fetch(API_URL, {
       headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
     })
       .then((res) => {
@@ -277,10 +311,9 @@ export default function ModelCatalogPage() {
         />
       )}
 
-      <div style={{  background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
+      <div style={{ background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
         <div style={{ maxWidth: "860px", margin: "0 auto" }}>
 
-          {/* Toolbar */}
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px", gap: "8px", alignItems: "center" }}>
             <button
               onClick={() => fetchModels(true)}
@@ -321,7 +354,7 @@ export default function ModelCatalogPage() {
             </button>
           </div>
 
-          <div style={{ background: "#ffffff", borderRadius: "6px", overflow: "hidden" }}>
+          <div style={{ background: "#ffffff", borderRadius: "6px", overflow: "hidden", border: "1px solid #e8eaf0" }}>
             {loading && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 24px", gap: "16px" }}>
                 <div style={{ width: "28px", height: "28px", border: "2px solid #e8eaf0", borderTop: "2px solid #e94560", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
@@ -339,7 +372,7 @@ export default function ModelCatalogPage() {
 
             {!loading && !error && models.length === 0 && (
               <div style={{ padding: "64px 24px", textAlign: "center", fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>
-                NO MODELS FOUND
+                NO INTERACTION MODELS FOUND
               </div>
             )}
 

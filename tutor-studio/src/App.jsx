@@ -12,8 +12,11 @@ import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-route
 import { logout } from './store/authSlice';
 import UsersPage from './Users.jsx';
 import FilesPage from './FilesPage.jsx';
-import ModelCatalogPage from './ModelCatalogPage.jsx';
 import TutorsPage from './TutorsPage.jsx';
+import EmbeddingModels from './EmbeddingModels.jsx';
+import InteractionModelsPage from './InteractionModels.jsx';
+import RuntimeEnginesPage from './RuntimeEngines.jsx';
+import BenchmarkTemplatesPage from './BenchmarkTemplatesPage.jsx';
 
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);
@@ -43,6 +46,7 @@ function AppContent() {
   const isAdmin = roles?.includes("Admin");
   const isEditor = roles?.includes("Editor") && !isAdmin;
 
+
   useEffect(() => {
     if (!token) navigate('/login');
   }, [token]);
@@ -63,14 +67,16 @@ function AppContent() {
             <Nav className="me-auto">
               {token && <>
                 <Nav.Link onClick={() => navigate('/settings')}>Settings</Nav.Link>
-                <Nav.Link onClick={() => navigate('/benchmarking')}>Benchmarking</Nav.Link>
                 {isEditor && <>
                   <Nav.Link onClick={() => navigate('/')}>Files</Nav.Link>
-                  <Nav.Link onClick={() => navigate('/tutors')}>Tutors</Nav.Link>
+                                  <Nav.Link onClick={() => navigate('/tutors')}>Tutors</Nav.Link>
+                                  <Nav.Link onClick={() => navigate('/benchmark-templates')}>Benchmark Templates</Nav.Link>
                 </>}
                 {isAdmin && <>
                   <Nav.Link onClick={() => navigate('/role-management')}>Role Management</Nav.Link>
-                  <Nav.Link onClick={() => navigate('/model-catalog')}>Model Catalog</Nav.Link>
+                                  <Nav.Link onClick={() => navigate('/model-catalog')}>Embedding models</Nav.Link>
+                                  <Nav.Link onClick={() => navigate('/interaction-model')}>Interaction models</Nav.Link>
+                                  <Nav.Link onClick={() => navigate('/runtime-engines')}>Runtime engines</Nav.Link>
                 </>}
                 <Nav.Link onClick={() => dispatch(logout())}>
                   Logout ({user})
@@ -96,14 +102,20 @@ function AppContent() {
           <EditorRoute><TutorsPage /></EditorRoute>
         } />
         <Route path="/model-catalog" element={
-          <AdminRoute><ModelCatalogPage /></AdminRoute>
+          <AdminRoute><EmbeddingModels /></AdminRoute>
+        } />
+                      <Route path="/interaction-model" element={
+          <AdminRoute><InteractionModelsPage /></AdminRoute>
+        } />
+                      <Route path="/runtime-engines" element={
+          <AdminRoute><RuntimeEnginesPage /></AdminRoute>
         } />
         <Route path="/role-management" element={
           <AdminRoute><UsersPage /></AdminRoute>
         } />
-        <Route path="/benchmarking" element={
-          <ProtectedRoute><Benchmarking /></ProtectedRoute>
-        } />
+        <Route path="/benchmark-templates" element={
+  <EditorRoute><BenchmarkTemplatesPage /></EditorRoute>
+} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
