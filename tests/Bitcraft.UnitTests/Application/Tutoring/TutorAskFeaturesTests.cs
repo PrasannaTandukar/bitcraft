@@ -115,6 +115,60 @@ public class TutorAskFeaturesTests
     }
 
     [Fact]
+    public async Task AskTutorQuestionHandler_WhenDocumentSearchFails_StillUsesConversationMemory()
+    {
+        var userId = Guid.NewGuid();
+        var document = new Document { Name = "Broken document index" };
+        document.UpdateMetadata(userId);
+        var documentStore = new FakeDocumentStore();
+        documentStore.Documents[document.Id] = document;
+        var memoryStore = new FakeTutorMemoryStore();
+        var memory = new TutorMemory
+        {
+            Question = "RAG means Retrieval-Augmented Generation in this project.",
+            Answer = "RAG means Retrieval-Augmented Generation.",
+            Content = "User asked: RAG means Retrieval-Augmented Generation in this project. Tutor answered: RAG means Retrieval-Augmented Generation.",
+            Embedding = [1f, 0f]
+        };
+        memory.UpdateMetadata(userId);
+        memoryStore.Memories.Add(memory);
+        var handler = CreateHandler(
+            ownerId: userId,
+            documentStore: documentStore,
+            embeddingProvider: new RecordingEmbeddingProvider([1f, 0f]),
+            knowledgeRetriever: new ThrowingKnowledgeRetriever(),
+            tutorMemoryStore: memoryStore);
+
+        var result = await handler.Handle(
+            new TutorAskFeatures.AskTutorQuestionCommand("What does RAG mean in this project?", null, UseMemory: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.ContextUsed);
+        Assert.DoesNotContain("could not be searched", result.Value.Message);
+        var source = Assert.Single(result.Value.Sources);
+        Assert.Equal("conversation", source.SourceType);
+        Assert.Equal(memory.Id, source.MemoryId);
+    }
+
+    [Fact]
+    public async Task AskTutorQuestionHandler_WhenConversationSearchFailsAndNoDocuments_ReportsSearchFailure()
+    {
+        var handler = CreateHandler(
+            embeddingProvider: new RecordingEmbeddingProvider([1f, 0f]),
+            tutorMemoryStore: new ThrowingTutorMemoryStore());
+
+        var result = await handler.Handle(
+            new TutorAskFeatures.AskTutorQuestionCommand("What does RAG mean?", null, UseMemory: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.ContextUsed);
+        Assert.Empty(result.Value.Sources);
+        Assert.Contains("Tutor memory could not be searched", result.Value.Message);
+    }
+
+    [Fact]
     public async Task AskTutorQuestionHandler_WithMemoryEnabledButNoRelevantContext_StillGeneratesAnswer()
     {
         var memoryStore = new FakeTutorMemoryStore();
@@ -292,5 +346,28 @@ public class TutorAskFeaturesTests
             calls.Add("memory-search");
             return Task.FromResult(new List<TutorMemory>());
         }
+    }
+
+    private sealed class ThrowingKnowledgeRetriever : IKnowledgeRetriever
+    {
+        public Task<List<KnowledgeChunk>> SearchNearestChunksAsync(
+            IReadOnlyCollection<Guid> documentIds,
+            float[] queryEmbedding,
+            int topK = 5,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Document vector search failed.");
+    }
+
+    private sealed class ThrowingTutorMemoryStore : ITutorMemoryStore
+    {
+        public Task<TutorMemory> AddAsync(TutorMemory memory, CancellationToken cancellationToken = default) =>
+            Task.FromResult(memory);
+
+        public Task<List<TutorMemory>> SearchNearestMemoriesAsync(
+            Guid creatorId,
+            float[] queryEmbedding,
+            int topK = 5,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Conversation memory search failed.");
     }
 }

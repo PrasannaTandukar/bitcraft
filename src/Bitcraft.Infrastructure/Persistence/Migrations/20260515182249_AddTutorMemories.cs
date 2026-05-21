@@ -23,8 +23,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     Embedding = table.Column<Vector>(type: "vector(768)", nullable: true),
                     CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: false),
-                    EditedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    EditedById = table.Column<Guid>(type: "uuid", nullable: true)
+                    ModifiedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedById = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -36,8 +36,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TutorMemories_AspNetUsers_EditedById",
-                        column: x => x.EditedById,
+                        name: "FK_TutorMemories_AspNetUsers_ModifiedById",
+                        column: x => x.ModifiedById,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -49,9 +49,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                 column: "CreatedById");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TutorMemories_EditedById",
+                name: "IX_TutorMemories_ModifiedById",
                 table: "TutorMemories",
-                column: "EditedById");
+                column: "ModifiedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TutorMemories_Embedding",

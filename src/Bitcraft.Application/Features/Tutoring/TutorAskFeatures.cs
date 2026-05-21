@@ -171,42 +171,21 @@ public static class TutorAskFeatures
             int topK,
             CancellationToken cancellationToken)
         {
+            logger.LogInformation(
+                "Tutor memory search started for user {UserId}. QuestionLength={QuestionLength}, TopK={TopK}.",
+                currentUser.UserId,
+                question.Length,
+                topK);
+
+            float[] queryEmbedding;
             try
             {
-                logger.LogInformation("Tutor memory search started for user {UserId} with TopK {TopK}.", currentUser.UserId, topK);
-                var queryEmbedding = await embeddingProvider.GenerateEmbeddingAsync(
+                logger.LogInformation("Tutor memory query embedding generation started for user {UserId}.", currentUser.UserId);
+                queryEmbedding = await embeddingProvider.GenerateEmbeddingAsync(
                     question,
                     embeddingModel: string.Empty,
                     cancellationToken);
                 logger.LogInformation("Tutor memory query embedding generated with {Dimensions} dimensions.", queryEmbedding.Length);
-                var ownedDocuments = await documentStore.ListByCreatorAsync(currentUser.UserId, cancellationToken);
-                var documentIds = ownedDocuments.Select(document => document.Id).ToList();
-                var documentChunks = documentIds.Count == 0
-                    ? []
-                    : await knowledgeRetriever.SearchNearestChunksAsync(documentIds, queryEmbedding, topK, cancellationToken);
-                var conversationMemories = await tutorMemoryStore.SearchNearestMemoriesAsync(
-                    currentUser.UserId,
-                    queryEmbedding,
-                    topK,
-                    cancellationToken);
-
-                logger.LogInformation(
-                    "Tutor memory search returned {DocumentChunkCount} document chunks and {ConversationMemoryCount} saved conversations before filtering.",
-                    documentChunks.Count,
-                    conversationMemories.Count);
-
-                var documentNames = ownedDocuments.ToDictionary(document => document.Id, document => document.Name);
-                var documentSources = documentChunks.Select(chunk => ToDocumentSource(chunk, queryEmbedding, documentNames));
-                var conversationSources = conversationMemories.Select(memory => ToConversationSource(memory, queryEmbedding));
-                var sources = documentSources
-                    .Concat(conversationSources)
-                    .Where(source => source.Score >= MinimumUsefulSimilarityScore)
-                    .OrderByDescending(source => source.Score)
-                    .Take(topK)
-                    .ToList();
-
-                logger.LogInformation("Tutor memory search kept {SourceCount} relevant sources after similarity filtering.", sources.Count);
-                return (sources, SearchFailed: false);
             }
             catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -214,9 +193,92 @@ public static class TutorAskFeatures
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Tutor memory search failed for user {UserId}.", currentUser.UserId);
+                logger.LogWarning(ex, "Tutor memory query embedding generation failed for user {UserId}.", currentUser.UserId);
                 return ([], SearchFailed: true);
             }
+
+            var documentSearchSucceeded = false;
+            var documentSearchHadScope = false;
+            var conversationSearchSucceeded = false;
+            var documentChunks = new List<KnowledgeChunk>();
+            var conversationMemories = new List<TutorMemory>();
+            var documentNames = new Dictionary<Guid, string>();
+
+            try
+            {
+                logger.LogInformation("Tutor memory document search started for user {UserId}.", currentUser.UserId);
+                var ownedDocuments = await documentStore.ListByCreatorAsync(currentUser.UserId, cancellationToken);
+                var documentIds = ownedDocuments.Select(document => document.Id).ToList();
+                documentNames = ownedDocuments.ToDictionary(document => document.Id, document => document.Name);
+                documentSearchHadScope = documentIds.Count > 0;
+                if (documentSearchHadScope)
+                {
+                    documentChunks = await knowledgeRetriever.SearchNearestChunksAsync(documentIds, queryEmbedding, topK, cancellationToken);
+                    documentSearchSucceeded = true;
+                }
+
+                logger.LogInformation(
+                    "Tutor memory document search completed for user {UserId}. DocumentCount={DocumentCount}, ChunkCount={DocumentChunkCount}.",
+                    currentUser.UserId,
+                    documentIds.Count,
+                    documentChunks.Count);
+            }
+            catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Tutor memory document search failed for user {UserId}.", currentUser.UserId);
+            }
+
+            try
+            {
+                logger.LogInformation("Tutor memory conversation search started for user {UserId}.", currentUser.UserId);
+                conversationMemories = await tutorMemoryStore.SearchNearestMemoriesAsync(
+                    currentUser.UserId,
+                    queryEmbedding,
+                    topK,
+                    cancellationToken);
+                conversationSearchSucceeded = true;
+                logger.LogInformation(
+                    "Tutor memory conversation search completed for user {UserId}. ConversationMemoryCount={ConversationMemoryCount}.",
+                    currentUser.UserId,
+                    conversationMemories.Count);
+            }
+            catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Tutor memory conversation search failed for user {UserId}.", currentUser.UserId);
+            }
+
+            if (!conversationSearchSucceeded && (!documentSearchHadScope || !documentSearchSucceeded))
+            {
+                logger.LogInformation(
+                    "Tutor memory search failed for user {UserId}; no memory source completed successfully.",
+                    currentUser.UserId);
+                return ([], SearchFailed: true);
+            }
+
+            logger.LogInformation(
+                "Tutor memory search returned {DocumentChunkCount} document chunks and {ConversationMemoryCount} saved conversations before filtering.",
+                documentChunks.Count,
+                conversationMemories.Count);
+
+            var documentSources = documentChunks.Select(chunk => ToDocumentSource(chunk, queryEmbedding, documentNames));
+            var conversationSources = conversationMemories.Select(memory => ToConversationSource(memory, queryEmbedding));
+            var sources = documentSources
+                .Concat(conversationSources)
+                .Where(source => source.Score >= MinimumUsefulSimilarityScore)
+                .OrderByDescending(source => source.Score)
+                .Take(topK)
+                .ToList();
+
+            logger.LogInformation("Tutor memory search kept {SourceCount} relevant sources after similarity filtering.", sources.Count);
+            return (sources, SearchFailed: false);
         }
 
         private async Task<bool> TrySaveConversationAsync(

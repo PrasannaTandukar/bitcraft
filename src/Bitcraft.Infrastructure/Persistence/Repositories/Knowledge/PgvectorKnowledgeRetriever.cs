@@ -27,7 +27,10 @@ public class PgvectorKnowledgeRetriever(AppDbContext db) : IKnowledgeRetriever
         var queryVector = new Vector(queryEmbedding);
 
         return await db.KnowledgeChunks
-            .Where(x => x.Embedding != null && documentIds.Contains(x.DocumentId))
+            .Where(x =>
+                x.Embedding != null &&
+                x.EmbeddingDimensions == queryEmbedding.Length &&
+                documentIds.Contains(x.DocumentId))
             .OrderBy(x => x.Embedding!.CosineDistance(queryVector))
             .Take(topK)
             .ToListAsync(cancellationToken);

@@ -84,6 +84,7 @@ public static class DependencyInjection
 
         services.AddAuthorization(options =>
         {
+            options.AddPolicy(AuthorizationPolicies.ViewerOrAbove, policy => policy.RequireAuthenticatedUser());
             options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(AppRoles.Admin));
             options.AddPolicy(AuthorizationPolicies.EditorOrAdmin, policy => policy.RequireRole(AppRoles.Editor, AppRoles.Admin));
             options.AddPolicy(AuthorizationPolicies.AuditorOrAbove, policy => policy.RequireRole(AppRoles.Auditor, AppRoles.Editor, AppRoles.Admin));

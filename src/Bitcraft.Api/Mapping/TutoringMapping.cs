@@ -93,19 +93,6 @@ internal static class TutoringMapping
             source.Score)).ToList(),
         result.Message);
 
-    public static ModelCatalogEntryResponse ToResponse(this ModelCatalogEntry entry) => new(
-        entry.Id,
-        entry.Name,
-        entry.ProviderType,
-        entry.Endpoint,
-        entry.ModelName,
-        HasApiKey: !string.IsNullOrWhiteSpace(entry.ApiKeySecretRef),
-        entry.SettingsJson,
-        entry.IsEnabled,
-        entry.CreatedUtc,
-        entry.CreatedById,
-        entry.EditedUtc,
-        entry.EditedById);
     public static InteractionModelResponse ToResponse(this InteractionModel model) => new(
         model.Id,
         model.Name,

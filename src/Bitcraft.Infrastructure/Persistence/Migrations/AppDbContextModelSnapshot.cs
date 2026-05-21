@@ -491,14 +491,8 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("EditedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("EditedUtc")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(768)");
+                        .HasColumnType("vector");
 
                     b.Property<int?>("EmbeddingDimensions")
                         .HasColumnType("integer");
@@ -519,21 +513,19 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("IngestedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
 
-                    b.HasIndex("CreatedById");
-                    
-                    b.HasIndex("EmbeddingModelId");
-
-                    b.HasIndex("ModifiedById");
-                    
                     b.Property<DateTime?>("ModifiedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasIndex("Embedding");
+                    b.HasKey("Id");
 
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EmbeddingModelId");
+
+                    b.HasIndex("ModifiedById");
 
                     b.HasIndex("DocumentId", "ChunkIndex")
                         .IsUnique();
@@ -561,14 +553,14 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("EditedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("EditedUtc")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Vector>("Embedding")
                         .HasColumnType("vector(768)");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Question")
                         .IsRequired()
@@ -578,12 +570,12 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EditedById");
-
                     b.HasIndex("Embedding");
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+
+                    b.HasIndex("ModifiedById");
 
                     b.ToTable("TutorMemories", (string)null);
                 });
@@ -776,64 +768,6 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("TutorKnowledgeSources", (string)null);
-                });
-
-            modelBuilder.Entity("Bitcraft.Domain.Tutoring.ModelCatalogEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApiKeySecretRef")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("EditedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("EditedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Endpoint")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ModelName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("ProviderType")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SettingsJson")
-                        .HasColumnType("jsonb");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("EditedById");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("ModelCatalogEntries", (string)null);
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.PromptVersion", b =>
@@ -1672,6 +1606,24 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("ModifiedBy");
                 });
 
+            modelBuilder.Entity("Bitcraft.Domain.Knowledge.TutorMemory", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Modeling.Model", b =>
                 {
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
@@ -1714,24 +1666,6 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("ModifiedBy");
-                });
-
-            modelBuilder.Entity("Bitcraft.Domain.Knowledge.TutorMemory", b =>
-                {
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "EditedBy")
-                        .WithMany()
-                        .HasForeignKey("EditedById")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("EditedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.DeploymentProfile", b =>
