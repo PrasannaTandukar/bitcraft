@@ -8,8 +8,8 @@ namespace Bitcraft.Infrastructure.Identity;
 
 public static class IdentityRoleSeeder
 {
-    internal const string AdminEmailEnvVar = "admin@bitcraft";
-    internal const string AdminPasswordEnvVar = "Password123!";
+    internal const string AdminEmailEnvVar = "BITCRAFT_ADMIN_EMAIL";
+    internal const string AdminPasswordEnvVar = "BITCRAFT_ADMIN_PASSWORD";
 
     public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
