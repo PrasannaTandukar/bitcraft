@@ -40,7 +40,7 @@ public class TutorAskFeaturesTests
     }
 
     [Fact]
-    public async Task AskTutorQuestionHandler_WithGeneralChat_SkipsMemorySearchAndReturnsGeneralMode()
+    public async Task AskTutorQuestionHandler_WithGeneralGreeting_UsesNaturalPromptWithoutRagPriming()
     {
         var retriever = new FakeKnowledgeRetriever();
         var memoryStore = new FakeTutorMemoryStore();
@@ -48,7 +48,7 @@ public class TutorAskFeaturesTests
         var handler = CreateHandler(knowledgeRetriever: retriever, tutorMemoryStore: memoryStore, generationProvider: generation);
 
         var result = await handler.Handle(
-            new TutorAskFeatures.AskTutorQuestionCommand("Tell me about RAG", null, UseMemory: false, SaveToMemory: false),
+            new TutorAskFeatures.AskTutorQuestionCommand("Hello", null, UseMemory: false, SaveToMemory: false),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -58,7 +58,26 @@ public class TutorAskFeaturesTests
         Assert.Empty(result.Value.Sources);
         Assert.Equal(0, retriever.LastTopK);
         Assert.Equal(0, memoryStore.LastTopK);
-        Assert.Contains("RAG means Retrieval-Augmented Generation", generation.Prompt);
+        Assert.Contains("Hello", generation.Prompt);
+        Assert.DoesNotContain("RAG means Retrieval-Augmented Generation", generation.Prompt);
+        Assert.DoesNotContain("discuss RAG", generation.Prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("For greetings or casual conversation, respond naturally and briefly", generation.Prompt);
+    }
+
+    [Fact]
+    public async Task AskTutorQuestionHandler_WithGeneralUnrelatedQuestion_AnswersRequestWithoutRagPriming()
+    {
+        var generation = new RecordingGenerationProvider();
+        var handler = CreateHandler(generationProvider: generation);
+
+        var result = await handler.Handle(
+            new TutorAskFeatures.AskTutorQuestionCommand("What is the capital of Nepal?", null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("What is the capital of Nepal?", generation.Prompt);
+        Assert.DoesNotContain("RAG means Retrieval-Augmented Generation", generation.Prompt);
+        Assert.Contains("Answer the user's actual request directly", generation.Prompt);
     }
 
     [Fact]
@@ -195,7 +214,66 @@ public class TutorAskFeaturesTests
         Assert.Empty(result.Value.Sources);
         Assert.Equal("Grounded or general answer", result.Value.Answer);
         Assert.Contains("No relevant tutor memory was found", result.Value.Message);
-        Assert.Contains("RAG means Retrieval-Augmented Generation", generation.Prompt);
+        Assert.DoesNotContain("RAG means Retrieval-Augmented Generation", generation.Prompt);
+        Assert.Contains("Answer the user's actual request directly", generation.Prompt);
+    }
+
+    [Fact]
+    public async Task AskTutorQuestionHandler_WithMemoryEnabledGreeting_IgnoresIrrelevantRagReference()
+    {
+        var memoryStore = new FakeTutorMemoryStore();
+        memoryStore.Memories.Add(new TutorMemory
+        {
+            Question = "RAG overview",
+            Answer = "RAG uses retrieved context.",
+            Content = "RAG means Retrieval-Augmented Generation.",
+            Embedding = [1f, 0f]
+        });
+        var generation = new RecordingGenerationProvider();
+        var handler = CreateHandler(
+            embeddingProvider: new RecordingEmbeddingProvider([1f, 0f]),
+            tutorMemoryStore: memoryStore,
+            generationProvider: generation);
+
+        var result = await handler.Handle(
+            new TutorAskFeatures.AskTutorQuestionCommand("Hello", null, UseMemory: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("<reference_material>", generation.Prompt);
+        Assert.Contains("RAG means Retrieval-Augmented Generation.", generation.Prompt);
+        Assert.Contains("</reference_material>", generation.Prompt);
+        Assert.Contains("Ignore irrelevant reference material completely", generation.Prompt);
+        Assert.Contains("Do not mention RAG, retrieval", generation.Prompt);
+        Assert.Contains("For greetings or casual conversation, reply naturally and briefly", generation.Prompt);
+    }
+
+    [Fact]
+    public async Task AskTutorQuestionHandler_WithRelevantMemoryQuestion_PermitsRelevantReferenceMaterial()
+    {
+        var memoryStore = new FakeTutorMemoryStore();
+        memoryStore.Memories.Add(new TutorMemory
+        {
+            Question = "What does RAG mean?",
+            Answer = "Retrieval-Augmented Generation.",
+            Content = "RAG means Retrieval-Augmented Generation.",
+            Embedding = [1f, 0f]
+        });
+        var generation = new RecordingGenerationProvider();
+        var handler = CreateHandler(
+            embeddingProvider: new RecordingEmbeddingProvider([1f, 0f]),
+            tutorMemoryStore: memoryStore,
+            generationProvider: generation);
+
+        var result = await handler.Handle(
+            new TutorAskFeatures.AskTutorQuestionCommand("What does RAG mean?", null, UseMemory: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("[Source 1: conversation]", generation.Prompt);
+        Assert.Contains("RAG means Retrieval-Augmented Generation.", generation.Prompt);
+        Assert.Contains("<user_question>\nWhat does RAG mean?\n</user_question>", generation.Prompt);
+        Assert.Contains("Use the reference material only when it is directly relevant", generation.Prompt);
     }
 
     [Fact]
