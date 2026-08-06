@@ -42,3 +42,18 @@ public sealed record BenchmarkEngineResult(
     BenchmarkEngineSummary Summary,
     IReadOnlyList<BenchmarkEngineCaseResult> Cases,
     string? RawResultJson);
+
+public sealed record TutorBenchmarkGenerationRequest(
+    Guid TutorId,
+    Guid TutorRevisionId,
+    Guid? TutorConfigurationSnapshotId,
+    string InputText,
+    string? ContextOverride,
+    bool UseTutorKnowledge,
+    int TopK);
+
+public sealed record GeneratedBenchmarkOutput(
+    string ActualOutput,
+    string ModelUsed,
+    string? ContextText,
+    double? GenerationLatencyMs);

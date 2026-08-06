@@ -8,12 +8,15 @@ using Bitcraft.Domain.Tutoring;
 
 namespace Bitcraft.UnitTests.Application.Tutoring.Fakes;
 
-internal sealed class FakeCurrentUserContext(Guid userId, bool isAdmin = false) : ICurrentUserContext
+internal sealed class FakeCurrentUserContext(Guid userId, bool isAdmin = false, bool isEditor = false, bool isAuditor = false) : ICurrentUserContext
 {
     public bool IsAuthenticated => userId != Guid.Empty;
     public Guid UserId => IsAuthenticated ? userId : throw new UnauthorizedAccessException("Current user is not authenticated.");
     public Guid? UserIdOrNull => IsAuthenticated ? userId : null;
-    public bool IsInRole(string role) => role == AppRoles.Admin && isAdmin;
+    public bool IsInRole(string role) =>
+        role == AppRoles.Admin && isAdmin ||
+        role == AppRoles.Editor && isEditor ||
+        role == AppRoles.Auditor && isAuditor;
 }
 
 internal sealed class FakeRoleManagementService : IRoleManagementService
@@ -150,6 +153,7 @@ internal sealed class FakeTutorRepository : ITutorRepository
     public Dictionary<Guid, DeploymentProfile> Profiles { get; } = new();
     public Dictionary<Guid, TutorModelConnection> TutorModelConnections { get; } = new();
     public List<TutorConfigurationSnapshot> Snapshots { get; } = new();
+    public int ActivationSaveCalls { get; private set; }
 
     public Task<Tutor> AddAsync(Tutor tutor, CancellationToken ct = default)
     {
@@ -188,6 +192,15 @@ internal sealed class FakeTutorRepository : ITutorRepository
         PromptVersions.Add(v);
         return Task.FromResult(v);
     }
+
+    public Task<List<PromptVersion>> ListPromptVersionsByTutorAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(PromptVersions
+            .Where(x => x.TutorId == tutorId)
+            .OrderByDescending(x => x.VersionNumber)
+            .ToList());
+
+    public Task<PromptVersion?> GetPromptVersionByIdAsync(Guid promptVersionId, CancellationToken ct = default) =>
+        Task.FromResult(PromptVersions.FirstOrDefault(x => x.Id == promptVersionId));
 
     public Task<int> GetNextPromptVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
     {
@@ -234,6 +247,15 @@ internal sealed class FakeTutorRepository : ITutorRepository
         return Task.FromResult(s);
     }
 
+    public Task<List<TutorConfigurationSnapshot>> ListSnapshotsByTutorAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(Snapshots
+            .Where(x => x.TutorId == tutorId)
+            .OrderByDescending(x => x.CapturedUtc)
+            .ToList());
+
+    public Task<TutorConfigurationSnapshot?> GetSnapshotByIdAsync(Guid snapshotId, CancellationToken ct = default) =>
+        Task.FromResult(Snapshots.FirstOrDefault(x => x.Id == snapshotId));
+
     // ---- TutorRevision (D25 step 7) ----
     public List<TutorRevision> Revisions { get; } = new();
 
@@ -262,6 +284,26 @@ internal sealed class FakeTutorRepository : ITutorRepository
     {
         var idx = Revisions.FindIndex(x => x.Id == r.Id);
         if (idx >= 0) Revisions[idx] = r;
+        return Task.CompletedTask;
+    }
+
+    public Task ActivateRevisionAsync(
+        Tutor tutor,
+        TutorRevision revision,
+        TutorRevision? previousActiveRevision,
+        TutorConfigurationSnapshot snapshot,
+        CancellationToken ct = default)
+    {
+        ActivationSaveCalls++;
+        Tutors[tutor.Id] = tutor;
+        var revisionIndex = Revisions.FindIndex(x => x.Id == revision.Id);
+        if (revisionIndex >= 0) Revisions[revisionIndex] = revision;
+        if (previousActiveRevision is not null)
+        {
+            var previousIndex = Revisions.FindIndex(x => x.Id == previousActiveRevision.Id);
+            if (previousIndex >= 0) Revisions[previousIndex] = previousActiveRevision;
+        }
+        Snapshots.Add(snapshot);
         return Task.CompletedTask;
     }
 
@@ -342,9 +384,42 @@ internal sealed class FakeModelRepository : IModelRepository
     }
 }
 
-internal sealed class FakeDocumentStore : IDocumentStore
+internal sealed class FakeTutorRuntimeEngineRepository : IRuntimeEngineRepository
+{
+    public Dictionary<Guid, RuntimeEngine> RuntimeEngines { get; } = new();
+
+    public Task<RuntimeEngine> AddAsync(RuntimeEngine engine, CancellationToken cancellationToken = default)
+    {
+        RuntimeEngines[engine.Id] = engine;
+        return Task.FromResult(engine);
+    }
+
+    public Task<RuntimeEngine?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(RuntimeEngines.TryGetValue(id, out var engine) ? engine : null);
+
+    public Task<RuntimeEngine?> GetByNameAsync(string name, CancellationToken cancellationToken = default) =>
+        Task.FromResult(RuntimeEngines.Values.FirstOrDefault(x => x.Name == name));
+
+    public Task<List<RuntimeEngine>> ListAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(RuntimeEngines.Values.ToList());
+
+    public Task UpdateAsync(RuntimeEngine engine, CancellationToken cancellationToken = default)
+    {
+        RuntimeEngines[engine.Id] = engine;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(RuntimeEngine engine, CancellationToken cancellationToken = default)
+    {
+        RuntimeEngines.Remove(engine.Id);
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class FakeDocumentStore : IDocumentStore, IDocumentContentStore
 {
     public Dictionary<Guid, Document> Documents { get; } = new();
+    public int ContentReplacementCalls { get; private set; }
 
     public Task<Document> AddAsync(Document document, CancellationToken ct = default)
     {
@@ -369,6 +444,13 @@ internal sealed class FakeDocumentStore : IDocumentStore
         Documents.Remove(document.Id);
         return Task.CompletedTask;
     }
+
+    public Task UpdateContentAndClearChunksAsync(Document document, CancellationToken ct = default)
+    {
+        ContentReplacementCalls++;
+        Documents[document.Id] = document;
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class FakeVectorStore : IVectorStore
@@ -391,7 +473,9 @@ internal sealed class FakeVectorStore : IVectorStore
             Content = chunk.Content,
             Embedding = chunk.Embedding,
             EmbeddingModel = chunk.EmbeddingModel,
-            EmbeddingProvider = chunk.EmbeddingProvider
+            EmbeddingProvider = chunk.EmbeddingProvider,
+            EmbeddingModelId = chunk.EmbeddingModelId,
+            EmbeddingDimensions = chunk.EmbeddingDimensions
         }).ToList();
 
         Chunks.AddRange(replacements);
@@ -457,4 +541,3 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
         return Task.FromResult(new[] { 0.1f, 0.2f, 0.3f });
     }
 }
-

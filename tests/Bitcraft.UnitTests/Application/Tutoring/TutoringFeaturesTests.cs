@@ -7,6 +7,7 @@ using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.UnitTests.Application.Tutoring.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Bitcraft.UnitTests.Application.Tutoring;
@@ -250,7 +251,7 @@ public class DocumentFeaturesTests
         var document = new Document { Name = "Doc" };
         document.UpdateMetadata(Guid.NewGuid());
         documentStore.Documents[document.Id] = document;
-        var handler = new DocumentFeatures.UpdateDocumentHandler(documentStore, new FakeCurrentUserContext(Guid.NewGuid()));
+        var handler = new DocumentFeatures.UpdateDocumentHandler(documentStore, documentStore, new FakeCurrentUserContext(Guid.NewGuid()));
         var command = new DocumentFeatures.UpdateDocumentCommand(document.Id, "Updated", null, null, null);
 
         // Act
@@ -371,7 +372,7 @@ public class KnowledgeFeaturesTests
         // Arrange
         var documentStore = new FakeDocumentStore();
         var ownerId = Guid.NewGuid();
-        var document = new Document { Name = "Doc", RawText = "abcdef" };
+        var document = new Document { Name = "Doc", RawText = new string('a', 200) };
         document.UpdateMetadata(ownerId);
         documentStore.Documents[document.Id] = document;
         var vectorStore = new FakeVectorStore();
@@ -381,8 +382,10 @@ public class KnowledgeFeaturesTests
             vectorStore,
             embeddingProvider,
             new FakeModelRepository(),
-            new FakeCurrentUserContext(ownerId));
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 3);
+            new FakeCurrentUserContext(ownerId),
+            DocumentIngestionLimits.Default,
+            NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 100, ChunkOverlap: 0);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -392,7 +395,7 @@ public class KnowledgeFeaturesTests
         Assert.Equal(2, result.Value.ChunkCount);
         Assert.Equal(new[] { document.Id }, vectorStore.ReplacedDocumentIds);
         Assert.Equal(2, vectorStore.Chunks.Count);
-        Assert.Equal(new[] { "abc", "def" }, embeddingProvider.EmbeddedTexts);
+        Assert.Equal(new[] { new string('a', 100), new string('a', 100) }, embeddingProvider.EmbeddedTexts);
     }
 
     [Fact]
@@ -409,7 +412,9 @@ public class KnowledgeFeaturesTests
             new FakeVectorStore(),
             new FakeEmbeddingProvider(),
             new FakeModelRepository(),
-            new FakeCurrentUserContext(ownerId));
+            new FakeCurrentUserContext(ownerId),
+            DocumentIngestionLimits.Default,
+            NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
         // Act
@@ -434,7 +439,9 @@ public class KnowledgeFeaturesTests
             vectorStore,
             new FakeEmbeddingProvider(),
             new FakeModelRepository(),
-            new FakeCurrentUserContext(Guid.NewGuid()));
+            new FakeCurrentUserContext(Guid.NewGuid()),
+            DocumentIngestionLimits.Default,
+            NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
         // Act
@@ -461,7 +468,9 @@ public class KnowledgeFeaturesTests
             vectorStore,
             new FakeEmbeddingProvider(),
             new FakeModelRepository(),
-            new FakeCurrentUserContext(ownerId));
+            new FakeCurrentUserContext(ownerId),
+            DocumentIngestionLimits.Default,
+            NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "OpenAI", "text-embedding-3-small");
 
         // Act
@@ -488,8 +497,10 @@ public class KnowledgeFeaturesTests
             vectorStore,
             new FakeEmbeddingProvider(),
             new FakeModelRepository(),
-            new FakeCurrentUserContext(ownerId));
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, " ollama ", " test-model ", MaxChunkLength: 6);
+            new FakeCurrentUserContext(ownerId),
+            DocumentIngestionLimits.Default,
+            NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, " ollama ", " test-model ", MaxChunkLength: 100, ChunkOverlap: 0);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);

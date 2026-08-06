@@ -7,7 +7,11 @@ public sealed record CreateTutorBenchmarkRunRequest(
     Guid? InteractionModelId,
     string? ModelAlias,
     int ConsistencyRuns,
-    IReadOnlyList<TutorBenchmarkCaseInputRequest?>? Cases);
+    IReadOnlyList<TutorBenchmarkCaseInputRequest?>? Cases,
+    Guid? TutorRevisionId = null,
+    bool GenerateActualOutputs = false,
+    bool UseTutorKnowledge = true,
+    int? TopK = 5);
 
 /// <summary>Single benchmark case with input and actual model output for evaluation.</summary>
 public sealed record TutorBenchmarkCaseInputRequest(
@@ -22,9 +26,15 @@ public sealed record TutorBenchmarkRunSummaryResponse(
     Guid Id,
     Guid TutorId,
     Guid BenchmarkTemplateId,
+    string? BenchmarkTemplateName,
+    Guid? TutorRevisionId,
+    int? TutorRevisionNumber,
     Guid? TutorConfigurationSnapshotId,
     Guid? InteractionModelId,
     string? ModelAlias,
+    bool GenerateActualOutputs,
+    bool UseTutorKnowledge,
+    int RetrievalTopK,
     int ConsistencyRuns,
     string Status,
     DateTime QueuedUtc,

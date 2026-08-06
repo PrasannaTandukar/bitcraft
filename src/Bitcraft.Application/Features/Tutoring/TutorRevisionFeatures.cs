@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using MediatR;
 
@@ -18,6 +19,11 @@ public static class TutorRevisionFeatures
     private static readonly Error NotFound = new("TutorRevision.NotFound", "Tutor revision not found.");
     private static readonly Error Forbidden = new("TutorRevision.Forbidden", "Editor or Owner membership required.");
     private static readonly Error TutorNotFound = new("Tutor.NotFound", "Tutor not found.");
+
+    private sealed record ValidatedConfiguration(
+        PromptVersion? PromptVersion,
+        InteractionModel? InteractionModel,
+        EmbeddingModel? QueryEmbeddingModel);
 
     // ---------- Create Draft ----------
     public sealed record CreateDraftRevisionCommand(Guid TutorId) : IRequest<Result<TutorRevision>>;
@@ -70,6 +76,8 @@ public static class TutorRevisionFeatures
 
     public sealed class UpdateDraftRevisionHandler(
         ITutorRepository tutorRepository,
+        IModelRepository modelRepository,
+        IRuntimeEngineRepository runtimeEngines,
         ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<UpdateDraftRevisionCommand, Result<TutorRevision>>
@@ -92,12 +100,33 @@ public static class TutorRevisionFeatures
                 return Result.Failure<TutorRevision>(Forbidden);
             }
 
+            var validation = await ValidateConfigurationAsync(
+                tutorRepository,
+                modelRepository,
+                runtimeEngines,
+                request.TutorId,
+                request.PromptVersionId,
+                request.InteractionModelId,
+                request.QueryEmbeddingModelId,
+                request.InteractionParametersJson,
+                request.DeploymentTarget,
+                request.DeploymentConfigJson,
+                requirePublishable: false,
+                cancellationToken);
+            if (validation.IsFailure)
+            {
+                return Result.Failure<TutorRevision>(validation.Error);
+            }
+
             revision.PromptVersionId = request.PromptVersionId;
+            revision.PromptVersion = validation.Value.PromptVersion;
             revision.InteractionModelId = request.InteractionModelId;
+            revision.InteractionModel = validation.Value.InteractionModel;
             revision.QueryEmbeddingModelId = request.QueryEmbeddingModelId;
-            revision.InteractionParametersJson = request.InteractionParametersJson;
+            revision.QueryEmbeddingModel = validation.Value.QueryEmbeddingModel;
+            revision.InteractionParametersJson = NormalizeOptionalJson(request.InteractionParametersJson);
             revision.DeploymentTarget = request.DeploymentTarget;
-            revision.DeploymentConfigJson = request.DeploymentConfigJson;
+            revision.DeploymentConfigJson = NormalizeOptionalJson(request.DeploymentConfigJson);
             revision.UpdateMetadata(currentUser.UserId);
 
             await tutorRepository.UpdateRevisionAsync(revision, cancellationToken);
@@ -110,6 +139,8 @@ public static class TutorRevisionFeatures
 
     public sealed class PublishRevisionHandler(
         ITutorRepository tutorRepository,
+        IModelRepository modelRepository,
+        IRuntimeEngineRepository runtimeEngines,
         ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<PublishRevisionCommand, Result<TutorRevision>>
@@ -128,13 +159,35 @@ public static class TutorRevisionFeatures
                 return Result.Failure<TutorRevision>(Forbidden);
             }
 
+            var validation = await ValidateConfigurationAsync(
+                tutorRepository,
+                modelRepository,
+                runtimeEngines,
+                revision.TutorId,
+                revision.PromptVersionId,
+                revision.InteractionModelId,
+                revision.QueryEmbeddingModelId,
+                revision.InteractionParametersJson,
+                revision.DeploymentTarget,
+                revision.DeploymentConfigJson,
+                requirePublishable: true,
+                cancellationToken);
+            if (validation.IsFailure)
+            {
+                return Result.Failure<TutorRevision>(validation.Error);
+            }
+
+            revision.PromptVersion = validation.Value.PromptVersion;
+            revision.InteractionModel = validation.Value.InteractionModel;
+            revision.QueryEmbeddingModel = validation.Value.QueryEmbeddingModel;
+
             try
             {
                 revision.Publish(currentUser.UserId);
             }
             catch (InvalidOperationException ex)
             {
-                return Result.Failure<TutorRevision>(new Error("TutorRevision.PublishInvalid", ex.Message));
+                return Result.Failure<TutorRevision>(new Error("TutorRevision.NotPublishable", ex.Message));
             }
 
             revision.UpdateMetadata(currentUser.UserId);
@@ -148,6 +201,8 @@ public static class TutorRevisionFeatures
 
     public sealed class ActivateRevisionHandler(
         ITutorRepository tutorRepository,
+        IModelRepository modelRepository,
+        IRuntimeEngineRepository runtimeEngines,
         IRevisionEffectiveSetReader effectiveSetReader,
         ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
@@ -167,13 +222,43 @@ public static class TutorRevisionFeatures
                 return Result.Failure<TutorRevision>(Forbidden);
             }
 
+            if (revision.Status != RevisionStatus.Published)
+            {
+                return Result.Failure<TutorRevision>(new Error(
+                    "TutorRevision.NotPublished",
+                    "Only Published revisions may be activated."));
+            }
+
+            var validation = await ValidateConfigurationAsync(
+                tutorRepository,
+                modelRepository,
+                runtimeEngines,
+                revision.TutorId,
+                revision.PromptVersionId,
+                revision.InteractionModelId,
+                revision.QueryEmbeddingModelId,
+                revision.InteractionParametersJson,
+                revision.DeploymentTarget,
+                revision.DeploymentConfigJson,
+                requirePublishable: true,
+                cancellationToken);
+            if (validation.IsFailure)
+            {
+                return Result.Failure<TutorRevision>(validation.Error);
+            }
+
+            revision.PromptVersion = validation.Value.PromptVersion;
+            revision.InteractionModel = validation.Value.InteractionModel;
+            revision.QueryEmbeddingModel = validation.Value.QueryEmbeddingModel;
+
             var tutor = await tutorRepository.GetByIdWithDetailsAsync(revision.TutorId, cancellationToken);
             if (tutor is null)
             {
                 return Result.Failure<TutorRevision>(TutorNotFound);
             }
 
-            // Archive prior active in the same transaction (per ERM §7.2).
+            // Mutate the complete transition in memory, then persist it through one atomic
+            // repository SaveChanges call (per ERM §7.2).
             var prior = await tutorRepository.GetActiveRevisionAsync(tutor.Id, cancellationToken);
             string? previousSlug = null;
             if (prior is not null && prior.Id != revision.Id)
@@ -181,7 +266,6 @@ public static class TutorRevisionFeatures
                 previousSlug = prior.ActivationSlug;
                 prior.Archive(currentUser.UserId);
                 prior.UpdateMetadata(currentUser.UserId);
-                await tutorRepository.UpdateRevisionAsync(prior, cancellationToken);
             }
 
             var slug = await GenerateUniqueSlugAsync(tutorRepository, tutor.Name, revision.Id, cancellationToken);
@@ -196,10 +280,12 @@ public static class TutorRevisionFeatures
             }
 
             revision.UpdateMetadata(currentUser.UserId);
-            await tutorRepository.UpdateRevisionAsync(revision, cancellationToken);
 
             // Capture snapshot bound to the newly activated revision.
-            var effective = await effectiveSetReader.GetEffectiveSetAsync(tutor.Id, cancellationToken);
+            var effective = await effectiveSetReader.GetEffectiveSetAsync(
+                tutor.Id,
+                cancellationToken,
+                revision.QueryEmbeddingModelId);
             var effectiveDocIdsJson = effective.DocumentIds.Count == 0
                 ? null
                 : JsonSerializer.Serialize(effective.DocumentIds);
@@ -207,15 +293,27 @@ public static class TutorRevisionFeatures
                 ? null
                 : JsonSerializer.Serialize(effective.KnowledgeBindings);
 
-            var promptVersion = revision.PromptVersion;
             var toolsJson = revision.RevisionTools.Count == 0
                 ? null
-                : JsonSerializer.Serialize(revision.RevisionTools.Select(rt => new { rt.Id, rt.ToolDefinitionId }));
+                : JsonSerializer.Serialize(revision.RevisionTools.Select(rt => new
+                {
+                    rt.ToolDefinitionId,
+                    rt.ToolDefinition?.Name,
+                    rt.ToolDefinition?.Description,
+                    rt.ToolDefinition?.JsonSchema,
+                    rt.ToolDefinition?.ExecutionUrl
+                }));
+
+            var deploymentJson = JsonSerializer.Serialize(new
+            {
+                target = revision.DeploymentTarget.ToString(),
+                configurationJson = revision.DeploymentConfigJson
+            });
 
             var snapshot = TutorConfigurationSnapshot.Capture(
                 tutor,
                 revision.VersionNumber,
-                promptVersion,
+                revision.PromptVersion,
                 tutor.TutorModelConnection,
                 toolsJson,
                 knowledgeSourcesJson: null,
@@ -223,13 +321,15 @@ public static class TutorRevisionFeatures
                 currentUser.UserId,
                 tutorRevision: revision,
                 effectiveDocumentIdsJson: effectiveDocIdsJson,
-                effectiveKnowledgeBindingJson: effectiveBindingJson);
-
-            await tutorRepository.AddSnapshotAsync(snapshot, cancellationToken);
+                effectiveKnowledgeBindingJson: effectiveBindingJson,
+                revisionDeploymentProfileJson: deploymentJson);
+            revision.Snapshots.Add(snapshot);
 
             // Update Tutor.ActiveRevisionId pointer (plan.erm.md §7.1).
             tutor.ActiveRevisionId = revision.Id;
-            await tutorRepository.UpdateAsync(tutor, cancellationToken);
+            tutor.ActiveRevision = revision;
+            tutor.Status = TutorStatus.Active;
+            await tutorRepository.ActivateRevisionAsync(tutor, revision, prior, snapshot, cancellationToken);
 
             return Result.Success(revision);
         }
@@ -331,6 +431,8 @@ public static class TutorRevisionFeatures
             if (tutor is not null && tutor.ActiveRevisionId == revision.Id)
             {
                 tutor.ActiveRevisionId = null;
+                tutor.ActiveRevision = null;
+                tutor.Status = TutorStatus.Inactive;
                 await tutorRepository.UpdateAsync(tutor, cancellationToken);
             }
 
@@ -417,4 +519,184 @@ public static class TutorRevisionFeatures
             return Result.Success<IReadOnlyList<TutorRevision>>(list);
         }
     }
+
+    private static async Task<Result<ValidatedConfiguration>> ValidateConfigurationAsync(
+        ITutorRepository tutorRepository,
+        IModelRepository modelRepository,
+        IRuntimeEngineRepository runtimeEngines,
+        Guid tutorId,
+        Guid? promptVersionId,
+        Guid? interactionModelId,
+        Guid? queryEmbeddingModelId,
+        string? interactionParametersJson,
+        DeploymentTarget deploymentTarget,
+        string? deploymentConfigJson,
+        bool requirePublishable,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.IsDefined(deploymentTarget))
+        {
+            return Result.Failure<ValidatedConfiguration>(new Error(
+                "TutorRevision.InvalidDeploymentTarget",
+                "Deployment target must be Local or Server."));
+        }
+
+        if (!IsValidOptionalJson(interactionParametersJson))
+        {
+            return Result.Failure<ValidatedConfiguration>(new Error(
+                "TutorRevision.InvalidInteractionParameters",
+                "Interaction parameters must be valid JSON."));
+        }
+
+        if (!IsValidOptionalJson(deploymentConfigJson))
+        {
+            return Result.Failure<ValidatedConfiguration>(new Error(
+                "TutorRevision.InvalidDeploymentConfig",
+                "Deployment configuration must be valid JSON."));
+        }
+
+        if (requirePublishable && promptVersionId is null)
+        {
+            return Result.Failure<ValidatedConfiguration>(new Error(
+                "TutorRevision.NotPublishable",
+                "This revision cannot be published because no prompt version is selected."));
+        }
+
+        if (requirePublishable && interactionModelId is null)
+        {
+            return Result.Failure<ValidatedConfiguration>(new Error(
+                "TutorRevision.NotPublishable",
+                "This revision cannot be published because no interaction model is selected."));
+        }
+
+        PromptVersion? prompt = null;
+        if (promptVersionId.HasValue)
+        {
+            prompt = await tutorRepository.GetPromptVersionByIdAsync(promptVersionId.Value, cancellationToken);
+            if (prompt is null)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "PromptVersion.NotFound",
+                    "The selected prompt version no longer exists."));
+            }
+
+            if (prompt.TutorId != tutorId)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "PromptVersion.TutorMismatch",
+                    "The selected prompt version does not belong to this tutor."));
+            }
+        }
+
+        InteractionModel? interactionModel = null;
+        if (interactionModelId.HasValue)
+        {
+            var model = await modelRepository.GetByIdAsync(interactionModelId.Value, cancellationToken);
+            if (model is null)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "InteractionModel.NotFound",
+                    "The selected interaction model no longer exists."));
+            }
+
+            if (model is not InteractionModel selectedInteractionModel)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "InteractionModel.InvalidType",
+                    "The selected model is not an interaction model."));
+            }
+
+            if (!selectedInteractionModel.IsEnabled)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "InteractionModel.Disabled",
+                    "The selected interaction model is disabled."));
+            }
+
+            var engine = await runtimeEngines.GetByIdAsync(selectedInteractionModel.RuntimeEngineId, cancellationToken);
+            if (engine is null)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "RuntimeEngine.NotFound",
+                    "The interaction model's runtime engine no longer exists."));
+            }
+
+            if (!engine.IsEnabled)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "RuntimeEngine.Disabled",
+                    "The interaction model's runtime engine is disabled."));
+            }
+
+            selectedInteractionModel.RuntimeEngine = engine;
+            interactionModel = selectedInteractionModel;
+        }
+
+        EmbeddingModel? embeddingModel = null;
+        if (queryEmbeddingModelId.HasValue)
+        {
+            var model = await modelRepository.GetByIdAsync(queryEmbeddingModelId.Value, cancellationToken);
+            if (model is null)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "EmbeddingModel.NotFound",
+                    "The selected embedding model no longer exists."));
+            }
+
+            if (model is not EmbeddingModel selectedEmbeddingModel)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "EmbeddingModel.InvalidType",
+                    "The selected model is not an embedding model."));
+            }
+
+            if (!selectedEmbeddingModel.IsEnabled || selectedEmbeddingModel.EmbeddingDimensions <= 0)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "EmbeddingModel.Disabled",
+                    "The selected embedding model is disabled or invalid."));
+            }
+
+            var engine = await runtimeEngines.GetByIdAsync(selectedEmbeddingModel.RuntimeEngineId, cancellationToken);
+            if (engine is null)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "RuntimeEngine.NotFound",
+                    "The embedding model's runtime engine no longer exists."));
+            }
+
+            if (!engine.IsEnabled)
+            {
+                return Result.Failure<ValidatedConfiguration>(new Error(
+                    "RuntimeEngine.Disabled",
+                    "The embedding model's runtime engine is disabled."));
+            }
+
+            selectedEmbeddingModel.RuntimeEngine = engine;
+            embeddingModel = selectedEmbeddingModel;
+        }
+
+        return Result.Success(new ValidatedConfiguration(prompt, interactionModel, embeddingModel));
+    }
+
+    private static bool IsValidOptionalJson(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string? NormalizeOptionalJson(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

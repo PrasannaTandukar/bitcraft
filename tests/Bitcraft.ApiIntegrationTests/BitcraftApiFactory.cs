@@ -1,13 +1,19 @@
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Infrastructure.Persistence;
 using Bitcraft.Infrastructure.Persistence.Interceptors;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Threading.RateLimiting;
+using System.Collections.Concurrent;
 
 namespace Bitcraft.ApiIntegrationTests;
 
@@ -37,6 +43,7 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
+            services.RemoveAll<IDocumentVectorizationReader>();
 
             services.AddScoped<AppDbContext>(serviceProvider =>
             {
@@ -46,8 +53,28 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
 
                 return new TestAppDbContext(options.Options);
             });
+            services.AddSingleton<TestDocumentVectorizationReader>();
+            services.AddSingleton<IDocumentVectorizationReader>(serviceProvider =>
+                serviceProvider.GetRequiredService<TestDocumentVectorizationReader>());
+
+            services.Configure<RateLimiterOptions>(options =>
+            {
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(_ =>
+                    RateLimitPartition.GetNoLimiter("integration-tests"));
+            });
         });
     }
+}
+
+internal sealed class TestDocumentVectorizationReader : IDocumentVectorizationReader
+{
+    public ConcurrentDictionary<Guid, DocumentVectorizationMetadata> Metadata { get; } = new();
+
+    public Task<DocumentVectorizationMetadata> GetMetadataAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default) => Task.FromResult(
+        Metadata.GetValueOrDefault(documentId) ??
+        new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null));
 }
 
 internal sealed class TestAppDbContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)

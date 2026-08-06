@@ -20,10 +20,10 @@ public class ModelRepository(AppDbContext db) : IModelRepository
     }
 
     public Task<InteractionModel?> GetInteractionModelByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        db.InteractionModels.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        db.InteractionModels.Include(x => x.RuntimeEngine).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public Task<List<InteractionModel>> ListInteractionModelsAsync(CancellationToken cancellationToken = default) =>
-        db.InteractionModels.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        db.InteractionModels.Include(x => x.RuntimeEngine).OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
     public async Task<InteractionModel> AddAsync(InteractionModel model, CancellationToken cancellationToken = default)
     {
@@ -48,7 +48,7 @@ public class ModelRepository(AppDbContext db) : IModelRepository
         db.EmbeddingModels.Include(x => x.RuntimeEngine).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public Task<List<EmbeddingModel>> ListEmbeddingModelsAsync(CancellationToken cancellationToken = default) =>
-        db.EmbeddingModels.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        db.EmbeddingModels.Include(x => x.RuntimeEngine).OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
     public async Task<EmbeddingModel> AddAsync(EmbeddingModel model, CancellationToken cancellationToken = default)
     {

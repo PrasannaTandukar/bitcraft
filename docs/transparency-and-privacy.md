@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-08-07
 creator: human
-editor: lead-dev
+editor: codex
 ai_gen: false
 ---
 # Transparency and Privacy Statement
@@ -38,6 +38,8 @@ Key upstream components used by the repository include:
 | PostgreSQL | Primary relational data store | https://www.postgresql.org/about/licence/ |
 | pgvector | Vector extension for PostgreSQL knowledge storage and retrieval | https://github.com/pgvector/pgvector |
 | Ollama | Embedding/model endpoint for local or self-hosted inference | https://github.com/ollama/ollama |
+| PdfPig | Local PDF text extraction during document ingestion | https://github.com/UglyToad/PdfPig |
+| Open XML SDK | Local DOCX text extraction during document ingestion | https://github.com/dotnet/Open-XML-SDK |
 | DeepEval | Benchmarking/evaluation library used by the Python sidecar | https://github.com/confident-ai/deepeval |
 
 Transparency note: ASP.NET Core Identity is called out explicitly because it handles user accounts and role membership. It is not a proprietary exception; it is part of the disclosed open-source runtime stack.
@@ -70,6 +72,7 @@ Bitcraft is intended to be deployable in a self-hosted posture. Operators should
 ### Runtime Data Flows
 
 - Document vectorization sends document text to the configured Ollama endpoint at `OLLAMA_BASE_URL`.
+- Uploaded document binaries are processed transiently for extraction; Bitcraft persists extracted text and safe metadata, not the original binary or browser-local path.
 - In the default Docker stack, the API sends benchmark requests to the sidecar over a Unix domain socket mounted at `/var/run/bitcraft/sidecar.sock`.
 - The current sidecar benchmark tool executes deterministic local scoring inside the sidecar process and does not require a DeepEval cloud login.
 

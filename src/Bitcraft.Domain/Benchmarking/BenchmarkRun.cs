@@ -16,6 +16,9 @@ public class BenchmarkRun : BaseModel
     public Guid BenchmarkTemplateId { get; set; }
     public Guid? InteractionModelId { get; set; }
     public string? ModelAlias { get; set; }
+    public bool GenerateActualOutputs { get; set; }
+    public bool UseTutorKnowledge { get; set; } = true;
+    public int RetrievalTopK { get; set; } = 5;
     public int ConsistencyRuns { get; set; } = 1;
     public BenchmarkRunStatus Status { get; set; } = BenchmarkRunStatus.Queued;
     public DateTime QueuedUtc { get; set; } = DateTime.UtcNow;
@@ -49,9 +52,17 @@ public class BenchmarkRun : BaseModel
 
     public void UpdateProgress(int completedCaseCount, int totalCaseCount, string stage, string? message)
     {
+        var safeTotal = Math.Max(totalCaseCount, 0);
+        var safeCompleted = Math.Clamp(completedCaseCount, 0, safeTotal);
+        var calculatedPercent = safeTotal == 0 ? 0 : Math.Round((double)safeCompleted / safeTotal * 100, 2);
+        SetProgress(safeCompleted, safeTotal, calculatedPercent, stage, message);
+    }
+
+    public void SetProgress(int completedCaseCount, int totalCaseCount, double progressPercent, string stage, string? message)
+    {
         TotalCaseCount = Math.Max(totalCaseCount, 0);
         CompletedCaseCount = Math.Clamp(completedCaseCount, 0, TotalCaseCount);
-        ProgressPercent = TotalCaseCount == 0 ? 0 : Math.Round((double)CompletedCaseCount / TotalCaseCount * 100, 2);
+        ProgressPercent = Math.Max(ProgressPercent, Math.Clamp(progressPercent, 0, 100));
         ProgressStage = stage;
         ProgressMessage = message;
         LastProgressUtc = DateTime.UtcNow;

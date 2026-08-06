@@ -50,6 +50,8 @@ public class DocumentResponseShapeTests(BitcraftApiFactory factory) : IClassFixt
         // Assert: the summary contract has no RawText member by construction; verify by reflection.
         Assert.Null(typeof(DocumentSummaryResponse).GetProperty("RawText"));
         Assert.Equal("Shape probe", summary.Name);
+        Assert.True(summary.HasRawText);
+        Assert.Equal(rawText.Length, summary.RawTextLength);
         // And the raw JSON of the list response must not contain the body.
         var listJson = await listResponse.Content.ReadAsStringAsync();
         Assert.DoesNotContain(rawText, listJson, StringComparison.Ordinal);

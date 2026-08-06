@@ -1,7 +1,9 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Benchmarking;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using MediatR;
 
@@ -17,6 +19,7 @@ public static class BenchmarkFeatures
     private const int MaxCaseTextLength = 20_000; // API/sidecar payload guard for case text fields.
     private const int MaxMetadataJsonLength = 10_000; // API/sidecar payload guard for case metadata JSON.
     private const string SafeSidecarFailureDescription = "Benchmark sidecar evaluation failed.";
+    private const string SafeGenerationFailureDescription = "Tutor output generation failed.";
     private static readonly HashSet<string> SupportedMetricKeys = new(StringComparer.Ordinal)
     {
         "faithfulness",
@@ -157,7 +160,11 @@ public static class BenchmarkFeatures
         Guid? InteractionModelId,
         string? ModelAlias,
         int ConsistencyRuns,
-        IReadOnlyList<BenchmarkCaseInput> Cases) : IRequest<Result<BenchmarkRun>>;
+        IReadOnlyList<BenchmarkCaseInput> Cases,
+        Guid? TutorRevisionId = null,
+        bool GenerateActualOutputs = false,
+        bool UseTutorKnowledge = true,
+        int? TopK = null) : IRequest<Result<BenchmarkRun>>;
 
     public sealed class CreateTutorBenchmarkRunHandler(
         ITutorRepository tutors,
@@ -176,16 +183,34 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.CasesRequired", "At least one benchmark case is required."));
             }
 
-            if (request.Cases.Count > 200)
+            if (request.ConsistencyRuns is < 1 or > 10)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Benchmark.CasesTooMany", "A benchmark run supports up to 200 cases."));
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.ConsistencyRunsInvalid", "Consistency runs must be between 1 and 10."));
             }
 
-            var invalidCase = request.Cases.FirstOrDefault(x =>
-                string.IsNullOrWhiteSpace(x.ActualOutput));
-            if (invalidCase is not null)
+            if (!request.GenerateActualOutputs && request.ConsistencyRuns != 1)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Benchmark.CaseInvalid", "Each case requires non-empty actual output."));
+                return Result.Failure<BenchmarkRun>(new Error(
+                    "Benchmark.ManualConsistencyRunsInvalid",
+                    "Existing-output evaluation requires consistency runs to be 1. Submit separate cases for separate outputs."));
+            }
+
+            var expandedCaseCount = request.GenerateActualOutputs
+                ? (long)request.Cases.Count * request.ConsistencyRuns
+                : request.Cases.Count;
+            if (expandedCaseCount > 200)
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.CasesTooMany", "A benchmark run supports up to 200 persisted cases after consistency expansion."));
+            }
+
+            if (request.GenerateActualOutputs && request.Cases.Any(x => string.IsNullOrWhiteSpace(x.InputText)))
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.CaseInputRequired", "Each automatically generated case requires non-empty input text."));
+            }
+
+            if (!request.GenerateActualOutputs && request.Cases.Any(x => string.IsNullOrWhiteSpace(x.ActualOutput)))
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.CaseInvalid", "Each existing-output case requires non-empty actual output."));
             }
 
             if (request.Cases.Any(ExceedsCaseSizeLimit))
@@ -198,9 +223,10 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.CaseMetadataInvalid", "Case metadata JSON is invalid."));
             }
 
-            if (request.ConsistencyRuns is < 1 or > 10)
+            var topK = request.TopK ?? 5;
+            if (topK is < 1 or > 10)
             {
-                return Result.Failure<BenchmarkRun>(new Error("Benchmark.ConsistencyRunsInvalid", "Consistency runs must be between 1 and 10."));
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.TopKInvalid", "Retrieval Top K must be between 1 and 10."));
             }
 
             if (!string.IsNullOrWhiteSpace(request.ModelAlias) && request.ModelAlias.Trim().Length > MaxModelAliasLength)
@@ -237,25 +263,90 @@ public static class BenchmarkFeatures
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.TemplateDisabled", "Template is disabled."));
             }
 
+            TutorRevision? selectedRevision = null;
+            if (request.TutorRevisionId.HasValue)
+            {
+                selectedRevision = await tutors.GetRevisionByIdAsync(request.TutorRevisionId.Value, cancellationToken);
+                if (selectedRevision is null || selectedRevision.TutorId != tutor.Id)
+                {
+                    return Result.Failure<BenchmarkRun>(new Error("Benchmark.RevisionNotFound", "Revision was not found for the selected tutor."));
+                }
+            }
+            else if (request.GenerateActualOutputs)
+            {
+                selectedRevision = await tutors.GetActiveRevisionAsync(tutor.Id, cancellationToken);
+            }
+
+            if (request.GenerateActualOutputs && selectedRevision is null)
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.RevisionRequired", "The tutor has no active revision available for automatic benchmark generation."));
+            }
+
+            if (selectedRevision is not null &&
+                (selectedRevision.PromptVersionId is null || selectedRevision.InteractionModelId is null))
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.RevisionIncomplete", "The selected revision requires both a prompt and an interaction model."));
+            }
+
+            if (selectedRevision?.Status == RevisionStatus.Archived)
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.RevisionArchived", "Archived revisions cannot be used to create benchmark runs."));
+            }
+
+            if (request.GenerateActualOutputs &&
+                selectedRevision?.Status is not RevisionStatus.Published and not RevisionStatus.Active)
+            {
+                return Result.Failure<BenchmarkRun>(new Error(
+                    "Benchmark.RevisionNotPublished",
+                    "Automatic benchmarks require an Active or Published tutor revision."));
+            }
+
             var selectedSnapshot = request.TutorConfigurationSnapshotId.HasValue
                 ? tutor.Snapshots.FirstOrDefault(x => x.Id == request.TutorConfigurationSnapshotId.Value)
-                : null;
+                : selectedRevision is null
+                    ? null
+                    : tutor.Snapshots
+                        .Where(x => x.TutorRevisionId == selectedRevision.Id)
+                        .OrderByDescending(x => x.CapturedUtc)
+                        .FirstOrDefault();
             if (request.TutorConfigurationSnapshotId.HasValue && selectedSnapshot is null)
             {
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.SnapshotNotFound", "Snapshot was not found for the selected tutor."));
             }
 
+
+            if (request.GenerateActualOutputs && selectedRevision is not null && selectedSnapshot is null)
+            {
+                return Result.Failure<BenchmarkRun>(new Error(
+                    "TutorRevision.NoSnapshot",
+                    "The selected revision has no activation snapshot. Activate the revision before benchmarking it."));
+            }
+
+            if (selectedRevision is not null && selectedSnapshot is not null && selectedSnapshot.TutorRevisionId != selectedRevision.Id)
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.SnapshotRevisionMismatch", "Selected snapshot does not belong to the selected revision."));
+            }
+
             if (request.InteractionModelId.HasValue &&
+                selectedRevision?.InteractionModelId.HasValue == true &&
+                request.InteractionModelId.Value != selectedRevision.InteractionModelId.Value)
+            {
+                return Result.Failure<BenchmarkRun>(new Error("Benchmark.InteractionModelMismatch", "Selected interaction model does not match the selected revision."));
+            }
+
+            if (request.InteractionModelId.HasValue &&
+                selectedRevision is null &&
                 selectedSnapshot?.InteractionModelId.HasValue == true &&
                 request.InteractionModelId.Value != selectedSnapshot.InteractionModelId.Value)
             {
                 return Result.Failure<BenchmarkRun>(new Error("Benchmark.InteractionModelMismatch", "Selected interaction model does not match the selected snapshot."));
             }
 
-            var interactionModelId = request.InteractionModelId ?? selectedSnapshot?.InteractionModelId;
+            var interactionModelId = selectedRevision?.InteractionModelId ?? request.InteractionModelId ?? selectedSnapshot?.InteractionModelId;
+            InteractionModel? interactionModel = null;
             if (interactionModelId.HasValue)
             {
-                var interactionModel = await modelRepository.GetInteractionModelByIdAsync(interactionModelId.Value, cancellationToken);
+                interactionModel = await modelRepository.GetInteractionModelByIdAsync(interactionModelId.Value, cancellationToken);
                 if (interactionModel is null)
                 {
                     return Result.Failure<BenchmarkRun>(new Error("InteractionModel.NotFound", $"Interaction model '{interactionModelId.Value}' not found."));
@@ -267,23 +358,23 @@ public static class BenchmarkFeatures
                 }
             }
 
-            var run = new BenchmarkRun
-            {
-                TutorId = request.TutorId,
-                TutorConfigurationSnapshotId = request.TutorConfigurationSnapshotId,
-                BenchmarkTemplateId = request.BenchmarkTemplateId,
-                InteractionModelId = interactionModelId,
-                ModelAlias = string.IsNullOrWhiteSpace(request.ModelAlias) ? null : request.ModelAlias.Trim(),
-                ConsistencyRuns = request.ConsistencyRuns,
-                Status = BenchmarkRunStatus.Queued,
-                QueuedUtc = DateTime.UtcNow,
-                TotalCaseCount = request.Cases.Count,
-                CompletedCaseCount = 0,
-                ProgressPercent = 0,
-                ProgressStage = "Queued",
-                ProgressMessage = "Benchmark run is queued.",
-                LastProgressUtc = DateTime.UtcNow,
-                Cases = request.Cases.Select((value, index) => new BenchmarkRunCase
+            var persistedCases = request.GenerateActualOutputs
+                ? request.Cases.SelectMany((value, logicalCaseIndex) =>
+                    Enumerable.Range(0, request.ConsistencyRuns).Select(consistencyRunIndex => new BenchmarkRunCase
+                    {
+                        InputText = value.InputText!.Trim(),
+                        ActualOutput = string.Empty,
+                        ExpectedOutput = string.IsNullOrWhiteSpace(value.ExpectedOutput) ? null : value.ExpectedOutput.Trim(),
+                        ContextText = string.IsNullOrWhiteSpace(value.ContextText) ? null : value.ContextText.Trim(),
+                        MetadataJson = MergeCaseMetadata(value.MetadataJson, logicalCaseIndex, consistencyRunIndex)
+                    }))
+                    .Select((value, caseIndex) =>
+                    {
+                        value.CaseIndex = caseIndex;
+                        return value;
+                    })
+                    .ToList()
+                : request.Cases.Select((value, index) => new BenchmarkRunCase
                 {
                     CaseIndex = index,
                     InputText = string.IsNullOrWhiteSpace(value.InputText) ? string.Empty : value.InputText.Trim(),
@@ -291,7 +382,35 @@ public static class BenchmarkFeatures
                     ExpectedOutput = string.IsNullOrWhiteSpace(value.ExpectedOutput) ? null : value.ExpectedOutput.Trim(),
                     ContextText = string.IsNullOrWhiteSpace(value.ContextText) ? null : value.ContextText.Trim(),
                     MetadataJson = string.IsNullOrWhiteSpace(value.MetadataJson) ? null : value.MetadataJson
-                }).ToList()
+                }).ToList();
+
+            var run = new BenchmarkRun
+            {
+                TutorId = request.TutorId,
+                TutorRevisionId = selectedRevision?.Id,
+                TutorRevision = selectedRevision,
+                TutorConfigurationSnapshotId = selectedSnapshot?.Id,
+                TutorConfigurationSnapshot = selectedSnapshot,
+                BenchmarkTemplateId = request.BenchmarkTemplateId,
+                BenchmarkTemplate = template,
+                InteractionModelId = interactionModelId,
+                InteractionModel = interactionModel,
+                ModelAlias = request.GenerateActualOutputs
+                    ? interactionModel?.ProviderModelName
+                    : string.IsNullOrWhiteSpace(request.ModelAlias) ? null : request.ModelAlias.Trim(),
+                GenerateActualOutputs = request.GenerateActualOutputs,
+                UseTutorKnowledge = request.UseTutorKnowledge,
+                RetrievalTopK = topK,
+                ConsistencyRuns = request.ConsistencyRuns,
+                Status = BenchmarkRunStatus.Queued,
+                QueuedUtc = DateTime.UtcNow,
+                TotalCaseCount = persistedCases.Count,
+                CompletedCaseCount = 0,
+                ProgressPercent = 0,
+                ProgressStage = "Queued",
+                ProgressMessage = "Benchmark run is queued.",
+                LastProgressUtc = DateTime.UtcNow,
+                Cases = persistedCases
             };
 
             var created = await runs.AddAsync(run, cancellationToken);
@@ -401,7 +520,8 @@ public static class BenchmarkFeatures
 
     public sealed class ProcessQueuedBenchmarkRunHandler(
         IBenchmarkRunRepository runs,
-        IBenchmarkEngine engine)
+        IBenchmarkEngine engine,
+        ITutorBenchmarkOutputGenerator? outputGenerator = null)
         : IRequestHandler<ProcessQueuedBenchmarkRunCommand, Result>
     {
         public async Task<Result> Handle(ProcessQueuedBenchmarkRunCommand request, CancellationToken cancellationToken)
@@ -418,8 +538,34 @@ public static class BenchmarkFeatures
             }
 
             run.Status = BenchmarkRunStatus.Running;
-            run.StartedUtc = DateTime.UtcNow;
-            run.UpdateProgress(0, run.Cases.Count, "Running", "Benchmark evaluation is running.");
+            run.StartedUtc ??= DateTime.UtcNow;
+
+            if (run.GenerateActualOutputs)
+            {
+                var generationResult = await GenerateMissingOutputsAsync(run, cancellationToken);
+                if (generationResult.IsFailure)
+                {
+                    return generationResult;
+                }
+            }
+
+            if (run.Cases.Any(x => string.IsNullOrWhiteSpace(x.ActualOutput)))
+            {
+                return await FailRunAsync(
+                    run,
+                    new Error("Benchmark.ActualOutputMissing", "Benchmark evaluation cannot start because a case has no generated or supplied answer."),
+                    cancellationToken);
+            }
+
+            var evaluationStartPercent = run.GenerateActualOutputs ? 70d : 10d;
+            run.SetProgress(
+                run.GenerateActualOutputs ? run.Cases.Count : 0,
+                run.Cases.Count,
+                evaluationStartPercent,
+                "Evaluating",
+                run.GenerateActualOutputs
+                    ? "Generated tutor outputs are being evaluated."
+                    : "Existing tutor outputs are being evaluated.");
             await runs.UpdateAsync(run, cancellationToken);
 
             var engineRequest = new BenchmarkEngineRequest(
@@ -442,25 +588,13 @@ public static class BenchmarkFeatures
             if (engineResult.IsFailure)
             {
                 var failure = GetClientSafeEngineFailure(engineResult.Error);
-                run.Status = BenchmarkRunStatus.Failed;
-                run.CompletedUtc = DateTime.UtcNow;
-                run.FailureCode = failure.Code;
-                run.FailureDescription = failure.Description;
-                run.UpdateProgress(run.CompletedCaseCount, run.TotalCaseCount, "Failed", failure.Description);
-                await runs.UpdateAsync(run, cancellationToken);
-                return Result.Failure(failure);
+                return await FailRunAsync(run, failure, cancellationToken);
             }
 
             var value = engineResult.Value;
             if (!TryBuildCaseResultMap(run.Cases, value.Cases, out var byCase, out var caseResultError))
             {
-                run.Status = BenchmarkRunStatus.Failed;
-                run.CompletedUtc = DateTime.UtcNow;
-                run.FailureCode = caseResultError.Code;
-                run.FailureDescription = caseResultError.Description;
-                run.UpdateProgress(run.CompletedCaseCount, run.TotalCaseCount, "Failed", caseResultError.Description);
-                await runs.UpdateAsync(run, cancellationToken);
-                return Result.Failure(caseResultError);
+                return await FailRunAsync(run, caseResultError, cancellationToken);
             }
 
             run.Status = BenchmarkRunStatus.Completed;
@@ -478,7 +612,7 @@ public static class BenchmarkFeatures
             run.RawResultJson = value.RawResultJson;
             run.FailureCode = null;
             run.FailureDescription = null;
-            run.UpdateProgress(run.Cases.Count, run.Cases.Count, "Completed", "Benchmark evaluation completed.");
+            run.SetProgress(run.Cases.Count, run.Cases.Count, 100, "Completed", "Benchmark evaluation completed.");
 
             foreach (var benchmarkRunCase in run.Cases)
             {
@@ -494,6 +628,94 @@ public static class BenchmarkFeatures
             await runs.UpdateAsync(run, cancellationToken);
             return Result.Success();
         }
+
+        private async Task<Result> GenerateMissingOutputsAsync(BenchmarkRun run, CancellationToken cancellationToken)
+        {
+            if (!run.TutorRevisionId.HasValue || outputGenerator is null)
+            {
+                return await FailRunAsync(
+                    run,
+                    new Error("Benchmark.GenerationConfigurationMissing", "Automatic benchmark generation is missing its tutor revision configuration."),
+                    cancellationToken);
+            }
+
+            var orderedCases = run.Cases.OrderBy(x => x.CaseIndex).ToList();
+            var generatedCount = orderedCases.Count(x => !string.IsNullOrWhiteSpace(x.ActualOutput));
+            if (generatedCount < orderedCases.Count)
+            {
+                run.SetProgress(
+                    generatedCount,
+                    orderedCases.Count,
+                    CalculateGenerationProgress(generatedCount, orderedCases.Count),
+                    "Generating",
+                    $"Generating tutor output {generatedCount + 1} of {orderedCases.Count}.");
+                await runs.UpdateAsync(run, cancellationToken);
+            }
+
+            foreach (var runCase in orderedCases.Where(x => string.IsNullOrWhiteSpace(x.ActualOutput)))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var generated = await outputGenerator.GenerateAsync(
+                    new TutorBenchmarkGenerationRequest(
+                        run.TutorId,
+                        run.TutorRevisionId.Value,
+                        run.TutorConfigurationSnapshotId,
+                        runCase.InputText,
+                        runCase.ContextText,
+                        run.UseTutorKnowledge,
+                        run.RetrievalTopK),
+                    cancellationToken);
+
+                if (generated.IsFailure)
+                {
+                    var failure = new Error(generated.Error.Code, SafeGenerationFailureDescription);
+                    return await FailRunAsync(run, failure, cancellationToken);
+                }
+
+                if (string.IsNullOrWhiteSpace(generated.Value.ActualOutput))
+                {
+                    return await FailRunAsync(
+                        run,
+                        new Error("Benchmark.GeneratedOutputEmpty", SafeGenerationFailureDescription),
+                        cancellationToken);
+                }
+
+                runCase.ActualOutput = generated.Value.ActualOutput.Trim();
+                runCase.ContextText = string.IsNullOrWhiteSpace(generated.Value.ContextText)
+                    ? null
+                    : generated.Value.ContextText;
+                runCase.MetadataJson = MergeGenerationMetadata(
+                    runCase.MetadataJson,
+                    generated.Value.ModelUsed,
+                    generated.Value.GenerationLatencyMs);
+                run.ModelAlias ??= generated.Value.ModelUsed;
+
+                generatedCount++;
+                run.SetProgress(
+                    generatedCount,
+                    orderedCases.Count,
+                    CalculateGenerationProgress(generatedCount, orderedCases.Count),
+                    "Generating",
+                    $"Generated tutor output {generatedCount} of {orderedCases.Count}.");
+                await runs.UpdateAsync(run, cancellationToken);
+            }
+
+            return Result.Success();
+        }
+
+        private async Task<Result> FailRunAsync(BenchmarkRun run, Error failure, CancellationToken cancellationToken)
+        {
+            run.Status = BenchmarkRunStatus.Failed;
+            run.CompletedUtc = DateTime.UtcNow;
+            run.FailureCode = failure.Code;
+            run.FailureDescription = failure.Description;
+            run.SetProgress(run.CompletedCaseCount, run.TotalCaseCount, run.ProgressPercent, "Failed", failure.Description);
+            await runs.UpdateAsync(run, cancellationToken);
+            return Result.Failure(failure);
+        }
+
+        private static double CalculateGenerationProgress(int completed, int total) =>
+            total == 0 ? 5 : Math.Round(5 + 65d * completed / total, 2);
     }
 
     private static bool TryBuildCaseResultMap(
@@ -649,6 +871,42 @@ public static class BenchmarkFeatures
         }
 
         return IsValidJson(json);
+    }
+
+    private static string MergeCaseMetadata(string? metadataJson, int logicalCaseIndex, int consistencyRunIndex)
+    {
+        var metadata = ParseMetadataObject(metadataJson);
+        metadata["logicalCaseIndex"] = logicalCaseIndex;
+        metadata["consistencyRunIndex"] = consistencyRunIndex;
+        return metadata.ToJsonString();
+    }
+
+    private static string MergeGenerationMetadata(string? metadataJson, string modelUsed, double? generationLatencyMs)
+    {
+        var metadata = ParseMetadataObject(metadataJson);
+        metadata["generationModel"] = modelUsed;
+        if (generationLatencyMs.HasValue && double.IsFinite(generationLatencyMs.Value))
+        {
+            metadata["generationLatencyMs"] = Math.Round(generationLatencyMs.Value, 3);
+        }
+
+        return metadata.ToJsonString();
+    }
+
+    private static JsonObject ParseMetadataObject(string? metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return new JsonObject();
+        }
+
+        var parsed = JsonNode.Parse(metadataJson);
+        if (parsed is JsonObject metadata)
+        {
+            return metadata;
+        }
+
+        return new JsonObject { ["userMetadata"] = parsed };
     }
 
     private static bool ExceedsCaseSizeLimit(BenchmarkCaseInput input) =>

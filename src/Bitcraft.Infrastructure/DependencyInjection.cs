@@ -1,9 +1,11 @@
 using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Identity;
 using Bitcraft.Infrastructure.ExternalServices;
 using Bitcraft.Infrastructure.ExternalServices.Benchmarking;
 using Bitcraft.Infrastructure.ExternalServices.Embeddings;
+using Bitcraft.Infrastructure.ExternalServices.Documents;
 using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.Identity;
 using Bitcraft.Infrastructure.Persistence;
@@ -92,7 +94,22 @@ public static class DependencyInjection
 
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IRoleManagementService, IdentityService>();
-        services.AddScoped<IDocumentStore, DocumentStore>();
+        var documentLimits = new DocumentIngestionLimits(
+            PositiveLongOrDefault(
+                configuration.GetValue<long?>("Documents:MaxUploadBytes"),
+                DocumentIngestionLimits.DefaultMaxUploadBytes),
+            PositiveIntOrDefault(
+                configuration.GetValue<int?>("Documents:MaxExtractedCharacters"),
+                DocumentIngestionLimits.DefaultMaxExtractedCharacters),
+            PositiveIntOrDefault(
+                configuration.GetValue<int?>("Documents:MaxVectorizationChunks"),
+                DocumentIngestionLimits.DefaultMaxVectorizationChunks));
+        services.AddSingleton(documentLimits);
+        services.AddScoped<DocumentStore>();
+        services.AddScoped<IDocumentStore>(provider => provider.GetRequiredService<DocumentStore>());
+        services.AddScoped<IDocumentContentStore>(provider => provider.GetRequiredService<DocumentStore>());
+        services.AddScoped<IDocumentVectorizationReader, DocumentVectorizationReader>();
+        services.AddScoped<IDocumentTextExtractionService, DocumentTextExtractionService>();
         services.AddScoped<IDocumentFolderStore, DocumentFolderStore>();
         services.AddScoped<ITutorMemoryStore, PgvectorTutorMemoryStore>();
         services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
@@ -111,6 +128,7 @@ public static class DependencyInjection
         services.AddScoped<IBenchmarkTemplateRepository, BenchmarkTemplateRepository>();
         services.AddScoped<IBenchmarkRunRepository, BenchmarkRunRepository>();
         services.AddScoped<IBenchmarkEngine, DeepEvalBenchmarkEngine>();
+        services.AddScoped<ITutorBenchmarkOutputGenerator, TutorBenchmarkOutputGenerator>();
         services.AddSingleton<IBenchmarkRunQueue, InMemoryBenchmarkRunQueue>();
         services.AddHostedService<BenchmarkRunWorker>();
 
@@ -133,6 +151,10 @@ public static class DependencyInjection
 
         return services;
     }
+
+    private static int PositiveIntOrDefault(int? value, int fallback) => value is > 0 ? value.Value : fallback;
+
+    private static long PositiveLongOrDefault(long? value, long fallback) => value is > 0 ? value.Value : fallback;
 
     private static IServiceCollection AddKnowledgePersistence(this IServiceCollection services, IConfiguration configuration)
     {

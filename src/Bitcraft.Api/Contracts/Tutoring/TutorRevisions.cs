@@ -9,8 +9,18 @@ public sealed record TutorRevisionResponse(
     int VersionNumber,
     RevisionStatus Status,
     Guid? PromptVersionId,
+    string? PromptVersionName,
+    int? PromptVersionNumber,
     Guid? InteractionModelId,
+    string? InteractionModelName,
+    string? ProviderModelName,
+    string? RuntimeEngineName,
+    bool? InteractionModelEnabled,
+    bool? RuntimeEngineEnabled,
     Guid? QueryEmbeddingModelId,
+    string? QueryEmbeddingModelName,
+    string? QueryEmbeddingProviderModelName,
+    int? QueryEmbeddingDimensions,
     string? InteractionParametersJson,
     DeploymentTarget DeploymentTarget,
     string? DeploymentConfigJson,
@@ -23,7 +33,11 @@ public sealed record TutorRevisionResponse(
     string? ActivationSlug,
     string? PreviousActivationSlug,
     DateTime CreatedUtc,
-    DateTime? ModifiedUtc);
+    DateTime? ModifiedUtc,
+    string DeploymentTargetDisplay,
+    bool IsPublishable,
+    bool IsActive,
+    Guid? LatestSnapshotId);
 
 /// <summary>Editable Draft revision fields.</summary>
 public sealed record UpdateDraftRevisionRequest(

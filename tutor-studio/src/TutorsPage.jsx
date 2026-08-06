@@ -1,296 +1,169 @@
-import { useState, useEffect } from "react";
-import { apiFetch } from "./api/client.js";
+import { useEffect, useState } from "react";
+import Alert from "react-bootstrap/Alert";
+import Badge from "react-bootstrap/Badge";
+import Button from "react-bootstrap/Button";
+import Card from "react-bootstrap/Card";
+import Container from "react-bootstrap/Container";
+import Form from "react-bootstrap/Form";
+import Modal from "react-bootstrap/Modal";
+import Spinner from "react-bootstrap/Spinner";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { getApiErrorDescription } from "./api/client.js";
+import { createTutor, listTutors } from "./tutors/tutorApi.js";
+import { formatDateTime, revisionStatus, statusVariant, tutorStatus } from "./tutors/tutorUtils.js";
+import "./tutors/TutorDetails.css";
 
-const TUTORS_PATH = "/api/tutors";
-
-const inputStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "12px",
-  padding: "7px 10px",
-  border: "1px solid #e8eaf0",
-  borderRadius: "4px",
-  background: "#fff",
-  color: "#1a1a2e",
-  outline: "none",
-  width: "100%",
-};
-
-const labelStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "10px",
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  color: "#99a",
-  marginBottom: "5px",
-  display: "block",
-};
-
-function AddTutorModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ name: "", description: "" });
+function AddTutorModal({ show, onClose, onCreated }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
-  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!name.trim() || saving) {
+      if (!name.trim()) setError("Tutor name is required.");
+      return;
+    }
 
-  const handleSubmit = async () => {
-    if (!form.name.trim()) { setError("Name is required."); return; }
     setSaving(true);
-    setError(null);
+    setError("");
     try {
-      const newTutor = await apiFetch(TUTORS_PATH, {
-        method: "POST",
-        json: { name: form.name.trim(), description: form.description || null },
-      });
-      onSaved(newTutor);
-    } catch (err) {
-      setError(err.message);
+      const created = await createTutor({ name: name.trim(), description: description.trim() || null });
+      onCreated(created);
+    } catch (requestError) {
+      setError(getApiErrorDescription(requestError, "Could not create the tutor."));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: "8px", padding: "32px",
-        border: "1px solid #e8eaf0", width: "100%", maxWidth: "440px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-        fontFamily: "'DM Mono', monospace",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <span style={{ fontSize: "13px", fontWeight: "600", color: "#1a1a2e" }}>Add Tutor</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#999", lineHeight: 1 }}>×</button>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div>
-            <label style={labelStyle}>Name *</label>
-            <input style={inputStyle} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="My Tutor" />
-          </div>
-          <div>
-            <label style={labelStyle}>Description</label>
-            <input style={inputStyle} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="A helpful tutor for…" />
-          </div>
-        </div>
-
-        {error && <p style={{ fontSize: "11px", color: "#e94560", marginTop: "16px" }}>{error}</p>}
-
-        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "24px" }}>
-          <button
-            onClick={onClose}
-            disabled={saving}
-            style={{
-              fontFamily: "'DM Mono', monospace", fontSize: "11px",
-              padding: "7px 16px", border: "1px solid #e8eaf0",
-              borderRadius: "4px", background: "#fff", color: "#555", cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            style={{
-              fontFamily: "'DM Mono', monospace", fontSize: "11px",
-              padding: "7px 16px", border: "1px solid #3b9ede",
-              borderRadius: "4px", background: "#3b9ede", color: "#fff",
-              cursor: saving ? "not-allowed" : "pointer",
-              opacity: saving ? 0.6 : 1,
-              display: "flex", alignItems: "center", gap: "6px",
-            }}
-          >
-            {saving ? (
-              <>
-                <div style={{ width: "10px", height: "10px", border: "2px solid #fff", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                Saving…
-              </>
-            ) : "Save Tutor"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TutorRow({ tutor, index }) {
-  const [hovered, setHovered] = useState(false);
-
-  const formattedDate = new Date(tutor.createdUtc).toLocaleDateString(undefined, {
-    year: "numeric", month: "short", day: "numeric",
-  });
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 2fr auto",
-        gap: "16px",
-        alignItems: "center",
-        padding: "14px 28px",
-        background: hovered ? "#f7f8fc" : "transparent",
-        transition: "background 0.15s ease",
-        animation: "fadeSlideIn 0.3s ease both",
-        animationDelay: `${index * 0.04}s`,
-      }}
-    >
-      <span style={{
-        fontFamily: "'DM Mono', monospace", fontSize: "13px", color: "#1a1a2e",
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>
-        {tutor.name}
-      </span>
-
-      <span style={{
-        fontFamily: "'DM Mono', monospace", fontSize: "12px", color: "#666",
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>
-        {tutor.description || <span style={{ color: "#ccc" }}>—</span>}
-      </span>
-
-      <span style={{
-        fontFamily: "'DM Mono', monospace", fontSize: "11px",
-        color: "#999", whiteSpace: "nowrap",
-      }}>
-        {formattedDate}
-      </span>
-    </div>
+    <Modal show={show} onHide={saving ? undefined : onClose} centered>
+      <Form onSubmit={submit}>
+        <Modal.Header closeButton={!saving}><Modal.Title>Create tutor</Modal.Title></Modal.Header>
+        <Modal.Body>
+          {error && <Alert variant="danger">{error}</Alert>}
+          <Form.Group className="mb-3" controlId="new-tutor-name">
+            <Form.Label>Name *</Form.Label>
+            <Form.Control value={name} onChange={(event) => setName(event.target.value)} autoFocus maxLength={200} />
+          </Form.Group>
+          <Form.Group controlId="new-tutor-description">
+            <Form.Label>Description</Form.Label>
+            <Form.Control as="textarea" rows={3} value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button type="submit" disabled={saving || !name.trim()}>
+            {saving && <Spinner size="sm" className="me-2" />}Create tutor
+          </Button>
+        </Modal.Footer>
+      </Form>
+    </Modal>
   );
 }
 
 export default function TutorsPage() {
+  const navigate = useNavigate();
+  const { roles = [] } = useSelector((state) => state.auth);
+  const canManage = roles.includes("Editor") || roles.includes("Admin");
   const [tutors, setTutors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [refreshHovered, setRefreshHovered] = useState(false);
-  const [addHovered, setAddHovered] = useState(false);
+  const [error, setError] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [reload, setReload] = useState(0);
 
-  const fetchTutors = (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    apiFetch(TUTORS_PATH)
-      .then((data) => { setTutors(data); setError(null); })
-      .catch((err) => setError(err.message))
-      .finally(() => { setLoading(false); setRefreshing(false); });
-  };
+  useEffect(() => {
+    const controller = new AbortController();
+    listTutors(controller.signal)
+      .then((result) => {
+        setTutors(result ?? []);
+        setError("");
+      })
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") {
+          setError(getApiErrorDescription(requestError, "Could not load tutors."));
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [reload]);
 
-  useEffect(() => { fetchTutors(); }, []);
-
-  const handleSaved = (newTutor) => {
-    setTutors((prev) => [newTutor, ...prev]);
-    setShowModal(false);
-  };
+  const openTutor = (tutorId) => navigate(`/tutors/${tutorId}`);
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
-
-      {showModal && (
-        <AddTutorModal
-          onClose={() => setShowModal(false)}
-          onSaved={handleSaved}
-        />
-      )}
-
-      <div style={{ height: "100%", background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
-        <div style={{ maxWidth: "860px", margin: "0 auto" }}>
-
-          {/* Toolbar */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px", gap: "8px", alignItems: "center" }}>
-            <button
-              onClick={() => fetchTutors(true)}
-              disabled={refreshing}
-              onMouseEnter={() => setRefreshHovered(true)}
-              onMouseLeave={() => setRefreshHovered(false)}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                letterSpacing: "0.08em", padding: "7px 14px",
-                border: "1px solid #e8eaf0", borderRadius: "4px",
-                background: refreshHovered ? "#f7f8fc" : "#fff",
-                color: "#555", cursor: refreshing ? "not-allowed" : "pointer",
-                opacity: refreshing ? 0.6 : 1,
-                transition: "background 0.15s",
-                display: "flex", alignItems: "center", gap: "6px",
-              }}
-            >
-              {refreshing ? (
-                <div style={{ width: "10px", height: "10px", border: "2px solid #ccc", borderTop: "2px solid #555", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-              ) : "↻"} Refresh
-            </button>
-
-            <button
-              onClick={() => setShowModal(true)}
-              onMouseEnter={() => setAddHovered(true)}
-              onMouseLeave={() => setAddHovered(false)}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                letterSpacing: "0.08em", padding: "7px 16px",
-                border: "1px solid #3b9ede", borderRadius: "4px",
-                background: addHovered ? "#3b9ede" : "#fff",
-                color: addHovered ? "#fff" : "#3b9ede",
-                cursor: "pointer",
-                transition: "background 0.15s, color 0.15s",
-              }}
-            >
-              + Add Tutor
-            </button>
+    <main className="tutor-workspace-page">
+      <Container className="tutor-workspace-container">
+        <header className="tutor-page-header">
+          <div>
+            <span className="tutor-eyebrow">Tutor configuration</span>
+            <h1>Tutors</h1>
+            <p>Build versioned prompts, revisions, runtime model choices, and benchmark-ready configurations.</p>
           </div>
-
-          {/* Table Header */}
-          <div style={{
-            display: "grid", gridTemplateColumns: "1fr 2fr auto",
-            gap: "16px", padding: "10px 28px",
-            background: "#f7f8fc", borderRadius: "6px 6px 0 0",
-            borderBottom: "1px solid #e8eaf0",
-          }}>
-            {["Name", "Description", "Created"].map((h) => (
-              <span key={h} style={{ fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#99a", fontFamily: "'DM Mono', monospace" }}>
-                {h}
-              </span>
-            ))}
+          <div className="d-flex gap-2">
+            <Button variant="outline-secondary" onClick={() => { setLoading(true); setReload((value) => value + 1); }} disabled={loading}>Refresh</Button>
+            {canManage && <Button onClick={() => setShowCreate(true)}>Create tutor</Button>}
           </div>
+        </header>
 
-          <div style={{ background: "#ffffff", borderRadius: "0 0 6px 6px", overflow: "hidden" }}>
-            {loading && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 24px", gap: "16px" }}>
-                <div style={{ width: "28px", height: "28px", border: "2px solid #e8eaf0", borderTop: "2px solid #e94560", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                <span style={{ fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>LOADING…</span>
-              </div>
-            )}
-
-            {error && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "64px 24px", gap: "12px" }}>
-                <span style={{ fontSize: "24px" }}>⚠</span>
-                <span style={{ fontSize: "13px", color: "#e94560" }}>Failed to load tutors</span>
-                <span style={{ fontSize: "11px", color: "#999" }}>{error}</span>
-              </div>
-            )}
-
-            {!loading && !error && tutors.length === 0 && (
-              <div style={{ padding: "64px 24px", textAlign: "center", fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>
-                NO TUTORS FOUND
-              </div>
-            )}
-
-            {!loading && !error && tutors.map((tutor, i) => (
-              <TutorRow key={tutor.id} tutor={tutor} index={i} />
-            ))}
+        {error && <Alert variant="danger">{error}</Alert>}
+        {loading && <div className="tutor-loading"><Spinner /><span>Loading tutors…</span></div>}
+        {!loading && !error && tutors.length === 0 && (
+          <Card className="tutor-empty-card"><Card.Body><h2>No tutors yet</h2><p>Create a tutor to begin configuring its prompt and runtime revision.</p>{canManage && <Button onClick={() => setShowCreate(true)}>Create first tutor</Button>}</Card.Body></Card>
+        )}
+        {!loading && tutors.length > 0 && (
+          <div className="tutor-list" role="list">
+            {tutors.map((tutor) => {
+              const status = tutorStatus(tutor.status);
+              const activeStatus = revisionStatus(tutor.activeRevisionStatus);
+              return (
+                <Card
+                  key={tutor.id}
+                  className="tutor-list-card"
+                  role="listitem"
+                  tabIndex={0}
+                  onClick={() => openTutor(tutor.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openTutor(tutor.id);
+                    }
+                  }}
+                >
+                  <Card.Body>
+                    <div className="tutor-list-main">
+                      <div>
+                        <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                          <h2>{tutor.name}</h2>
+                          <Badge bg={statusVariant(status)}>{status}</Badge>
+                        </div>
+                        <p>{tutor.description || "No description provided."}</p>
+                      </div>
+                      <Button variant="outline-primary" onClick={(event) => { event.stopPropagation(); openTutor(tutor.id); }}>
+                        {canManage ? "Configure" : "Open"}
+                      </Button>
+                    </div>
+                    <div className="tutor-list-meta">
+                      <span><strong>Active revision</strong>{tutor.activeRevisionVersionNumber ? `Revision ${tutor.activeRevisionVersionNumber} · ${activeStatus}` : "Not activated"}</span>
+                      <span><strong>Active prompt</strong>{tutor.activePromptVersionName ? `v${tutor.activePromptVersionNumber} · ${tutor.activePromptVersionName}` : "Not selected"}</span>
+                      <span><strong>Updated</strong>{formatDateTime(tutor.modifiedUtc || tutor.createdUtc)}</span>
+                    </div>
+                  </Card.Body>
+                </Card>
+              );
+            })}
           </div>
-        </div>
-      </div>
-    </>
+        )}
+      </Container>
+      <AddTutorModal
+        show={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(created) => navigate(`/tutors/${created.id}`)}
+      />
+    </main>
   );
 }

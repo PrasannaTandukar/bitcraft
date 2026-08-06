@@ -4,6 +4,7 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
@@ -44,12 +45,14 @@ const actions = [
       'Add learning materials so the tutor can use them for context-aware answers.',
     buttonLabel: 'Manage Documents',
     route: '/files',
+    roles: ['Editor', 'Admin'],
   },
   {
     title: 'Run Benchmark',
     description: 'Test model responses and compare AI tutor performance.',
     buttonLabel: 'Go to Benchmarking',
     route: '/benchmarking',
+    roles: ['Auditor', 'Editor', 'Admin'],
   },
 ];
 
@@ -62,6 +65,8 @@ const statuses = [
 
 function Dashboard() {
   const navigate = useNavigate();
+  const { roles = [] } = useSelector((state) => state.auth);
+  const visibleActions = actions.filter((action) => !action.roles || action.roles.some((role) => roles.includes(role)));
 
   return (
     <main className="dashboard-page">
@@ -96,7 +101,7 @@ function Dashboard() {
             <h2 id="actions-title">Workspace actions</h2>
           </div>
           <Row className="g-3 g-xl-4">
-            {actions.map((action) => (
+            {visibleActions.map((action) => (
               <Col key={action.title} lg={4}>
                 <Card className="dashboard-card action-card">
                   <Card.Body>

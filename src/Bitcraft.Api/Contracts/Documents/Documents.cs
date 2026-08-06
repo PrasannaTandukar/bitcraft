@@ -1,5 +1,18 @@
 namespace Bitcraft.Api.Contracts.Documents;
 
+/// <summary>Multipart form used to upload and extract a source document.</summary>
+public sealed class UploadDocumentRequest
+{
+    public IFormFile? File { get; init; }
+    public Guid? FolderId { get; init; }
+}
+
+/// <summary>Multipart form used to replace an existing document's source content.</summary>
+public sealed class ReplaceDocumentContentRequest
+{
+    public IFormFile? File { get; init; }
+}
+
 /// <summary>Request to create a source document used by the knowledge pipeline.</summary>
 public sealed record CreateDocumentRequest(
     string Name,
@@ -29,6 +42,8 @@ public sealed record DocumentSummaryResponse(
     string? SourcePath,
     string? MimeType,
     Guid? FolderId,
+    bool HasRawText,
+    int RawTextLength,
     DateTime CreatedUtc,
     Guid? CreatedById,
     DateTime? LastModifiedUtc,
@@ -56,14 +71,31 @@ public sealed record DocumentDetailResponse(
 /// <param name="EmbeddingModel">Legacy provider-side model name. Ignored when <paramref name="EmbeddingModelId"/> is set.</param>
 /// <param name="MaxChunkLength">Maximum chunk size (characters) used by the text splitter.</param>
 /// <param name="EmbeddingModelId">Optional admin-managed <c>EmbeddingModel</c> id. When supplied, drives provider, model name, and expected dimensions.</param>
+/// <param name="ChunkOverlap">Number of characters repeated between adjacent chunks.</param>
 public sealed record VectorizeDocumentRequest(
-    string EmbeddingProvider,
-    string EmbeddingModel,
+    string? EmbeddingProvider = null,
+    string? EmbeddingModel = null,
     int MaxChunkLength = 1000,
-    Guid? EmbeddingModelId = null);
+    Guid? EmbeddingModelId = null,
+    int ChunkOverlap = 100);
 
 /// <summary>Result of a document vectorization run.</summary>
 public sealed record VectorizeDocumentResponse(Guid DocumentId, int ChunkCount);
+
+/// <summary>Lightweight vectorization metadata for an owned document.</summary>
+public sealed record DocumentVectorizationStatusResponse(
+    Guid DocumentId,
+    bool HasRawText,
+    int RawTextLength,
+    bool IsVectorized,
+    bool IsStale,
+    int ChunkCount,
+    DateTime? LastVectorizedUtc,
+    Guid? EmbeddingModelId,
+    string? EmbeddingModelName,
+    string? ProviderModelName,
+    string? EmbeddingProvider,
+    int? EmbeddingDimensions);
 
 /// <summary>Request to create a per-user document folder.</summary>
 public sealed record CreateDocumentFolderRequest(string Name, Guid? ParentFolderId);

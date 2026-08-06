@@ -1,6 +1,8 @@
 using Bitcraft.Application;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Infrastructure;
 using Bitcraft.Infrastructure.Identity;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi;
 using System.Threading.RateLimiting;
@@ -8,6 +10,16 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+var configuredUploadBytes = builder.Configuration.GetValue<long?>("Documents:MaxUploadBytes");
+var maximumUploadBytes = configuredUploadBytes is > 0
+    ? configuredUploadBytes.Value
+    : DocumentIngestionLimits.DefaultMaxUploadBytes;
+builder.Services.Configure<FormOptions>(options =>
+{
+    // Permit a small amount of multipart framing overhead while the controller
+    // independently enforces the exact per-file byte limit.
+    options.MultipartBodyLengthLimit = maximumUploadBytes + (64 * 1024);
+});
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 

@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-08-07
 creator: human
-editor: secretary
+editor: codex
 ai_gen: false
 ---
 # Bitcraft
@@ -141,7 +141,10 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 | `GET/POST` | `/api/admin/model-catalog` | Manage Admin-owned model catalog entries |
 | `GET` | `/api/admin/model-catalog/{id}/health` | Check model reachability and availability |
 | `GET/POST/PUT/DELETE` | `/api/documents` | Manage source documents owned by the current user |
+| `POST` | `/api/documents/upload` | Upload a TXT, Markdown, CSV, JSON, PDF, or DOCX file and extract its text |
+| `PUT` | `/api/documents/{id}/content` | Add or replace the source file for an existing document |
 | `POST` | `/api/documents/{id}/vectorize` | Rebuild knowledge chunks for an owned source document |
+| `GET` | `/api/documents/{id}/vectorization-status` | Inspect extraction readiness and vectorization metadata |
 | `POST` | `/api/knowledge/search` | Search tutor-scoped knowledge chunks |
 | `GET/POST/PUT` | `/api/tutors` | Manage owned tutors |
 | `Multiple` | `/api/tutors/{tutorId}/prompts`, `/tools`, `/knowledge-sources`, `/model-connection`, `/deployment-profile`, `/snapshots` | Manage tutor sub-resources |
@@ -151,7 +154,7 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}/progress` | Poll lightweight benchmark progress |
 | `POST` | `/api/ollama/generate` | Generate text using the configured local Ollama chat model |
 
-See Swagger UI (`/swagger`) for full request/response schemas. Additional operational notes live in `docs/authorization-roles.md` and `docs/benchmarking-templates.md`.
+See Swagger UI (`/swagger`) for full request/response schemas. Document formats, limits, extraction, and re-vectorization behavior are described in [docs/document-ingestion.md](docs/document-ingestion.md). Additional operational notes live in `docs/authorization-roles.md` and `docs/benchmarking-templates.md`.
 
 ## VS Code Extensions
 

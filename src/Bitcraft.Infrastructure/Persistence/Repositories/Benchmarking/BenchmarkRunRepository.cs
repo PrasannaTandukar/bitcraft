@@ -20,6 +20,9 @@ public class BenchmarkRunRepository(AppDbContext db) : IBenchmarkRunRepository
     public Task<BenchmarkRun?> GetByIdWithCasesAsync(Guid id, CancellationToken cancellationToken = default) =>
         db.Set<BenchmarkRun>()
             .Include(x => x.BenchmarkTemplate)
+            .Include(x => x.TutorRevision)
+            .Include(x => x.TutorConfigurationSnapshot)
+            .Include(x => x.InteractionModel)
             .Include(x => x.Cases)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -27,6 +30,9 @@ public class BenchmarkRunRepository(AppDbContext db) : IBenchmarkRunRepository
     public Task<List<BenchmarkRun>> ListByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
         db.Set<BenchmarkRun>()
             .Where(x => x.TutorId == tutorId)
+            .Include(x => x.BenchmarkTemplate)
+            .Include(x => x.TutorRevision)
+            .Include(x => x.InteractionModel)
             .OrderByDescending(x => x.QueuedUtc)
             .ToListAsync(cancellationToken);
 

@@ -92,7 +92,11 @@ public class TutorBenchmarkRunsController(ISender sender) : ControllerBase
                 x.ActualOutput,
                 x.ExpectedOutput,
                 x.ContextText,
-                x.MetadataJson)).ToList());
+                x.MetadataJson)).ToList(),
+            request.TutorRevisionId,
+            request.GenerateActualOutputs,
+            request.UseTutorKnowledge,
+            request.TopK);
 
         var result = await sender.Send(command, cancellationToken);
         if (result.IsFailure)

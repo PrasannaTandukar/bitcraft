@@ -16,6 +16,15 @@ public class BenchmarkRunConfiguration : IEntityTypeConfiguration<BenchmarkRun>
         entity.Property(x => x.ModelAlias)
             .HasMaxLength(200);
 
+        entity.Property(x => x.GenerateActualOutputs)
+            .IsRequired();
+
+        entity.Property(x => x.UseTutorKnowledge)
+            .IsRequired();
+
+        entity.Property(x => x.RetrievalTopK)
+            .IsRequired();
+
         entity.Property(x => x.Status)
             .HasConversion<int>()
             .IsRequired();

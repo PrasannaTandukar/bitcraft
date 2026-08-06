@@ -16,4 +16,8 @@ public sealed record TutorConfigurationSnapshotResponse(
     string? KnowledgeSourcesJson,
     string? DeploymentProfileJson,
     DateTime CapturedUtc,
-    Guid CapturedById);
+    Guid CapturedById,
+    Guid? TutorRevisionId,
+    int? RevisionVersionNumber,
+    string? PromptVersionName,
+    string? InteractionModelName);

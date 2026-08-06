@@ -20,6 +20,11 @@ public sealed record TutorResponse(
     TutorStatus Status,
     Guid? TutorModelConnectionId,
     Guid? ActivePromptVersionId,
+    Guid? ActiveRevisionId,
     Guid? DeploymentProfileId,
     DateTime CreatedUtc,
-    DateTime? ModifiedUtc);
+    DateTime? ModifiedUtc,
+    int? ActiveRevisionVersionNumber,
+    RevisionStatus? ActiveRevisionStatus,
+    int? ActivePromptVersionNumber,
+    string? ActivePromptVersionName);

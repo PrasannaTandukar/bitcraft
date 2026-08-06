@@ -414,7 +414,7 @@ public class BenchmarkRunFeaturesTests
             null,
             null,
             "  local-model  ",
-            2,
+            1,
             [new BenchmarkFeatures.BenchmarkCaseInput("  What is 2+2?  ", "  It is 4.  ", "4", "  math  ", "{\"difficulty\":\"easy\"}")]);
 
         // Act

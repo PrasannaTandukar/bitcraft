@@ -11,6 +11,8 @@ public interface ITutorRepository
     Task UpdateAsync(Tutor tutor, CancellationToken cancellationToken = default);
 
     Task<PromptVersion> AddPromptVersionAsync(PromptVersion promptVersion, CancellationToken cancellationToken = default);
+    Task<List<PromptVersion>> ListPromptVersionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<PromptVersion?> GetPromptVersionByIdAsync(Guid promptVersionId, CancellationToken cancellationToken = default);
     Task<int> GetNextPromptVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
 
     Task<KnowledgeSourceLink> AddKnowledgeSourceLinkAsync(KnowledgeSourceLink link, CancellationToken cancellationToken = default);
@@ -23,6 +25,8 @@ public interface ITutorRepository
     Task<TutorModelConnection> UpsertTutorModelConnectionAsync(TutorModelConnection connection, CancellationToken cancellationToken = default);
 
     Task<TutorConfigurationSnapshot> AddSnapshotAsync(TutorConfigurationSnapshot snapshot, CancellationToken cancellationToken = default);
+    Task<List<TutorConfigurationSnapshot>> ListSnapshotsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<TutorConfigurationSnapshot?> GetSnapshotByIdAsync(Guid snapshotId, CancellationToken cancellationToken = default);
 
     /// <summary>Returns 1 for the first snapshot of a tutor, otherwise <c>max(VersionNumber) + 1</c>.</summary>
     Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
@@ -34,6 +38,16 @@ public interface ITutorRepository
     Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken cancellationToken = default);
     Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
     Task UpdateRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Persists the complete activation state transition in one database save so the previous
+    /// active revision, new active revision, tutor pointer, and immutable snapshot are atomic.
+    /// </summary>
+    Task ActivateRevisionAsync(
+        Tutor tutor,
+        TutorRevision revision,
+        TutorRevision? previousActiveRevision,
+        TutorConfigurationSnapshot snapshot,
+        CancellationToken cancellationToken = default);
     Task RemoveRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default);
     Task<bool> ActivationSlugExistsAsync(string slug, Guid? excludeRevisionId, CancellationToken cancellationToken = default);
 }

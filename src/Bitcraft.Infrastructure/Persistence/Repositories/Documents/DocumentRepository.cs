@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bitcraft.Infrastructure.Persistence.Repositories.Documents;
 
-public class DocumentStore(AppDbContext db) : IDocumentStore
+public class DocumentStore(AppDbContext db) : IDocumentStore, IDocumentContentStore
 {
     public async Task<Document> AddAsync(Document document, CancellationToken cancellationToken = default)
     {
@@ -32,6 +32,36 @@ public class DocumentStore(AppDbContext db) : IDocumentStore
     public async Task DeleteAsync(Document document, CancellationToken cancellationToken = default)
     {
         db.Documents.Remove(document);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateContentAndClearChunksAsync(
+        Document document,
+        CancellationToken cancellationToken = default)
+    {
+        if (!db.Database.IsRelational())
+        {
+            await UpdateContentAndClearChunksCoreAsync(document, cancellationToken);
+            return;
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await UpdateContentAndClearChunksCoreAsync(document, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task UpdateContentAndClearChunksCoreAsync(
+        Document document,
+        CancellationToken cancellationToken)
+    {
+        db.Documents.Update(document);
+        if (db.Model.FindEntityType(typeof(Bitcraft.Domain.Knowledge.KnowledgeChunk)) is not null)
+        {
+            var existingChunks = await db.KnowledgeChunks
+                .Where(chunk => chunk.DocumentId == document.Id)
+                .ToListAsync(cancellationToken);
+            db.KnowledgeChunks.RemoveRange(existingChunks);
+        }
         await db.SaveChangesAsync(cancellationToken);
     }
 }

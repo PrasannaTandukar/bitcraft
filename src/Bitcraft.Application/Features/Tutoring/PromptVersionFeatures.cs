@@ -11,6 +11,66 @@ namespace Bitcraft.Application.Features.Tutoring;
 /// </summary>
 public static class PromptVersionFeatures
 {
+    private static readonly Error NotFound = new("PromptVersion.NotFound", "Prompt version not found.");
+    private static readonly Error Forbidden = new("PromptVersion.Forbidden", "Tutor membership required.");
+
+    public sealed record ListPromptVersionsQuery(Guid TutorId) : IRequest<Result<IReadOnlyList<PromptVersion>>>;
+
+    public sealed class ListPromptVersionsHandler(
+        ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<ListPromptVersionsQuery, Result<IReadOnlyList<PromptVersion>>>
+    {
+        public async Task<Result<IReadOnlyList<PromptVersion>>> Handle(
+            ListPromptVersionsQuery request,
+            CancellationToken cancellationToken)
+        {
+            var tutor = await tutorRepository.GetByIdAsync(request.TutorId, cancellationToken);
+            if (tutor is null)
+            {
+                return Result.Failure<IReadOnlyList<PromptVersion>>(new Error("Tutor.NotFound", "Tutor not found."));
+            }
+
+            var role = await membership.GetRoleAsync(request.TutorId, currentUser.UserId, cancellationToken);
+            if (role is null)
+            {
+                return Result.Failure<IReadOnlyList<PromptVersion>>(Forbidden);
+            }
+
+            var prompts = await tutorRepository.ListPromptVersionsByTutorAsync(request.TutorId, cancellationToken);
+            return Result.Success<IReadOnlyList<PromptVersion>>(prompts);
+        }
+    }
+
+    public sealed record GetPromptVersionQuery(Guid TutorId, Guid PromptVersionId) : IRequest<Result<PromptVersion>>;
+
+    public sealed class GetPromptVersionHandler(
+        ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<GetPromptVersionQuery, Result<PromptVersion>>
+    {
+        public async Task<Result<PromptVersion>> Handle(
+            GetPromptVersionQuery request,
+            CancellationToken cancellationToken)
+        {
+            var prompt = await tutorRepository.GetPromptVersionByIdAsync(request.PromptVersionId, cancellationToken);
+            if (prompt is null || prompt.TutorId != request.TutorId)
+            {
+                return Result.Failure<PromptVersion>(NotFound);
+            }
+
+            var role = await membership.GetRoleAsync(request.TutorId, currentUser.UserId, cancellationToken);
+            if (role is null)
+            {
+                return Result.Failure<PromptVersion>(Forbidden);
+            }
+
+            return Result.Success(prompt);
+        }
+    }
+
     public sealed record CreatePromptVersionCommand(
         Guid TutorId,
         string Name,
