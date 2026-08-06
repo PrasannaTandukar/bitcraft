@@ -3,6 +3,7 @@ using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 
 namespace Bitcraft.UnitTests.Application.Tutoring.Fakes;
@@ -17,7 +18,7 @@ internal sealed class FakeCurrentUserContext(Guid userId, bool isAdmin = false) 
 
 internal sealed class FakeRoleManagementService : IRoleManagementService
 {
-    public List<string> Roles { get; } = [AppRoles.Admin, AppRoles.Editor, AppRoles.Viewer];
+    public List<string> Roles { get; } = [AppRoles.Admin, AppRoles.Editor, AppRoles.Auditor];
     public Dictionary<Guid, UserRoleMembership> Memberships { get; } = new();
     public int ListCalls { get; private set; }
     public int GetCalls { get; private set; }
@@ -51,7 +52,7 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         var normalizedRole = AppRoles.Normalize(role);
         if (normalizedRole is null)
         {
-            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer.")));
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Auditor.")));
         }
 
         var existing = Memberships.TryGetValue(userId, out var membership)
@@ -75,7 +76,7 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         var normalizedRole = AppRoles.Normalize(role);
         if (normalizedRole is null)
         {
-            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer.")));
+            return Task.FromResult(Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Auditor.")));
         }
 
         if (!Memberships.TryGetValue(userId, out var membership) || !membership.Roles.Contains(normalizedRole))
@@ -86,6 +87,57 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         var updated = membership with { Roles = membership.Roles.Where(x => x != normalizedRole).ToArray() };
         Memberships[userId] = updated;
         return Task.FromResult(Result.Success(updated));
+    }
+}
+
+/// <summary>
+/// In-memory <see cref="ITutorMembershipReader"/> for tests. Resolves roles from two sources, in
+/// order of precedence: (1) explicit <see cref="Grant"/> overrides; (2) the founding membership
+/// graph on tutors held in an optional <see cref="FakeTutorRepository"/>. Missing membership
+/// returns <see langword="null"/> (i.e. forbidden), matching the production reader contract.
+/// </summary>
+internal sealed class FakeTutorMembershipReader : ITutorMembershipReader
+{
+    private readonly FakeTutorRepository? _repository;
+    private readonly Dictionary<(Guid TutorId, Guid UserId), ResourceRole> _overrides = new();
+
+    public FakeTutorMembershipReader() { }
+
+    public FakeTutorMembershipReader(FakeTutorRepository repository)
+    {
+        _repository = repository;
+    }
+
+    /// <summary>Grant an explicit role to a user on a tutor (takes precedence over the repository's <c>Members</c> graph).</summary>
+    public void Grant(Guid tutorId, Guid userId, ResourceRole role) => _overrides[(tutorId, userId)] = role;
+
+    public Task<ResourceRole?> GetRoleAsync(Guid tutorId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (_overrides.TryGetValue((tutorId, userId), out var role))
+        {
+            return Task.FromResult<ResourceRole?>(role);
+        }
+
+        if (_repository is not null && _repository.Tutors.TryGetValue(tutorId, out var tutor))
+        {
+            var member = tutor.Members.FirstOrDefault(m => m.UserId == userId);
+            if (member is not null)
+            {
+                return Task.FromResult<ResourceRole?>(member.Role);
+            }
+        }
+
+        return Task.FromResult<ResourceRole?>(null);
+    }
+
+    public Task<IReadOnlyList<TutorMember>> ListMembersAsync(Guid tutorId, CancellationToken cancellationToken = default)
+    {
+        if (_repository is not null && _repository.Tutors.TryGetValue(tutorId, out var tutor))
+        {
+            return Task.FromResult<IReadOnlyList<TutorMember>>(tutor.Members.ToList());
+        }
+
+        return Task.FromResult<IReadOnlyList<TutorMember>>([]);
     }
 }
 
@@ -123,7 +175,7 @@ internal sealed class FakeTutorRepository : ITutorRepository
     }
 
     public Task<List<Tutor>> ListByOwnerAsync(Guid ownerId, CancellationToken ct = default) =>
-        Task.FromResult(Tutors.Values.Where(t => t.OwnerId == ownerId).ToList());
+        Task.FromResult(Tutors.Values.Where(t => t.Members.Any(m => m.UserId == ownerId)).ToList());
 
     public Task UpdateAsync(Tutor tutor, CancellationToken ct = default)
     {
@@ -140,6 +192,12 @@ internal sealed class FakeTutorRepository : ITutorRepository
     public Task<int> GetNextPromptVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
     {
         var max = PromptVersions.Where(p => p.TutorId == tutorId).Select(p => (int?)p.VersionNumber).Max();
+        return Task.FromResult((max ?? 0) + 1);
+    }
+
+    public Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
+    {
+        var max = Snapshots.Where(s => s.TutorId == tutorId).Select(s => (int?)s.VersionNumber).Max();
         return Task.FromResult((max ?? 0) + 1);
     }
 
@@ -175,27 +233,111 @@ internal sealed class FakeTutorRepository : ITutorRepository
         Snapshots.Add(s);
         return Task.FromResult(s);
     }
-}
 
-internal sealed class FakeModelCatalogRepository : IModelCatalogRepository
-{
-    public Dictionary<Guid, ModelCatalogEntry> Entries { get; } = new();
+    // ---- TutorRevision (D25 step 7) ----
+    public List<TutorRevision> Revisions { get; } = new();
 
-    public Task<ModelCatalogEntry> AddAsync(ModelCatalogEntry entry, CancellationToken ct = default)
+    public Task<TutorRevision> AddRevisionAsync(TutorRevision r, CancellationToken ct = default)
     {
-        Entries[entry.Id] = entry;
-        return Task.FromResult(entry);
+        Revisions.Add(r);
+        return Task.FromResult(r);
     }
 
-    public Task<ModelCatalogEntry?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        Task.FromResult(Entries.TryGetValue(id, out var entry) ? entry : null);
+    public Task<TutorRevision?> GetRevisionByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.FirstOrDefault(r => r.Id == id));
 
-    public Task<List<ModelCatalogEntry>> ListAsync(CancellationToken ct = default) =>
-        Task.FromResult(Entries.Values.ToList());
+    public Task<List<TutorRevision>> ListRevisionsByTutorAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.Where(r => r.TutorId == tutorId).OrderByDescending(r => r.VersionNumber).ToList());
 
-    public Task UpdateAsync(ModelCatalogEntry entry, CancellationToken ct = default)
+    public Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.FirstOrDefault(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active));
+
+    public Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
     {
-        Entries[entry.Id] = entry;
+        var max = Revisions.Where(r => r.TutorId == tutorId).Select(r => (int?)r.VersionNumber).Max();
+        return Task.FromResult((max ?? 0) + 1);
+    }
+
+    public Task UpdateRevisionAsync(TutorRevision r, CancellationToken ct = default)
+    {
+        var idx = Revisions.FindIndex(x => x.Id == r.Id);
+        if (idx >= 0) Revisions[idx] = r;
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveRevisionAsync(TutorRevision r, CancellationToken ct = default)
+    {
+        Revisions.RemoveAll(x => x.Id == r.Id);
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> ActivationSlugExistsAsync(string slug, Guid? excludeRevisionId, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.Any(r => r.ActivationSlug == slug && (excludeRevisionId == null || r.Id != excludeRevisionId)));
+}
+
+internal sealed class FakeModelRepository : IModelRepository
+{
+    public Dictionary<Guid, InteractionModel> InteractionModels { get; } = new();
+    public Dictionary<Guid, EmbeddingModel> EmbeddingModels { get; } = new();
+
+    public Task<Model?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        if (InteractionModels.TryGetValue(id, out var im)) return Task.FromResult<Model?>(im);
+        if (EmbeddingModels.TryGetValue(id, out var em)) return Task.FromResult<Model?>(em);
+        return Task.FromResult<Model?>(null);
+    }
+
+    public Task<bool> NameExistsAsync(string name, Guid? excludeId, CancellationToken ct = default)
+    {
+        bool match(Model m) => m.Name == name && (excludeId is null || m.Id != excludeId.Value);
+        return Task.FromResult(InteractionModels.Values.Any(match) || EmbeddingModels.Values.Any(match));
+    }
+
+    public Task<InteractionModel?> GetInteractionModelByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(InteractionModels.TryGetValue(id, out var m) ? m : null);
+
+    public Task<List<InteractionModel>> ListInteractionModelsAsync(CancellationToken ct = default) =>
+        Task.FromResult(InteractionModels.Values.ToList());
+
+    public Task<InteractionModel> AddAsync(InteractionModel model, CancellationToken ct = default)
+    {
+        InteractionModels[model.Id] = model;
+        return Task.FromResult(model);
+    }
+
+    public Task UpdateAsync(InteractionModel model, CancellationToken ct = default)
+    {
+        InteractionModels[model.Id] = model;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(InteractionModel model, CancellationToken ct = default)
+    {
+        InteractionModels.Remove(model.Id);
+        return Task.CompletedTask;
+    }
+
+    public Task<EmbeddingModel?> GetEmbeddingModelByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(EmbeddingModels.TryGetValue(id, out var m) ? m : null);
+
+    public Task<List<EmbeddingModel>> ListEmbeddingModelsAsync(CancellationToken ct = default) =>
+        Task.FromResult(EmbeddingModels.Values.ToList());
+
+    public Task<EmbeddingModel> AddAsync(EmbeddingModel model, CancellationToken ct = default)
+    {
+        EmbeddingModels[model.Id] = model;
+        return Task.FromResult(model);
+    }
+
+    public Task UpdateAsync(EmbeddingModel model, CancellationToken ct = default)
+    {
+        EmbeddingModels[model.Id] = model;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(EmbeddingModel model, CancellationToken ct = default)
+    {
+        EmbeddingModels.Remove(model.Id);
         return Task.CompletedTask;
     }
 }
@@ -277,6 +419,34 @@ internal sealed class FakeKnowledgeRetriever : IKnowledgeRetriever
     }
 }
 
+internal sealed class FakeTutorMemoryStore : ITutorMemoryStore
+{
+    public List<TutorMemory> Memories { get; } = new();
+    public Guid LastCreatorId { get; private set; }
+    public float[] LastQueryEmbedding { get; private set; } = [];
+    public int LastTopK { get; private set; }
+
+    public Task<TutorMemory> AddAsync(TutorMemory memory, CancellationToken cancellationToken = default)
+    {
+        Memories.Add(memory);
+        return Task.FromResult(memory);
+    }
+
+    public Task<List<TutorMemory>> SearchNearestMemoriesAsync(
+        Guid creatorId,
+        float[] queryEmbedding,
+        int topK = 5,
+        CancellationToken cancellationToken = default)
+    {
+        LastCreatorId = creatorId;
+        LastQueryEmbedding = queryEmbedding;
+        LastTopK = topK;
+        return Task.FromResult(Memories
+            .Where(memory => memory.CreatedById == creatorId || memory.CreatedById is null)
+            .ToList());
+    }
+}
+
 internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
 {
     public List<string> EmbeddedTexts { get; } = new();
@@ -288,8 +458,3 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
     }
 }
 
-internal sealed class StubHealthCheck(Result<ModelHealthStatus> result) : IModelConnectionHealthCheck
-{
-    public Task<Result<ModelHealthStatus>> CheckAsync(ModelCatalogEntry catalogEntry, CancellationToken cancellationToken = default) =>
-        Task.FromResult(result);
-}

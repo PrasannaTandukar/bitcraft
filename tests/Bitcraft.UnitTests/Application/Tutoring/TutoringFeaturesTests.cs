@@ -4,6 +4,7 @@ using Bitcraft.Application.Features.Documents;
 using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Application.Features.Tutoring;
 using Bitcraft.Domain.Documents;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.UnitTests.Application.Tutoring.Fakes;
 using Xunit;
@@ -29,7 +30,7 @@ public class TutorFeaturesTests
         Assert.Equal("Algebra Tutor", result.Value.Name);
         Assert.Equal("Pre-calc helper", result.Value.Description);
         Assert.Equal(TutorStatus.Draft, result.Value.Status);
-        Assert.Equal(ownerId, result.Value.OwnerId);
+        Assert.Contains(result.Value.Members, m => m.UserId == ownerId && m.Role == ResourceRole.Owner);
         Assert.Single(repo.Tutors);
     }
 
@@ -56,9 +57,9 @@ public class TutorFeaturesTests
         // Arrange
         var repo = new FakeTutorRepository();
         var owner = Guid.NewGuid();
-        var tutor = new Tutor { Name = "T", OwnerId = owner };
+        var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new TutorFeatures.GetTutorByIdHandler(repo, new FakeCurrentUserContext(Guid.NewGuid()));
+        var handler = new TutorFeatures.GetTutorByIdHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(Guid.NewGuid()));
         var query = new TutorFeatures.GetTutorByIdQuery(tutor.Id);
 
         // Act
@@ -73,7 +74,7 @@ public class TutorFeaturesTests
     public async Task GetTutorByIdHandler_WhenMissing_ReturnsNotFound()
     {
         // Arrange
-        var handler = new TutorFeatures.GetTutorByIdHandler(new FakeTutorRepository(), new FakeCurrentUserContext(Guid.NewGuid()));
+        var handler = new TutorFeatures.GetTutorByIdHandler(new FakeTutorRepository(), new FakeTutorMembershipReader(), new FakeCurrentUserContext(Guid.NewGuid()));
         var query = new TutorFeatures.GetTutorByIdQuery(Guid.NewGuid());
 
         // Act
@@ -85,137 +86,69 @@ public class TutorFeaturesTests
     }
 }
 
-public class ModelCatalogFeaturesTests
-{
-    [Fact]
-    public async Task CreateModelCatalogEntryHandler_WithValidHttpEndpoint_ReturnsSuccess()
-    {
-        // Arrange
-        var repo = new FakeModelCatalogRepository();
-        var handler = new ModelCatalogFeatures.CreateModelCatalogEntryHandler(repo, new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: true));
-        var command = new ModelCatalogFeatures.CreateModelCatalogEntryCommand(
-            Name: "Local Ollama",
-            ProviderType: ModelProviderType.Ollama,
-            Endpoint: "http://localhost:11434",
-            ModelName: "llama3.1",
-            ApiKeySecretRef: null,
-            SettingsJson: null,
-            IsEnabled: true);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Local Ollama", result.Value.Name);
-        Assert.Single(repo.Entries);
-    }
-
-    [Theory]
-    [InlineData("not-a-url")]
-    [InlineData("ftp://example.com")]
-    [InlineData("file:///etc/passwd")]
-    public async Task CreateModelCatalogEntryHandler_WithNonHttpEndpoint_ReturnsEndpointInvalid(string endpoint)
-    {
-        // Arrange
-        var handler = new ModelCatalogFeatures.CreateModelCatalogEntryHandler(
-            new FakeModelCatalogRepository(),
-            new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: true));
-        var command = new ModelCatalogFeatures.CreateModelCatalogEntryCommand(
-            "n", ModelProviderType.Ollama, endpoint, "m", null, null, true);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.EndpointInvalid", result.Error.Code);
-    }
-
-    [Fact]
-    public async Task CreateModelCatalogEntryHandler_ForNonAdmin_ReturnsForbidden()
-    {
-        // Arrange
-        var handler = new ModelCatalogFeatures.CreateModelCatalogEntryHandler(
-            new FakeModelCatalogRepository(),
-            new FakeCurrentUserContext(Guid.NewGuid(), isAdmin: false));
-        var command = new ModelCatalogFeatures.CreateModelCatalogEntryCommand(
-            "n", ModelProviderType.Ollama, "http://localhost:11434", "m", null, null, true);
-
-        // Act
-        var result = await handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.Forbidden", result.Error.Code);
-    }
-}
-
 public class TutorModelConnectionFeaturesTests
 {
     [Fact]
-    public async Task SaveTutorModelConnectionHandler_WithEnabledCatalogEntry_PersistsConnection()
+    public async Task SaveTutorModelConnectionHandler_WithEnabledInteractionModel_PersistsConnection()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
         var tutorRepository = new FakeTutorRepository();
-        var tutor = new Tutor { Name = "Tutor", OwnerId = ownerId };
+        var tutor = Tutor.Create("Tutor", null, ownerId);
         tutorRepository.Tutors[tutor.Id] = tutor;
-        var catalogRepository = new FakeModelCatalogRepository();
-        var entry = new ModelCatalogEntry
+        var modelRepository = new FakeModelRepository();
+        var interactionModel = new InteractionModel
         {
             Name = "Local",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3.1",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3.1",
             IsEnabled = true
         };
-        catalogRepository.Entries[entry.Id] = entry;
+        modelRepository.InteractionModels[interactionModel.Id] = interactionModel;
         var handler = new TutorModelConnectionFeatures.SaveTutorModelConnectionHandler(
             tutorRepository,
-            catalogRepository,
-            new FakeCurrentUserContext(ownerId));
-        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, entry.Id, "{\"temp\":0.2}");
+            modelRepository,
+            new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
+        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, interactionModel.Id, "{\"temp\":0.2}");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal(entry.Id, result.Value.ModelCatalogEntryId);
+        Assert.Equal(interactionModel.Id, result.Value.InteractionModelId);
         Assert.Single(tutorRepository.TutorModelConnections);
     }
 
     [Fact]
-    public async Task SaveTutorModelConnectionHandler_WithDisabledCatalogEntry_ReturnsDisabledFailure()
+    public async Task SaveTutorModelConnectionHandler_WithDisabledInteractionModel_ReturnsDisabledFailure()
     {
         // Arrange
         var ownerId = Guid.NewGuid();
         var tutorRepository = new FakeTutorRepository();
-        var tutor = new Tutor { Name = "Tutor", OwnerId = ownerId };
+        var tutor = Tutor.Create("Tutor", null, ownerId);
         tutorRepository.Tutors[tutor.Id] = tutor;
-        var catalogRepository = new FakeModelCatalogRepository();
-        var entry = new ModelCatalogEntry
+        var modelRepository = new FakeModelRepository();
+        var interactionModel = new InteractionModel
         {
             Name = "Local",
-            ProviderType = ModelProviderType.Ollama,
-            Endpoint = "http://localhost:11434",
-            ModelName = "llama3.1",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3.1",
             IsEnabled = false
         };
-        catalogRepository.Entries[entry.Id] = entry;
+        modelRepository.InteractionModels[interactionModel.Id] = interactionModel;
         var handler = new TutorModelConnectionFeatures.SaveTutorModelConnectionHandler(
             tutorRepository,
-            catalogRepository,
-            new FakeCurrentUserContext(ownerId));
-        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, entry.Id, null);
+            modelRepository,
+            new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
+        var command = new TutorModelConnectionFeatures.SaveTutorModelConnectionCommand(tutor.Id, interactionModel.Id, null);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Equal("ModelCatalog.Disabled", result.Error.Code);
+        Assert.Equal("InteractionModel.Disabled", result.Error.Code);
     }
 }
 
@@ -227,9 +160,9 @@ public class ToolDefinitionFeaturesTests
         // Arrange
         var repo = new FakeTutorRepository();
         var owner = Guid.NewGuid();
-        var tutor = new Tutor { Name = "T", OwnerId = owner };
+        var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeCurrentUserContext(owner));
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
         var command = new ToolDefinitionFeatures.RegisterToolDefinitionCommand(
             tutor.Id, "search", null, "{ not-valid-json", null);
 
@@ -248,9 +181,9 @@ public class ToolDefinitionFeaturesTests
         // Arrange
         var repo = new FakeTutorRepository();
         var owner = Guid.NewGuid();
-        var tutor = new Tutor { Name = "T", OwnerId = owner };
+        var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeCurrentUserContext(owner));
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
         var command = new ToolDefinitionFeatures.RegisterToolDefinitionCommand(
             tutor.Id, "search", "Web search tool",
             "{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}",
@@ -357,7 +290,7 @@ public class KnowledgeSourceFeaturesTests
         // Arrange
         var ownerId = Guid.NewGuid();
         var tutorRepository = new FakeTutorRepository();
-        var tutor = new Tutor { Name = "Tutor", OwnerId = ownerId };
+        var tutor = Tutor.Create("Tutor", null, ownerId);
         tutorRepository.Tutors[tutor.Id] = tutor;
         var documentStore = new FakeDocumentStore();
         var document = new Document { Name = "Doc" };
@@ -366,7 +299,7 @@ public class KnowledgeSourceFeaturesTests
         var handler = new KnowledgeSourceFeatures.LinkKnowledgeSourceHandler(
             tutorRepository,
             documentStore,
-            new FakeCurrentUserContext(ownerId));
+            new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeSourceFeatures.LinkKnowledgeSourceCommand(tutor.Id, document.Id);
 
         // Act
@@ -387,7 +320,7 @@ public class KnowledgeFeaturesTests
         // Arrange
         var ownerId = Guid.NewGuid();
         var tutorRepository = new FakeTutorRepository();
-        var tutor = new Tutor { Name = "Tutor", OwnerId = ownerId };
+        var tutor = Tutor.Create("Tutor", null, ownerId);
         var firstDocumentId = Guid.NewGuid();
         var secondDocumentId = Guid.NewGuid();
         tutorRepository.Tutors[tutor.Id] = tutor;
@@ -397,7 +330,7 @@ public class KnowledgeFeaturesTests
         var handler = new KnowledgeFeatures.SearchKnowledgeHandler(
             retriever,
             tutorRepository,
-            new FakeCurrentUserContext(ownerId));
+            new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
         var queryEmbedding = new[] { 0.1f, 0.2f, 0.3f };
         var query = new KnowledgeFeatures.SearchKnowledgeQuery(tutor.Id, queryEmbedding, TopK: 3);
 
@@ -416,12 +349,12 @@ public class KnowledgeFeaturesTests
     {
         // Arrange
         var tutorRepository = new FakeTutorRepository();
-        var tutor = new Tutor { Name = "Tutor", OwnerId = Guid.NewGuid() };
+        var tutor = Tutor.Create("Tutor", null, Guid.NewGuid());
         tutorRepository.Tutors[tutor.Id] = tutor;
         var handler = new KnowledgeFeatures.SearchKnowledgeHandler(
             new FakeKnowledgeRetriever(),
             tutorRepository,
-            new FakeCurrentUserContext(Guid.NewGuid()));
+            new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(Guid.NewGuid()));
         var query = new KnowledgeFeatures.SearchKnowledgeQuery(tutor.Id, new[] { 0.1f }, TopK: 3);
 
         // Act
@@ -447,6 +380,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             embeddingProvider,
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 3);
 
@@ -474,6 +408,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             new FakeVectorStore(),
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
@@ -498,6 +433,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(Guid.NewGuid()));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
 
@@ -524,6 +460,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "OpenAI", "text-embedding-3-small");
 
@@ -550,6 +487,7 @@ public class KnowledgeFeaturesTests
             documentStore,
             vectorStore,
             new FakeEmbeddingProvider(),
+            new FakeModelRepository(),
             new FakeCurrentUserContext(ownerId));
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, " ollama ", " test-model ", MaxChunkLength: 6);
 

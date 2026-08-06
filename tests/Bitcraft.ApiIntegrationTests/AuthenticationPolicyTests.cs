@@ -29,29 +29,29 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
     }
 
     [Fact]
-    public async Task GetDocuments_WithViewerRole_ReturnsOk()
+    public async Task GetDocuments_WithAuditorRole_ReturnsOk()
     {
         // Arrange
         var client = factory.CreateClient();
-        await AuthorizeAsRoleAsync(client, AppRoles.Viewer);
+        await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
 
         // Act
         var response = await client.GetAsync("/api/documents");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var documents = await response.Content.ReadFromJsonAsync<List<DocumentResponse>>();
+        var documents = await response.Content.ReadFromJsonAsync<List<DocumentSummaryResponse>>();
         Assert.NotNull(documents);
         Assert.Empty(documents);
     }
 
     [Fact]
-    public async Task CreateDocument_WithViewerRole_ReturnsForbidden()
+    public async Task CreateDocument_WithAuditorRole_ReturnsForbidden()
     {
         // Arrange
         var client = factory.CreateClient();
-        await AuthorizeAsRoleAsync(client, AppRoles.Viewer);
-        var request = new CreateDocumentRequest("Forbidden", null, "text/plain", "Viewer cannot create.");
+        await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
+        var request = new CreateDocumentRequest("Forbidden", null, "text/plain", "Auditor cannot create.");
 
         // Act
         var response = await client.PostAsJsonAsync("/api/documents", request);
@@ -75,7 +75,7 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
         // Assert
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
-        var documents = await listResponse.Content.ReadFromJsonAsync<List<DocumentResponse>>();
+        var documents = await listResponse.Content.ReadFromJsonAsync<List<DocumentSummaryResponse>>();
         Assert.NotNull(documents);
         Assert.Contains(documents, document => document.Name == "Editor document");
     }

@@ -1,7 +1,9 @@
 using Bitcraft.Application;
 using Bitcraft.Infrastructure;
 using Bitcraft.Infrastructure.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +64,26 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// Global IP-based fixed-window rate limit (Iteration 1 / Pre-Final Plan v3.6).
+// Defaults: 10 requests per second per remote IP. Returns HTTP 429 on rejection.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var key = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromSeconds(1),
+            QueueLimit = 0,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            AutoReplenishment = true,
+        });
+    });
+});
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -87,6 +109,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Tutoring;
 
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
+[Authorize(Policy = AuthorizationPolicies.AuditorOrAbove)]
 [Route("api/tutors/{tutorId:guid}/benchmark-runs")]
 [Produces("application/json")]
 public class TutorBenchmarkRunsController(ISender sender) : ControllerBase
@@ -84,7 +84,7 @@ public class TutorBenchmarkRunsController(ISender sender) : ControllerBase
             tutorId,
             request.BenchmarkTemplateId,
             request.TutorConfigurationSnapshotId,
-            request.ModelCatalogEntryId,
+            request.InteractionModelId,
             request.ModelAlias,
             request.ConsistencyRuns,
             request.Cases.Select(x => new BenchmarkFeatures.BenchmarkCaseInput(

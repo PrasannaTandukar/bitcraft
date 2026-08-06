@@ -1,4 +1,5 @@
 using Bitcraft.Domain.Common;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 
 namespace Bitcraft.Domain.Benchmarking;
@@ -6,9 +7,14 @@ namespace Bitcraft.Domain.Benchmarking;
 public class BenchmarkRun : BaseModel
 {
     public Guid TutorId { get; set; }
+
+    /// <summary>FK <see cref="TutorRevision"/> (D25 step 8, plan.erm.md §8). Restrict on delete. Nullable for legacy benchmark rows captured before revisions existed.</summary>
+    public Guid? TutorRevisionId { get; set; }
+    public TutorRevision? TutorRevision { get; set; }
+
     public Guid? TutorConfigurationSnapshotId { get; set; }
     public Guid BenchmarkTemplateId { get; set; }
-    public Guid? ModelCatalogEntryId { get; set; }
+    public Guid? InteractionModelId { get; set; }
     public string? ModelAlias { get; set; }
     public int ConsistencyRuns { get; set; } = 1;
     public BenchmarkRunStatus Status { get; set; } = BenchmarkRunStatus.Queued;
@@ -38,7 +44,7 @@ public class BenchmarkRun : BaseModel
     public Tutor? Tutor { get; set; }
     public TutorConfigurationSnapshot? TutorConfigurationSnapshot { get; set; }
     public BenchmarkTemplate? BenchmarkTemplate { get; set; }
-    public ModelCatalogEntry? ModelCatalogEntry { get; set; }
+    public InteractionModel? InteractionModel { get; set; }
     public ICollection<BenchmarkRunCase> Cases { get; set; } = new List<BenchmarkRunCase>();
 
     public void UpdateProgress(int completedCaseCount, int totalCaseCount, string stage, string? message)

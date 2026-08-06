@@ -19,7 +19,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
     public Task<Tutor?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default) =>
         db.Set<Tutor>()
             .Include(x => x.TutorModelConnection)
-                .ThenInclude(x => x!.ModelCatalogEntry)
+                .ThenInclude(x => x!.InteractionModel)
             .Include(x => x.ActivePromptVersion)
             .Include(x => x.PromptVersions)
             .Include(x => x.KnowledgeSources)
@@ -31,7 +31,9 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
 
     public Task<List<Tutor>> ListByOwnerAsync(Guid ownerId, CancellationToken cancellationToken = default) =>
         db.Set<Tutor>()
-            .Where(x => x.OwnerId == ownerId)
+            // D2/D3: "owner" is now any membership row — caller-visible tutors are those where
+            // the user has a TutorMember entry (any ResourceRole).
+            .Where(x => x.Members.Any(m => m.UserId == ownerId))
             .Include(x => x.TutorModelConnection)
             .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
@@ -106,7 +108,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             return connection;
         }
 
-        existing.ModelCatalogEntryId = connection.ModelCatalogEntryId;
+        existing.InteractionModelId = connection.InteractionModelId;
         existing.OverrideSettingsJson = connection.OverrideSettingsJson;
         await db.SaveChangesAsync(cancellationToken);
         return existing;
@@ -118,4 +120,67 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         await db.SaveChangesAsync(cancellationToken);
         return snapshot;
     }
+
+    public async Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
+    {
+        var max = await db.Set<TutorConfigurationSnapshot>()
+            .Where(x => x.TutorId == tutorId)
+            .Select(x => (int?)x.VersionNumber)
+            .MaxAsync(cancellationToken);
+        return (max ?? 0) + 1;
+    }
+
+    // -------- TutorRevision (D25 step 7) --------
+
+    public async Task<TutorRevision> AddRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default)
+    {
+        db.Set<TutorRevision>().Add(revision);
+        await db.SaveChangesAsync(cancellationToken);
+        return revision;
+    }
+
+    public Task<TutorRevision?> GetRevisionByIdAsync(Guid revisionId, CancellationToken cancellationToken = default) =>
+        db.Set<TutorRevision>()
+            .Include(r => r.Tutor)
+            .Include(r => r.PromptVersion)
+            .Include(r => r.InteractionModel)
+            .Include(r => r.QueryEmbeddingModel)
+            .Include(r => r.RevisionTools)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(r => r.Id == revisionId, cancellationToken);
+
+    public Task<List<TutorRevision>> ListRevisionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.Set<TutorRevision>()
+            .Where(r => r.TutorId == tutorId)
+            .OrderByDescending(r => r.VersionNumber)
+            .ToListAsync(cancellationToken);
+
+    public Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.Set<TutorRevision>()
+            .FirstOrDefaultAsync(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active, cancellationToken);
+
+    public async Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
+    {
+        var max = await db.Set<TutorRevision>()
+            .Where(r => r.TutorId == tutorId)
+            .Select(r => (int?)r.VersionNumber)
+            .MaxAsync(cancellationToken);
+        return (max ?? 0) + 1;
+    }
+
+    public async Task UpdateRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default)
+    {
+        db.Set<TutorRevision>().Update(revision);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default)
+    {
+        db.Set<TutorRevision>().Remove(revision);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<bool> ActivationSlugExistsAsync(string slug, Guid? excludeRevisionId, CancellationToken cancellationToken = default) =>
+        db.Set<TutorRevision>()
+            .AnyAsync(r => r.ActivationSlug == slug && (excludeRevisionId == null || r.Id != excludeRevisionId), cancellationToken);
 }

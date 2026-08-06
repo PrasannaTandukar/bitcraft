@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Tutoring;
 
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
+[Authorize(Policy = AuthorizationPolicies.AuditorOrAbove)]
 [Route("api/tutors")]
 [Produces("application/json")]
 public class TutorsController(ISender sender) : ControllerBase

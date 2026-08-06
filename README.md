@@ -38,7 +38,7 @@ cp .env.example .env
 Key variables:
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — PostgreSQL credentials
 - `OLLAMA_BASE_URL` — Ollama service endpoint. Default assumes Ollama running on the host at `http://host.docker.internal:11434`.
-- `OLLAMA_EMBED_MODEL` — Embedding model to use. Default: `qwen3-embedding:0.6b`.
+- `OLLAMA_EMBED_MODEL` — Embedding model to use. Default: `nomic-embed-text`.
 - `OLLAMA_DOCKER_TAG` — Docker tag used by the optional Ollama container override.
 
 ## Build and Test
@@ -66,62 +66,17 @@ npm run build
 
 ## Container Deployment Modes
 
-### Base stack (host Ollama)
+The full cross-platform setup guide (Windows + Docker Desktop, macOS Intel/Apple Silicon, Linux, Linux + NVIDIA GPU, NVIDIA Jetson Orin) lives in [docs/local-setup.md](docs/local-setup.md). Quickstart:
 
 ```bash
-docker compose up --build
+cp .env.example .env
+task up:dev          # Core + tutor-studio HMR on http://localhost:5173
+# or
+./run.sh             # interactive menu (Linux/macOS/WSL)
+./run.ps1            # interactive menu (Windows PowerShell)
 ```
 
-This starts:
-- PostgreSQL + pgvector (port 5433 for local client access)
-- EF Core migrator job
-- Backend API (port 8000) with Swagger at `http://localhost:8000/swagger`
-- Benchmark sidecar
-- Tutor Studio container
-
-The base compose file expects Ollama to be reachable through `OLLAMA_BASE_URL`. In the default configuration that means Ollama is running on the host machine. The base compose file does start the Tutor Studio container, but it does **not** publish the Tutor Studio port to the host.
-
-### Developer full stack (published Tutor Studio dev server)
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-This adds Tutor Studio on `http://localhost:5173`.
-
-To run Ollama in Docker instead of on the host, add the AI override:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml up --build
-```
-
-For GPU-backed Ollama:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml -f docker-compose.ai.gpu.yml up --build
-```
-
-For Jetson-backed Ollama:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.ai.yml -f docker-compose.ai.jetson.yml up --build
-```
-
-### Production-like Tutor Studio packaging
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
-```
-
-This swaps Tutor Studio to the Nginx production image and publishes it on `http://localhost:8080`.
-
-To combine it with containerized Ollama:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.ai.yml up --build
-```
-
-Accuracy note: `docker-compose.prod.yml` currently changes the Tutor Studio image and port mapping only. The backend container still inherits `ASPNETCORE_ENVIRONMENT=Development` from the base compose file, so treat this as a packaging variant rather than a fully hardened production deployment.
+Without [Task](https://taskfile.dev/installation/) installed, see the raw `docker compose` recipes in [docs/local-setup.md](docs/local-setup.md#raw-compose-commands).
 
 ## Local Development
 
@@ -281,7 +236,7 @@ tutor-studio/                  # React + Vite frontend
 - **Knowledge** — vectorized retrieval derived from documents and scoped through tutors
 - **Tutoring** — tutor configuration, prompts, tools, model connections, knowledge links, deployment profiles, snapshots, and benchmark runs
 - **Benchmarking** — reusable benchmark templates and asynchronous tutor benchmark runs executed through the sidecar
-- **Admin** — model catalog management and Admin/Editor/Viewer role management
+- **Admin** — model catalog management and Admin/Editor/Auditor role management
 - **Infrastructure/Persistence** — database mappings, repository implementations, migrations, pgvector, Identity, Ollama adapters, and benchmark sidecar integration
 - **Api** — thin controllers using request/response contracts, Swagger metadata, JWT auth, and role policies
 

@@ -99,7 +99,7 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
         var normalizedRole = AppRoles.Normalize(role);
         if (normalizedRole is null)
         {
-            return Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer."));
+            return Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Auditor."));
         }
 
         if (!await roleManager.RoleExistsAsync(normalizedRole))
@@ -129,7 +129,7 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
         var normalizedRole = AppRoles.Normalize(role);
         if (normalizedRole is null)
         {
-            return Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Viewer."));
+            return Result.Failure<UserRoleMembership>(new Error("Role.Invalid", "Role must be Admin, Editor, or Auditor."));
         }
 
         var user = await userManager.FindByIdAsync(userId.ToString());

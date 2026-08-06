@@ -5,4 +5,6 @@ public sealed record KnowledgeChunkWriteModel(
     string Content,
     float[] Embedding,
     string EmbeddingModel,
-    string EmbeddingProvider);
+    string EmbeddingProvider,
+    Guid? EmbeddingModelId = null,
+    int? EmbeddingDimensions = null);

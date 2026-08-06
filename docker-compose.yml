@@ -1,6 +1,6 @@
 services:
   db:
-    image: pgvector/pgvector:pg17
+    build: ./db
     container_name: bitcraft-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-bitcraft}
@@ -56,9 +56,11 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
       Benchmarking__DeepEval__Transport: uds
       Benchmarking__DeepEval__SocketPath: /var/run/bitcraft/sidecar.sock
+      BITCRAFT_ADMIN_EMAIL: ${BITCRAFT_ADMIN_EMAIL}
+      BITCRAFT_ADMIN_PASSWORD: ${BITCRAFT_ADMIN_PASSWORD}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -82,7 +84,13 @@ services:
       - benchmark_sidecar_socket:/var/run/bitcraft
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock'); s.close()\""]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import socket; s=socket.socket(socket.AF_UNIX,
+            socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock');
+            s.close()\"",
+        ]
       interval: 10s
       timeout: 3s
       retries: 15
@@ -91,8 +99,11 @@ services:
   tutor-studio:
     build: ./tutor-studio
     container_name: bitcraft-tutor-studio
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data: {}

@@ -4,9 +4,9 @@ public static class AppRoles
 {
     public const string Admin = "Admin";
     public const string Editor = "Editor";
-    public const string Viewer = "Viewer";
+    public const string Auditor = "Auditor";
 
-    public static readonly IReadOnlyCollection<string> All = [Admin, Editor, Viewer];
+    public static readonly IReadOnlyCollection<string> All = [Admin, Editor, Auditor];
 
     public static bool IsSupported(string? role) => Normalize(role) is not null;
 

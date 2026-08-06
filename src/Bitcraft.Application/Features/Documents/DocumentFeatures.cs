@@ -16,14 +16,17 @@ public static class DocumentFeatures
         string Name,
         string? SourcePath,
         string? MimeType,
-        string? RawText) : IRequest<Result<Document>>;
+        string? RawText,
+        Guid? FolderId = null) : IRequest<Result<Document>>;
 
-    public sealed class CreateDocumentHandler(IDocumentStore documentStore, ICurrentUserContext currentUser)
+    public sealed class CreateDocumentHandler(
+        IDocumentStore documentStore,
+        IDocumentFolderStore folderStore,
+        ICurrentUserContext currentUser)
         : IRequestHandler<CreateDocumentCommand, Result<Document>>
     {
         public async Task<Result<Document>> Handle(CreateDocumentCommand request, CancellationToken cancellationToken)
         {
-            _ = currentUser.UserId;
             var userId = currentUser.UserId;
 
             if (string.IsNullOrWhiteSpace(request.Name))
@@ -31,12 +34,26 @@ public static class DocumentFeatures
                 return Result.Failure<Document>(new Error("Document.NameRequired", "Document name is required."));
             }
 
+            if (request.FolderId is { } folderId)
+            {
+                var folder = await folderStore.GetByIdAsync(folderId, cancellationToken);
+                if (folder is null)
+                {
+                    return Result.Failure<Document>(new Error("DocumentFolder.NotFound", $"Folder '{folderId}' not found."));
+                }
+                if (folder.CreatedById != userId)
+                {
+                    return Result.Failure<Document>(new Error("DocumentFolder.Forbidden", "Requesting user does not own folder."));
+                }
+            }
+
             var document = new Document
             {
                 Name = request.Name.Trim(),
                 SourcePath = string.IsNullOrWhiteSpace(request.SourcePath) ? null : request.SourcePath.Trim(),
                 MimeType = string.IsNullOrWhiteSpace(request.MimeType) ? null : request.MimeType.Trim(),
-                RawText = request.RawText
+                RawText = request.RawText,
+                FolderId = request.FolderId
             };
             document.UpdateMetadata(userId);
             var created = await documentStore.AddAsync(document, cancellationToken);
@@ -138,6 +155,46 @@ public static class DocumentFeatures
         public Task<List<Document>> Handle(ListDocumentsQuery request, CancellationToken cancellationToken)
         {
             return documentStore.ListByCreatorAsync(currentUser.UserId, cancellationToken);
+        }
+    }
+
+    public sealed record MoveDocumentToFolderCommand(Guid DocumentId, Guid? FolderId) : IRequest<Result<Document>>;
+
+    public sealed class MoveDocumentToFolderHandler(
+        IDocumentStore documentStore,
+        IDocumentFolderStore folderStore,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<MoveDocumentToFolderCommand, Result<Document>>
+    {
+        public async Task<Result<Document>> Handle(MoveDocumentToFolderCommand request, CancellationToken cancellationToken)
+        {
+            var userId = currentUser.UserId;
+            var document = await documentStore.GetByIdAsync(request.DocumentId, cancellationToken);
+            if (document is null)
+            {
+                return Result.Failure<Document>(new Error("Document.NotFound", $"Document '{request.DocumentId}' not found."));
+            }
+            if (document.CreatedById != userId)
+            {
+                return Result.Failure<Document>(new Error("Document.Forbidden", "Requesting user does not own this document."));
+            }
+            if (request.FolderId is { } folderId)
+            {
+                var folder = await folderStore.GetByIdAsync(folderId, cancellationToken);
+                if (folder is null)
+                {
+                    return Result.Failure<Document>(new Error("DocumentFolder.NotFound", $"Folder '{folderId}' not found."));
+                }
+                if (folder.CreatedById != userId)
+                {
+                    return Result.Failure<Document>(new Error("DocumentFolder.Forbidden", "Requesting user does not own folder."));
+                }
+            }
+
+            document.FolderId = request.FolderId;
+            document.UpdateMetadata(userId);
+            await documentStore.UpdateAsync(document, cancellationToken);
+            return Result.Success(document);
         }
     }
 }

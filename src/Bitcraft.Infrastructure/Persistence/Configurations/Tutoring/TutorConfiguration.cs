@@ -24,13 +24,11 @@ public class TutorConfiguration : IEntityTypeConfiguration<Tutor>
             .HasConversion<int>()
             .IsRequired();
 
-        entity.HasIndex(x => x.OwnerId);
-        entity.HasIndex(x => new { x.OwnerId, x.Name });
-
-        entity.HasOne(x => x.Owner)
-            .WithMany()
-            .HasForeignKey(x => x.OwnerId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // D2/D3: ownership now lives in TutorMembers; see TutorMemberConfiguration.
+        entity.HasMany(x => x.Members)
+            .WithOne(m => m.Tutor!)
+            .HasForeignKey(m => m.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         entity.HasOne(x => x.ActivePromptVersion)
             .WithMany()
@@ -70,6 +68,26 @@ public class TutorConfiguration : IEntityTypeConfiguration<Tutor>
         entity.HasMany(x => x.BenchmarkRuns)
             .WithOne(r => r.Tutor!)
             .HasForeignKey(r => r.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(x => x.ActiveRevision)
+            .WithMany()
+            .HasForeignKey(x => x.ActiveRevisionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(x => x.Revisions)
+            .WithOne(r => r.Tutor!)
+            .HasForeignKey(r => r.TutorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasMany(x => x.TutorDocuments)
+            .WithOne(td => td.Tutor!)
+            .HasForeignKey(td => td.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasMany(x => x.TutorDocumentFolders)
+            .WithOne(tdf => tdf.Tutor!)
+            .HasForeignKey(tdf => tdf.TutorId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

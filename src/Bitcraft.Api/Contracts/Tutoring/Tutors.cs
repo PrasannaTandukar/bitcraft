@@ -15,7 +15,6 @@ public sealed record UpdateTutorRequest(
 /// <summary>Top-level tutor aggregate response for Tutor Studio management screens.</summary>
 public sealed record TutorResponse(
     Guid Id,
-    Guid OwnerId,
     string Name,
     string? Description,
     TutorStatus Status,

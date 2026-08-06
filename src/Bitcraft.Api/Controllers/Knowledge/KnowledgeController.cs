@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bitcraft.Api.Controllers.Knowledge;
 
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
+[Authorize(Policy = AuthorizationPolicies.AuditorOrAbove)]
 [Route("api/knowledge")]
 [Produces("application/json")]
 public class KnowledgeController(ISender sender) : ControllerBase

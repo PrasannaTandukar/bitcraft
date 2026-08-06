@@ -18,7 +18,10 @@ public static class PromptVersionFeatures
         string? Notes,
         bool SetAsActive) : IRequest<Result<PromptVersion>>;
 
-    public sealed class CreatePromptVersionHandler(ITutorRepository tutorRepository, ICurrentUserContext currentUser)
+    public sealed class CreatePromptVersionHandler(
+        ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
         : IRequestHandler<CreatePromptVersionCommand, Result<PromptVersion>>
     {
         public async Task<Result<PromptVersion>> Handle(CreatePromptVersionCommand request, CancellationToken cancellationToken)
@@ -39,9 +42,11 @@ public static class PromptVersionFeatures
                 return Result.Failure<PromptVersion>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: creating prompt versions is a content mutation → Editor or Owner.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
             {
-                return Result.Failure<PromptVersion>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<PromptVersion>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var nextNumber = await tutorRepository.GetNextPromptVersionNumberAsync(request.TutorId, cancellationToken);

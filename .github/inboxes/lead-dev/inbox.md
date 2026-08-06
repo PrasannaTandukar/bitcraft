@@ -1,11 +1,17 @@
----
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-05-21
 creator: ai-ops
-editor: lead-dev
+editor: secretary
 ai_gen: true
----
 # Lead Dev Inbox
+
+- Date: 2026-05-21
+- Status: routed to Dev Ops (2026-05-21)
+- Source: Secretary
+- Target: lead-dev → dev-ops
+- Priority: high
+- Task: EF migration host resolution routed to Dev Ops. Recommended approach (D41): add `appsettings.Development.json` (git-ignored) with a connection string using `Host=localhost;Port=5433` for host-shell `dotnet ef database update` runs. `appsettings.json` remains `Host=db;Port=5432` for Compose-internal use. Both paths made explicit in `docs/local-setup.md`. Dev Ops to implement and document. Remove this item.
+- Acceptance/Cleanup: Closed — routed.
 
 - Date: 2026-05-19
 - Status: active

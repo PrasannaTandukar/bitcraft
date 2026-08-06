@@ -19,7 +19,10 @@ public static class ToolDefinitionFeatures
         string JsonSchema,
         string? ExecutionUrl) : IRequest<Result<ToolDefinition>>;
 
-    public sealed class RegisterToolDefinitionHandler(ITutorRepository tutorRepository, ICurrentUserContext currentUser)
+    public sealed class RegisterToolDefinitionHandler(
+        ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
         : IRequestHandler<RegisterToolDefinitionCommand, Result<ToolDefinition>>
     {
         public async Task<Result<ToolDefinition>> Handle(RegisterToolDefinitionCommand request, CancellationToken cancellationToken)
@@ -49,9 +52,11 @@ public static class ToolDefinitionFeatures
                 return Result.Failure<ToolDefinition>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
             }
 
-            if (tutor.OwnerId != currentUser.UserId)
+            // D2/D3: tool definitions mutate tutor config → Editor or Owner.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
             {
-                return Result.Failure<ToolDefinition>(new Error("Tutor.Forbidden", "Requesting user does not own this tutor."));
+                return Result.Failure<ToolDefinition>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
             var tool = new ToolDefinition

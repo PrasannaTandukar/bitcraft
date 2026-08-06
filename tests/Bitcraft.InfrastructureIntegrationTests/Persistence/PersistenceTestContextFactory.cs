@@ -50,5 +50,6 @@ internal sealed class TestAppDbContext(DbContextOptions<AppDbContext> options) :
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.Ignore<KnowledgeChunk>();
+        modelBuilder.Ignore<TutorMemory>();
     }
 }

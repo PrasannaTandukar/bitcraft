@@ -2,3 +2,10 @@ services:
   tutor-studio:
     ports:
       - "5173:5173"
+    environment:
+      VITE_USE_POLLING: ${VITE_USE_POLLING:-false}
+    volumes:
+      # Bind-mount the source for HMR; anonymous volume preserves the in-container
+      # node_modules so the host's (possibly Windows/macOS) tree never overwrites it.
+      - ./tutor-studio:/app
+      - /app/node_modules

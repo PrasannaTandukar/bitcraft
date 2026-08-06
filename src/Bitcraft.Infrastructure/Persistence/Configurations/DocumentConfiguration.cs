@@ -22,6 +22,12 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
 
         entity.Property(x => x.RawText);
 
+        entity.HasOne(x => x.Folder)
+            .WithMany()
+            .HasForeignKey(x => x.FolderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         entity.HasIndex(x => x.Name);
+        entity.HasIndex(x => x.FolderId);
     }
 }
