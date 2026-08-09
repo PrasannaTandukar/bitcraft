@@ -6,6 +6,7 @@ using Bitcraft.Api.Contracts.Rag;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Knowledge;
+using Bitcraft.Application.Features.Tutoring;
 using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Documents;
 using Bitcraft.Domain.Knowledge;
@@ -19,12 +20,22 @@ internal static class TutoringMapping
 {
     public static ActionResult ToActionResult(Error error) => error.Code switch
     {
+        "TutorRuntime.TutorNotFound" =>
+            new NotFoundObjectResult(new ApiError(error.Code, error.Description)),
         var c when c.EndsWith(".NotFound", StringComparison.Ordinal) =>
             new NotFoundObjectResult(new ApiError(error.Code, error.Description)),
         var c when c.EndsWith(".Forbidden", StringComparison.Ordinal) =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status403Forbidden },
         "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
+        "Ollama.ModelNotFound" or "Ollama.InvalidResponse" or "TutorRuntime.GenerationFailed" or
+        "TutorRuntime.EmbeddingUnavailable" or "TutorRuntime.KnowledgeSearchFailed" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
+        "TutorRuntime.NoActiveRevision" or "TutorRuntime.InvalidRevision" or
+        "TutorRuntime.PromptNotConfigured" or "TutorRuntime.InteractionModelNotConfigured" or
+        "TutorRuntime.InteractionModelDisabled" or "TutorRuntime.EmbeddingModelDisabled" or
+        "TutorRuntime.SnapshotMissing" or "TutorRuntime.KnowledgeConfigurationInvalid" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status409Conflict },
         "Knowledge.EmbeddingServiceUnavailable" or "Knowledge.EmbeddingRequestFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
         "Document.FileTooLarge" =>
@@ -126,6 +137,47 @@ internal static class TutoringMapping
             source.Score)).ToList(),
         result.Message);
 
+    public static TutorRuntimeAskResponse ToResponse(this TutorRuntimeResult result) => new(
+        result.Answer,
+        new TutorRuntimeTutorResponse(result.TutorId, result.TutorName),
+        new TutorRuntimeRevisionResponse(result.TutorRevisionId, result.RevisionNumber),
+        result.TutorConfigurationSnapshotId,
+        result.Model.ToResponse(),
+        result.EmbeddingModel?.ToResponse(),
+        result.KnowledgeUsed,
+        result.Sources.Select(source => new TutorRuntimeSourceResponse(
+            source.DocumentId,
+            source.DocumentName,
+            source.ChunkId,
+            source.ChunkIndex,
+            source.Score)).ToList(),
+        ConversationId: null);
+
+    public static TutorRuntimeDescriptorResponse ToResponse(this TutorRuntimeDescriptor descriptor) => new(
+        descriptor.TutorId,
+        descriptor.TutorName,
+        descriptor.Description,
+        descriptor.TutorRevisionId,
+        descriptor.RevisionNumber,
+        descriptor.ActivationSlug,
+        descriptor.TutorConfigurationSnapshotId,
+        descriptor.Model.ToResponse(),
+        descriptor.EmbeddingModel?.ToResponse(),
+        descriptor.KnowledgeDocumentCount);
+
+    private static TutorRuntimeModelResponse ToResponse(this TutorRuntimeModelMetadata model) => new(
+        model.Id,
+        model.Name,
+        model.ProviderModelName,
+        model.RuntimeEngineName);
+
+    private static TutorRuntimeEmbeddingModelResponse ToResponse(this TutorRuntimeEmbeddingModelMetadata model) => new(
+        model.Id,
+        model.Name,
+        model.ProviderModelName,
+        model.Dimensions,
+        model.RuntimeEngineName);
+
     public static InteractionModelResponse ToResponse(this InteractionModel model) => new(
         model.Id,
         model.Name,
@@ -208,6 +260,23 @@ internal static class TutoringMapping
 
     public static KnowledgeSourceLinkResponse ToResponse(this KnowledgeSourceLink k) => new(
         k.Id, k.TutorId, k.DocumentId, k.LinkedUtc);
+
+    public static TutorKnowledgeDocumentResponse ToResponse(this KnowledgeSourceFeatures.TutorKnowledgeDocumentResult value) => new(
+        value.LinkId,
+        value.TutorId,
+        value.DocumentId,
+        value.DocumentName,
+        value.AttachedVia.ToString(),
+        value.IsVectorized,
+        value.EmbeddingModelId,
+        value.EmbeddingModelName,
+        value.LegacyCompatibility);
+
+    public static TutorKnowledgeFolderResponse ToResponse(this KnowledgeSourceFeatures.TutorKnowledgeFolderResult value) => new(
+        value.LinkId,
+        value.TutorId,
+        value.FolderId,
+        value.FolderName);
 
     public static ToolDefinitionResponse ToResponse(this ToolDefinition t) => new(
         t.Id, t.TutorId, t.Name, t.Description, t.JsonSchema, t.ExecutionUrl, t.CreatedUtc);

@@ -1,11 +1,17 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.Ollama;
 
-public class OllamaGenerationProvider(IHttpClientFactory httpClientFactory, IConfiguration configuration) : ILlmGenerationProvider
+public class OllamaGenerationProvider(
+    IHttpClientFactory httpClientFactory,
+    IConfiguration configuration,
+    ILogger<OllamaGenerationProvider>? logger = null) : ILlmGenerationProvider
 {
     private const string DefaultBaseUrl = "http://ollama:11434";
     private const string DefaultChatModel = "llama3.2";
@@ -13,23 +19,29 @@ public class OllamaGenerationProvider(IHttpClientFactory httpClientFactory, ICon
     public async Task<Result<LlmGenerationResult>> GenerateAsync(
         string prompt,
         string? model,
+        CancellationToken cancellationToken = default) =>
+        await GenerateAsync(new LlmGenerationRequest(prompt, model), cancellationToken);
+
+    public async Task<Result<LlmGenerationResult>> GenerateAsync(
+        LlmGenerationRequest generationRequest,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(prompt))
+        if (string.IsNullOrWhiteSpace(generationRequest.Prompt))
         {
             return Result.Failure<LlmGenerationResult>(new Error(
                 "Ollama.PromptRequired",
                 "Prompt is required."));
         }
 
-        if (model is not null && string.IsNullOrWhiteSpace(model))
+        if (generationRequest.Model is not null && string.IsNullOrWhiteSpace(generationRequest.Model))
         {
             return Result.Failure<LlmGenerationResult>(new Error(
                 "Ollama.ModelInvalid",
                 "Model cannot be empty when provided."));
         }
 
-        var baseUrl = configuration["ModelProviders:Ollama:BaseUrl"]
+        var baseUrl = generationRequest.RuntimeEndpoint
+            ?? configuration["ModelProviders:Ollama:BaseUrl"]
             ?? configuration["OLLAMA_BASE_URL"]
             ?? DefaultBaseUrl;
 
@@ -41,9 +53,9 @@ public class OllamaGenerationProvider(IHttpClientFactory httpClientFactory, ICon
                 "Ollama base URL must be an absolute HTTP or HTTPS URL."));
         }
 
-        var selectedModel = string.IsNullOrWhiteSpace(model)
+        var selectedModel = string.IsNullOrWhiteSpace(generationRequest.Model)
             ? configuration["ModelProviders:Ollama:ChatModel"] ?? configuration["OLLAMA_CHAT_MODEL"] ?? DefaultChatModel
-            : model.Trim();
+            : generationRequest.Model.Trim();
 
         if (string.IsNullOrWhiteSpace(selectedModel))
         {
@@ -54,16 +66,34 @@ public class OllamaGenerationProvider(IHttpClientFactory httpClientFactory, ICon
 
         var client = httpClientFactory.CreateClient(nameof(OllamaGenerationProvider));
         var endpoint = new Uri(baseUri, "/api/generate");
-        var request = new GenerateRequest(selectedModel.Trim(), prompt.Trim(), Stream: false);
+        var request = new GenerateRequest(
+            selectedModel.Trim(),
+            generationRequest.Prompt.Trim(),
+            Stream: false,
+            new GenerateOptions(
+                generationRequest.Temperature,
+                generationRequest.TopP,
+                generationRequest.MaxTokens));
 
         try
         {
             using var response = await client.PostAsJsonAsync(endpoint, request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                logger?.LogWarning(
+                    "Ollama generation failed. Operation={Operation}, Model={Model}, StatusCode={StatusCode}",
+                    "generate",
+                    selectedModel,
+                    (int)response.StatusCode);
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return Result.Failure<LlmGenerationResult>(new Error(
+                        "Ollama.ModelNotFound",
+                        "The configured Ollama model was not found."));
+                }
                 return Result.Failure<LlmGenerationResult>(new Error(
                     "Ollama.RequestFailed",
-                    $"Ollama generation request failed with HTTP {(int)response.StatusCode} {response.ReasonPhrase}."));
+                    "Ollama could not complete the generation request."));
             }
 
             var payload = await response.Content.ReadFromJsonAsync<GenerateResponse>(cancellationToken: cancellationToken);
@@ -85,32 +115,52 @@ public class OllamaGenerationProvider(IHttpClientFactory httpClientFactory, ICon
         {
             throw;
         }
-        catch (TaskCanceledException ex)
+        catch (TaskCanceledException)
         {
+            logger?.LogWarning(
+                "Ollama generation timed out. Operation={Operation}, Model={Model}",
+                "generate",
+                selectedModel);
             return Result.Failure<LlmGenerationResult>(new Error(
                 "Ollama.Unavailable",
-                "Ollama generation request timed out: " + ex.Message));
+                "The Ollama generation request timed out."));
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
+            logger?.LogWarning(
+                "Ollama generation was unavailable. Operation={Operation}, Model={Model}",
+                "generate",
+                selectedModel);
             return Result.Failure<LlmGenerationResult>(new Error(
                 "Ollama.Unavailable",
-                "Ollama is unavailable: " + ex.Message));
+                "Ollama is unavailable."));
         }
-        catch (NotSupportedException ex)
+        catch (NotSupportedException)
         {
+            logger?.LogWarning(
+                "Ollama generation returned an unsupported response. Operation={Operation}, Model={Model}",
+                "generate",
+                selectedModel);
             return Result.Failure<LlmGenerationResult>(new Error(
                 "Ollama.InvalidResponse",
-                "Ollama returned an unsupported response: " + ex.Message));
+                "Ollama returned an unsupported response."));
         }
-        catch (System.Text.Json.JsonException ex)
+        catch (JsonException)
         {
+            logger?.LogWarning(
+                "Ollama generation returned invalid JSON. Operation={Operation}, Model={Model}",
+                "generate",
+                selectedModel);
             return Result.Failure<LlmGenerationResult>(new Error(
                 "Ollama.InvalidResponse",
-                "Ollama returned invalid JSON: " + ex.Message));
+                "Ollama returned invalid JSON."));
         }
     }
 
-    private sealed record GenerateRequest(string Model, string Prompt, bool Stream);
+    private sealed record GenerateRequest(string Model, string Prompt, bool Stream, GenerateOptions Options);
+    private sealed record GenerateOptions(
+        double? Temperature,
+        [property: JsonPropertyName("top_p")] double? TopP,
+        [property: JsonPropertyName("num_predict")] int? MaxTokens);
     private sealed record GenerateResponse(string? Model, string? Response, bool Done);
 }

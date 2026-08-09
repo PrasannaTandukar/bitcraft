@@ -31,7 +31,13 @@ public class TutorAskController(ISender sender) : ControllerBase
                 request.Model,
                 request.UseMemory,
                 request.SaveToMemory,
-                request.TopK),
+                request.TopK,
+                request.TutorId,
+                request.History?.Select(message => message is null
+                    ? null!
+                    : new Bitcraft.Application.Common.Models.TutorRuntimeConversationMessage(
+                        message.Role,
+                        message.Content)).ToList()),
             cancellationToken);
 
         return result.IsSuccess

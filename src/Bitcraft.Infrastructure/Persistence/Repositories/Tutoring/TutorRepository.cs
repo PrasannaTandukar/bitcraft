@@ -23,6 +23,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             .Include(x => x.ActivePromptVersion)
             .Include(x => x.PromptVersions)
             .Include(x => x.KnowledgeSources)
+                .ThenInclude(x => x.Document)
             .Include(x => x.Tools)
             .Include(x => x.DeploymentProfile)
             .Include(x => x.Snapshots)
@@ -30,6 +31,12 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
                 .ThenInclude(x => x!.PromptVersion)
             .Include(x => x.ActiveRevision)
                 .ThenInclude(x => x!.InteractionModel)
+                    .ThenInclude(x => x!.RuntimeEngine)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.QueryEmbeddingModel)
+                    .ThenInclude(x => x!.RuntimeEngine)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.Snapshots)
             .Include(x => x.Revisions)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -45,6 +52,13 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
                 .ThenInclude(x => x!.PromptVersion)
             .Include(x => x.ActiveRevision)
                 .ThenInclude(x => x!.InteractionModel)
+                    .ThenInclude(x => x!.RuntimeEngine)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.QueryEmbeddingModel)
+                    .ThenInclude(x => x!.RuntimeEngine)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.Snapshots)
+            .AsSplitQuery()
             .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
 
@@ -90,6 +104,74 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
     public Task<bool> KnowledgeSourceLinkExistsAsync(Guid tutorId, Guid documentId, CancellationToken cancellationToken = default) =>
         db.Set<KnowledgeSourceLink>()
             .AnyAsync(x => x.TutorId == tutorId && x.DocumentId == documentId, cancellationToken);
+
+    public Task<List<KnowledgeSourceLink>> ListKnowledgeSourceLinksAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.TutorKnowledgeSources
+            .Where(link => link.TutorId == tutorId)
+            .Include(link => link.Document)
+            .OrderBy(link => link.Document!.Name)
+            .ToListAsync(cancellationToken);
+
+    public Task<KnowledgeSourceLink?> GetKnowledgeSourceLinkAsync(Guid tutorId, Guid documentId, CancellationToken cancellationToken = default) =>
+        db.TutorKnowledgeSources
+            .Include(link => link.Document)
+            .FirstOrDefaultAsync(link => link.TutorId == tutorId && link.DocumentId == documentId, cancellationToken);
+
+    public async Task RemoveKnowledgeSourceLinkAsync(KnowledgeSourceLink link, CancellationToken cancellationToken = default)
+    {
+        db.TutorKnowledgeSources.Remove(link);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<TutorDocument> AddTutorDocumentAsync(TutorDocument link, CancellationToken cancellationToken = default)
+    {
+        db.TutorDocuments.Add(link);
+        await db.SaveChangesAsync(cancellationToken);
+        return link;
+    }
+
+    public Task<List<TutorDocument>> ListTutorDocumentsAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.TutorDocuments
+            .Where(link => link.TutorId == tutorId)
+            .Include(link => link.Document)
+            .OrderBy(link => link.Document!.Name)
+            .ToListAsync(cancellationToken);
+
+    public Task<TutorDocument?> GetTutorDocumentAsync(Guid tutorId, Guid documentId, CancellationToken cancellationToken = default) =>
+        db.TutorDocuments
+            .Include(link => link.Document)
+            .FirstOrDefaultAsync(link => link.TutorId == tutorId && link.DocumentId == documentId, cancellationToken);
+
+    public async Task RemoveTutorDocumentAsync(TutorDocument link, CancellationToken cancellationToken = default)
+    {
+        db.TutorDocuments.Remove(link);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<TutorDocumentFolder> AddTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken cancellationToken = default)
+    {
+        db.TutorDocumentFolders.Add(link);
+        await db.SaveChangesAsync(cancellationToken);
+        return link;
+    }
+
+    public Task<List<TutorDocumentFolder>> ListTutorDocumentFoldersAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.TutorDocumentFolders
+            .Where(link => link.TutorId == tutorId)
+            .Include(link => link.DocumentFolder)
+            .OrderBy(link => link.DocumentFolder!.Name)
+            .ToListAsync(cancellationToken);
+
+    public Task<TutorDocumentFolder?> GetTutorDocumentFolderAsync(Guid tutorId, Guid folderId, CancellationToken cancellationToken = default) =>
+        db.TutorDocumentFolders
+            .Include(link => link.DocumentFolder)
+            .FirstOrDefaultAsync(link => link.TutorId == tutorId && link.DocumentFolderId == folderId, cancellationToken);
+
+    public async Task RemoveTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken cancellationToken = default)
+    {
+        db.TutorDocumentFolders.Remove(link);
+        await db.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default)
     {
@@ -213,6 +295,14 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             .Include(r => r.Snapshots)
             .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active, cancellationToken);
+
+    public Task<TutorRevision?> GetActiveRevisionBySlugAsync(string activationSlug, CancellationToken cancellationToken = default) =>
+        db.Set<TutorRevision>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                revision => revision.Status == RevisionStatus.Active &&
+                    (revision.ActivationSlug == activationSlug || revision.PreviousActivationSlug == activationSlug),
+                cancellationToken);
 
     public async Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
     {

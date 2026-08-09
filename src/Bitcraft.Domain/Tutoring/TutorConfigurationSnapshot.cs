@@ -78,12 +78,12 @@ public class TutorConfigurationSnapshot : BaseModel
             TutorName = tutor.Name,
             PromptVersionId = promptVersion?.Id,
             PromptContent = promptVersion?.Content,
-            TutorModelConnectionId = tutorModelConnection?.Id,
+            TutorModelConnectionId = tutorRevision is null ? tutorModelConnection?.Id : null,
             InteractionModelId = interactionModel?.Id,
             ModelName = interactionModel?.ProviderModelName,
-            ModelSettingsJson = tutorRevision?.InteractionParametersJson
-                ?? tutorModelConnection?.OverrideSettingsJson
-                ?? interactionModel?.SettingsJson,
+            ModelSettingsJson = tutorRevision is not null
+                ? tutorRevision.InteractionParametersJson ?? interactionModel?.SettingsJson
+                : tutorModelConnection?.OverrideSettingsJson ?? interactionModel?.SettingsJson,
             ToolsJson = toolsJson,
             KnowledgeSourcesJson = knowledgeSourcesJson,
             EffectiveDocumentIdsJson = effectiveDocumentIdsJson,

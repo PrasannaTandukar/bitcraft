@@ -149,6 +149,8 @@ internal sealed class FakeTutorRepository : ITutorRepository
     public Dictionary<Guid, Tutor> Tutors { get; } = new();
     public List<PromptVersion> PromptVersions { get; } = new();
     public List<KnowledgeSourceLink> KnowledgeSources { get; } = new();
+    public List<TutorDocument> TutorDocuments { get; } = new();
+    public List<TutorDocumentFolder> TutorDocumentFolders { get; } = new();
     public List<ToolDefinition> Tools { get; } = new();
     public Dictionary<Guid, DeploymentProfile> Profiles { get; } = new();
     public Dictionary<Guid, TutorModelConnection> TutorModelConnections { get; } = new();
@@ -169,6 +171,8 @@ internal sealed class FakeTutorRepository : ITutorRepository
         if (!Tutors.TryGetValue(id, out var tutor)) return Task.FromResult<Tutor?>(null);
         tutor.PromptVersions = PromptVersions.Where(p => p.TutorId == id).ToList();
         tutor.KnowledgeSources = KnowledgeSources.Where(k => k.TutorId == id).ToList();
+        tutor.TutorDocuments = TutorDocuments.Where(k => k.TutorId == id).ToList();
+        tutor.TutorDocumentFolders = TutorDocumentFolders.Where(k => k.TutorId == id).ToList();
         tutor.Tools = Tools.Where(t => t.TutorId == id).ToList();
         tutor.DeploymentProfile = Profiles.TryGetValue(id, out var p) ? p : null;
         tutor.TutorModelConnection = TutorModelConnections.TryGetValue(id, out var connection) ? connection : null;
@@ -223,6 +227,54 @@ internal sealed class FakeTutorRepository : ITutorRepository
     public Task<bool> KnowledgeSourceLinkExistsAsync(Guid tutorId, Guid documentId, CancellationToken ct = default) =>
         Task.FromResult(KnowledgeSources.Any(k => k.TutorId == tutorId && k.DocumentId == documentId));
 
+    public Task<List<KnowledgeSourceLink>> ListKnowledgeSourceLinksAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(KnowledgeSources.Where(link => link.TutorId == tutorId).ToList());
+
+    public Task<KnowledgeSourceLink?> GetKnowledgeSourceLinkAsync(Guid tutorId, Guid documentId, CancellationToken ct = default) =>
+        Task.FromResult(KnowledgeSources.FirstOrDefault(link => link.TutorId == tutorId && link.DocumentId == documentId));
+
+    public Task RemoveKnowledgeSourceLinkAsync(KnowledgeSourceLink link, CancellationToken ct = default)
+    {
+        KnowledgeSources.Remove(link);
+        return Task.CompletedTask;
+    }
+
+    public Task<TutorDocument> AddTutorDocumentAsync(TutorDocument link, CancellationToken ct = default)
+    {
+        TutorDocuments.Add(link);
+        return Task.FromResult(link);
+    }
+
+    public Task<List<TutorDocument>> ListTutorDocumentsAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(TutorDocuments.Where(link => link.TutorId == tutorId).ToList());
+
+    public Task<TutorDocument?> GetTutorDocumentAsync(Guid tutorId, Guid documentId, CancellationToken ct = default) =>
+        Task.FromResult(TutorDocuments.FirstOrDefault(link => link.TutorId == tutorId && link.DocumentId == documentId));
+
+    public Task RemoveTutorDocumentAsync(TutorDocument link, CancellationToken ct = default)
+    {
+        TutorDocuments.Remove(link);
+        return Task.CompletedTask;
+    }
+
+    public Task<TutorDocumentFolder> AddTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken ct = default)
+    {
+        TutorDocumentFolders.Add(link);
+        return Task.FromResult(link);
+    }
+
+    public Task<List<TutorDocumentFolder>> ListTutorDocumentFoldersAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(TutorDocumentFolders.Where(link => link.TutorId == tutorId).ToList());
+
+    public Task<TutorDocumentFolder?> GetTutorDocumentFolderAsync(Guid tutorId, Guid folderId, CancellationToken ct = default) =>
+        Task.FromResult(TutorDocumentFolders.FirstOrDefault(link => link.TutorId == tutorId && link.DocumentFolderId == folderId));
+
+    public Task RemoveTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken ct = default)
+    {
+        TutorDocumentFolders.Remove(link);
+        return Task.CompletedTask;
+    }
+
     public Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default)
     {
         Tools.Add(tool);
@@ -273,6 +325,11 @@ internal sealed class FakeTutorRepository : ITutorRepository
 
     public Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken ct = default) =>
         Task.FromResult(Revisions.FirstOrDefault(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active));
+
+    public Task<TutorRevision?> GetActiveRevisionBySlugAsync(string activationSlug, CancellationToken ct = default) =>
+        Task.FromResult(Revisions.FirstOrDefault(revision =>
+            revision.Status == RevisionStatus.Active &&
+            (revision.ActivationSlug == activationSlug || revision.PreviousActivationSlug == activationSlug)));
 
     public Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken ct = default)
     {
@@ -500,6 +557,21 @@ internal sealed class FakeKnowledgeRetriever : IKnowledgeRetriever
         LastQueryEmbedding = queryEmbedding;
         LastTopK = topK;
         return Task.FromResult(Results.ToList());
+    }
+}
+
+internal sealed class FakeRevisionEffectiveSetReader(IReadOnlyList<Guid>? documentIds = null) : IRevisionEffectiveSetReader
+{
+    public IReadOnlyList<Guid> DocumentIds { get; set; } = documentIds ?? [];
+    public Guid? QueryEmbeddingModelId { get; private set; }
+
+    public Task<EffectiveDocumentSet> GetEffectiveSetAsync(
+        Guid tutorId,
+        CancellationToken cancellationToken = default,
+        Guid? queryEmbeddingModelId = null)
+    {
+        QueryEmbeddingModelId = queryEmbeddingModelId;
+        return Task.FromResult(new EffectiveDocumentSet(DocumentIds, []));
     }
 }
 

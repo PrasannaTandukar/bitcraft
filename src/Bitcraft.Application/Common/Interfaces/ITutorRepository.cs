@@ -17,6 +17,19 @@ public interface ITutorRepository
 
     Task<KnowledgeSourceLink> AddKnowledgeSourceLinkAsync(KnowledgeSourceLink link, CancellationToken cancellationToken = default);
     Task<bool> KnowledgeSourceLinkExistsAsync(Guid tutorId, Guid documentId, CancellationToken cancellationToken = default);
+    Task<List<KnowledgeSourceLink>> ListKnowledgeSourceLinksAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<KnowledgeSourceLink?> GetKnowledgeSourceLinkAsync(Guid tutorId, Guid documentId, CancellationToken cancellationToken = default);
+    Task RemoveKnowledgeSourceLinkAsync(KnowledgeSourceLink link, CancellationToken cancellationToken = default);
+
+    Task<TutorDocument> AddTutorDocumentAsync(TutorDocument link, CancellationToken cancellationToken = default);
+    Task<List<TutorDocument>> ListTutorDocumentsAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<TutorDocument?> GetTutorDocumentAsync(Guid tutorId, Guid documentId, CancellationToken cancellationToken = default);
+    Task RemoveTutorDocumentAsync(TutorDocument link, CancellationToken cancellationToken = default);
+
+    Task<TutorDocumentFolder> AddTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken cancellationToken = default);
+    Task<List<TutorDocumentFolder>> ListTutorDocumentFoldersAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<TutorDocumentFolder?> GetTutorDocumentFolderAsync(Guid tutorId, Guid folderId, CancellationToken cancellationToken = default);
+    Task RemoveTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken cancellationToken = default);
 
     Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default);
 
@@ -36,6 +49,7 @@ public interface ITutorRepository
     Task<TutorRevision?> GetRevisionByIdAsync(Guid revisionId, CancellationToken cancellationToken = default);
     Task<List<TutorRevision>> ListRevisionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default);
     Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<TutorRevision?> GetActiveRevisionBySlugAsync(string activationSlug, CancellationToken cancellationToken = default);
     Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default);
     Task UpdateRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default);
     /// <summary>

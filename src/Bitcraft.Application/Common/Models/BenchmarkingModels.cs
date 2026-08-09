@@ -50,7 +50,8 @@ public sealed record TutorBenchmarkGenerationRequest(
     string InputText,
     string? ContextOverride,
     bool UseTutorKnowledge,
-    int TopK);
+    int TopK,
+    Guid UserId = default);
 
 public sealed record GeneratedBenchmarkOutput(
     string ActualOutput,

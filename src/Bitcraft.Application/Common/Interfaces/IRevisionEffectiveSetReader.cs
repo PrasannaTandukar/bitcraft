@@ -25,4 +25,7 @@ public sealed record EffectiveDocumentSet(
 public sealed record EffectiveKnowledgeBinding(
     Guid DocumentId,
     Guid EmbeddingModelId,
-    int Dimensions);
+    int Dimensions,
+    string? ProviderModelName = null,
+    Guid? RuntimeEngineId = null,
+    string? RuntimeEngineName = null);

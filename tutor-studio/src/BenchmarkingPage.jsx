@@ -18,8 +18,8 @@ export default function BenchmarkingPage() {
   const requestedTab = searchParams.get("tab") || (canManage ? "new" : "history");
   const tab = !canManage && requestedTab !== "history" ? "history" : requestedTab;
   const validTab = ["new", "history", "templates"].includes(tab) ? tab : canManage ? "new" : "history";
-  const selectedTutorId = searchParams.get("tutor") || "";
-  const selectedRevisionId = searchParams.get("revision") || "";
+  const selectedTutorId = searchParams.get("tutorId") || searchParams.get("tutor") || "";
+  const selectedRevisionId = searchParams.get("revisionId") || searchParams.get("revision") || "";
   const selectedRunId = searchParams.get("run") || "";
   const [tutors, setTutors] = useState([]);
   const [tutorsLoading, setTutorsLoading] = useState(true);
@@ -58,7 +58,7 @@ export default function BenchmarkingPage() {
   const updateHistoryLocation = (tutorId, runId = "") => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", "history");
-    if (tutorId) next.set("tutor", tutorId); else next.delete("tutor");
+    if (tutorId) next.set("tutorId", tutorId); else next.delete("tutorId");
     if (runId) next.set("run", runId); else next.delete("run");
     setSearchParams(next);
   };
@@ -67,8 +67,8 @@ export default function BenchmarkingPage() {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set("tab", "new");
-      if (tutorId) next.set("tutor", tutorId); else next.delete("tutor");
-      if (revisionId) next.set("revision", revisionId); else next.delete("revision");
+      if (tutorId) next.set("tutorId", tutorId); else next.delete("tutorId");
+      if (revisionId) next.set("revisionId", revisionId); else next.delete("revisionId");
       return next;
     }, { replace: true });
   }, [setSearchParams]);

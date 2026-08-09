@@ -27,6 +27,20 @@ export const discardTutorRevision = (tutorId, revisionId) =>
 export const listTutorSnapshots = (tutorId, signal) =>
   apiFetch(`/api/tutors/${tutorId}/snapshots`, { signal });
 
+export const listTutorDocuments = (tutorId, signal) =>
+  apiFetch(`/api/tutors/${tutorId}/documents`, { signal });
+export const attachTutorDocument = (tutorId, documentId) =>
+  apiFetch(`/api/tutors/${tutorId}/documents`, { method: "POST", json: { documentId } });
+export const detachTutorDocument = (tutorId, documentId) =>
+  apiFetch(`/api/tutors/${tutorId}/documents/${documentId}`, { method: "DELETE", parse: "none" });
+
+export const listTutorDocumentFolders = (tutorId, signal) =>
+  apiFetch(`/api/tutors/${tutorId}/document-folders`, { signal });
+export const attachTutorDocumentFolder = (tutorId, folderId) =>
+  apiFetch(`/api/tutors/${tutorId}/document-folders`, { method: "POST", json: { folderId } });
+export const detachTutorDocumentFolder = (tutorId, folderId) =>
+  apiFetch(`/api/tutors/${tutorId}/document-folders/${folderId}`, { method: "DELETE", parse: "none" });
+
 export const listInteractionModelCatalog = (tutorId, signal) =>
   apiFetch(`/api/model-catalog/interaction-models?tutorId=${encodeURIComponent(tutorId)}`, { signal });
 export const listEmbeddingModelCatalog = (tutorId, signal) =>
