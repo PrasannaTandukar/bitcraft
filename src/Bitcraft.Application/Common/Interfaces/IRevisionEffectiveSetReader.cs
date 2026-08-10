@@ -7,7 +7,10 @@ namespace Bitcraft.Application.Common.Interfaces;
 /// </summary>
 public interface IRevisionEffectiveSetReader
 {
-    Task<EffectiveDocumentSet> GetEffectiveSetAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task<EffectiveDocumentSet> GetEffectiveSetAsync(
+        Guid tutorId,
+        CancellationToken cancellationToken = default,
+        Guid? queryEmbeddingModelId = null);
 }
 
 /// <summary>

@@ -70,6 +70,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<bool>("GenerateActualOutputs")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid?>("InteractionModelId")
                         .HasColumnType("uuid");
 
@@ -106,6 +109,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<string>("RawResultJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<int>("RetrievalTopK")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("StartedUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -138,6 +144,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("TutorRevisionId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("UseTutorKnowledge")
+                        .HasColumnType("boolean");
 
                     b.HasKey("Id");
 

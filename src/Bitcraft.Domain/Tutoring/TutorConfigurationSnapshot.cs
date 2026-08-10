@@ -54,7 +54,8 @@ public class TutorConfigurationSnapshot : BaseModel
         Guid capturedById,
         TutorRevision? tutorRevision = null,
         string? effectiveDocumentIdsJson = null,
-        string? effectiveKnowledgeBindingJson = null)
+        string? effectiveKnowledgeBindingJson = null,
+        string? revisionDeploymentProfileJson = null)
     {
         ArgumentNullException.ThrowIfNull(tutor);
         if (capturedById == Guid.Empty)
@@ -66,12 +67,13 @@ public class TutorConfigurationSnapshot : BaseModel
             throw new ArgumentOutOfRangeException(nameof(versionNumber), versionNumber, "Version number must be positive.");
         }
 
-        var interactionModel = tutorModelConnection?.InteractionModel;
+        var interactionModel = tutorRevision?.InteractionModel ?? tutorModelConnection?.InteractionModel;
 
         return new TutorConfigurationSnapshot
         {
             TutorId = tutor.Id,
             TutorRevisionId = tutorRevision?.Id,
+            TutorRevision = tutorRevision,
             VersionNumber = versionNumber,
             TutorName = tutor.Name,
             PromptVersionId = promptVersion?.Id,
@@ -79,12 +81,14 @@ public class TutorConfigurationSnapshot : BaseModel
             TutorModelConnectionId = tutorModelConnection?.Id,
             InteractionModelId = interactionModel?.Id,
             ModelName = interactionModel?.ProviderModelName,
-            ModelSettingsJson = tutorModelConnection?.OverrideSettingsJson ?? interactionModel?.SettingsJson,
+            ModelSettingsJson = tutorRevision?.InteractionParametersJson
+                ?? tutorModelConnection?.OverrideSettingsJson
+                ?? interactionModel?.SettingsJson,
             ToolsJson = toolsJson,
             KnowledgeSourcesJson = knowledgeSourcesJson,
             EffectiveDocumentIdsJson = effectiveDocumentIdsJson,
             EffectiveKnowledgeBindingJson = effectiveKnowledgeBindingJson,
-            DeploymentProfileJson = deploymentProfile?.ConfigurationJson,
+            DeploymentProfileJson = revisionDeploymentProfileJson ?? deploymentProfile?.ConfigurationJson,
             CapturedUtc = DateTime.UtcNow,
             CapturedById = capturedById
         };

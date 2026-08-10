@@ -7,8 +7,8 @@
 //   - All callers should pass a path (e.g. "/api/documents"); the helper
 //     prefixes API_BASE_URL.
 //   - Authorization header is auto-attached from localStorage when present.
-//   - 401/403 triggers a logout-style cleanup (localStorage + Redux dispatch)
-//     except on calls that opt out via `auth: false` (login/register).
+//   - 401 triggers session cleanup because authentication is invalid. A 403 is
+//     an authorization denial and must preserve the valid session.
 //   - The Redux store is imported lazily inside `clearAuthSession` to avoid a
 //     circular import between this module and store/authSlice.
 
@@ -46,6 +46,43 @@ export class ApiError extends Error {
   }
 }
 
+function parseErrorBody(body) {
+  if (typeof body !== "string") return body;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
+function isSafeErrorText(value) {
+  if (typeof value !== "string") return false;
+  const text = value.trim();
+  if (!text || text.length > 500) return false;
+  return !/(stack\s*trace|exception|\s+at\s+\S+\(|\/src\/|\\src\\)/i.test(text);
+}
+
+export function getApiErrorDescription(error, fallback = "The request could not be completed.") {
+  if (!(error instanceof ApiError)) {
+    return fallback;
+  }
+
+  const body = parseErrorBody(error.body);
+  if (typeof body === "string" && isSafeErrorText(body)) {
+    return body.trim();
+  }
+
+  if (body && typeof body === "object") {
+    for (const key of ["description", "title", "message"]) {
+      if (isSafeErrorText(body[key])) return body[key].trim();
+    }
+  }
+
+  if (error.status === 403) return "You do not have permission to perform this action.";
+  if (error.status === 404) return "The requested item could not be found.";
+  return fallback;
+}
+
 /**
  * Fetch wrapper for the Bitcraft API.
  *
@@ -57,7 +94,7 @@ export class ApiError extends Error {
  * @param {BodyInit} [options.body] Raw body (use `json` for objects).
  * @param {AbortSignal} [options.signal]
  * @param {boolean} [options.auth=true] When false, no Bearer header is attached and
- *                                       401/403 does NOT trigger logout (for login/register).
+ *                                       401 does NOT trigger logout (for login/register).
  * @param {"json"|"text"|"none"} [options.parse="json"] Response parse strategy.
  * @returns {Promise<*>} Parsed body, or null for 204/empty.
  * @throws {ApiError} On non-2xx responses.
@@ -99,7 +136,7 @@ export async function apiFetch(path, options = {}) {
     signal,
   });
 
-  if (auth && (response.status === 401 || response.status === 403)) {
+  if (auth && response.status === 401) {
     // Fire-and-forget: do not await, so the throw below is not delayed.
     void clearAuthSession();
   }
@@ -107,7 +144,8 @@ export async function apiFetch(path, options = {}) {
   if (!response.ok) {
     let errorBody = null;
     try {
-      errorBody = await response.text();
+      const errorText = await response.text();
+      errorBody = parseErrorBody(errorText);
     } catch {
       // ignore body read failure
     }

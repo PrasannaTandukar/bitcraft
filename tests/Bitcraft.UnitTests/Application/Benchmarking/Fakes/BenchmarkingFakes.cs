@@ -38,6 +38,7 @@ internal sealed class FakeBenchmarkRunRepository : IBenchmarkRunRepository
 {
     public Dictionary<Guid, BenchmarkRun> Runs { get; } = new();
     public int UpdateCalls { get; private set; }
+    public List<double> ProgressUpdates { get; } = [];
 
     public Task<BenchmarkRun> AddAsync(BenchmarkRun run, CancellationToken cancellationToken = default)
     {
@@ -70,6 +71,7 @@ internal sealed class FakeBenchmarkRunRepository : IBenchmarkRunRepository
     public Task UpdateAsync(BenchmarkRun run, CancellationToken cancellationToken = default)
     {
         UpdateCalls++;
+        ProgressUpdates.Add(run.ProgressPercent);
         Runs[run.Id] = run;
         return Task.CompletedTask;
     }
@@ -110,5 +112,22 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
         LastRequest = request;
         return Task.FromResult(ResultToReturn ?? Result.Failure<BenchmarkEngineResult>(
             new Error("Benchmark.EngineNotConfigured", "Fake benchmark engine result was not configured.")));
+    }
+}
+
+internal sealed class FakeTutorBenchmarkOutputGenerator : ITutorBenchmarkOutputGenerator
+{
+    public List<TutorBenchmarkGenerationRequest> Requests { get; } = [];
+    public Queue<Result<GeneratedBenchmarkOutput>> Results { get; } = new();
+
+    public Task<Result<GeneratedBenchmarkOutput>> GenerateAsync(
+        TutorBenchmarkGenerationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Requests.Add(request);
+        var result = Results.Count > 0
+            ? Results.Dequeue()
+            : Result.Success(new GeneratedBenchmarkOutput("Generated answer", "llama3", request.ContextOverride, 12.5));
+        return Task.FromResult(result);
     }
 }

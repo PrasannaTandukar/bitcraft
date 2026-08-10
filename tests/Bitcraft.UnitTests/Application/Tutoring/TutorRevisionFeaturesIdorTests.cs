@@ -77,7 +77,11 @@ public class TutorRevisionFeaturesIdorTests
         membership.Grant(realTutorId, user, ResourceRole.Owner);
 
         var handler = new TutorRevisionFeatures.PublishRevisionHandler(
-            repo, membership, new FakeCurrentUserContext(user));
+            repo,
+            new FakeModelRepository(),
+            new FakeTutorRuntimeEngineRepository(),
+            membership,
+            new FakeCurrentUserContext(user));
 
         var result = await handler.Handle(
             new TutorRevisionFeatures.PublishRevisionCommand(attackerTutorId, revision.Id),

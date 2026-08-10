@@ -26,6 +26,11 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             .Include(x => x.Tools)
             .Include(x => x.DeploymentProfile)
             .Include(x => x.Snapshots)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.PromptVersion)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.InteractionModel)
+            .Include(x => x.Revisions)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
@@ -35,6 +40,11 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             // the user has a TutorMember entry (any ResourceRole).
             .Where(x => x.Members.Any(m => m.UserId == ownerId))
             .Include(x => x.TutorModelConnection)
+            .Include(x => x.ActivePromptVersion)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.PromptVersion)
+            .Include(x => x.ActiveRevision)
+                .ThenInclude(x => x!.InteractionModel)
             .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
 
@@ -50,6 +60,16 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         await db.SaveChangesAsync(cancellationToken);
         return promptVersion;
     }
+
+    public Task<List<PromptVersion>> ListPromptVersionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.Set<PromptVersion>()
+            .Where(x => x.TutorId == tutorId)
+            .OrderByDescending(x => x.VersionNumber)
+            .ToListAsync(cancellationToken);
+
+    public Task<PromptVersion?> GetPromptVersionByIdAsync(Guid promptVersionId, CancellationToken cancellationToken = default) =>
+        db.Set<PromptVersion>()
+            .FirstOrDefaultAsync(x => x.Id == promptVersionId, cancellationToken);
 
     public async Task<int> GetNextPromptVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
     {
@@ -121,6 +141,24 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         return snapshot;
     }
 
+    public Task<List<TutorConfigurationSnapshot>> ListSnapshotsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
+        db.Set<TutorConfigurationSnapshot>()
+            .Where(x => x.TutorId == tutorId)
+            .Include(x => x.TutorRevision)
+                .ThenInclude(x => x!.PromptVersion)
+            .Include(x => x.TutorRevision)
+                .ThenInclude(x => x!.InteractionModel)
+            .OrderByDescending(x => x.CapturedUtc)
+            .ToListAsync(cancellationToken);
+
+    public Task<TutorConfigurationSnapshot?> GetSnapshotByIdAsync(Guid snapshotId, CancellationToken cancellationToken = default) =>
+        db.Set<TutorConfigurationSnapshot>()
+            .Include(x => x.TutorRevision)
+                .ThenInclude(x => x!.PromptVersion)
+            .Include(x => x.TutorRevision)
+                .ThenInclude(x => x!.InteractionModel)
+            .FirstOrDefaultAsync(x => x.Id == snapshotId, cancellationToken);
+
     public async Task<int> GetNextSnapshotVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
     {
         var max = await db.Set<TutorConfigurationSnapshot>()
@@ -144,19 +182,36 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
             .Include(r => r.Tutor)
             .Include(r => r.PromptVersion)
             .Include(r => r.InteractionModel)
+                .ThenInclude(m => m!.RuntimeEngine)
             .Include(r => r.QueryEmbeddingModel)
+                .ThenInclude(m => m!.RuntimeEngine)
             .Include(r => r.RevisionTools)
+                .ThenInclude(rt => rt.ToolDefinition)
+            .Include(r => r.Snapshots)
             .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.Id == revisionId, cancellationToken);
 
     public Task<List<TutorRevision>> ListRevisionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
         db.Set<TutorRevision>()
             .Where(r => r.TutorId == tutorId)
+            .Include(r => r.PromptVersion)
+            .Include(r => r.InteractionModel)
+                .ThenInclude(m => m!.RuntimeEngine)
+            .Include(r => r.QueryEmbeddingModel)
+                .ThenInclude(m => m!.RuntimeEngine)
+            .Include(r => r.Snapshots)
             .OrderByDescending(r => r.VersionNumber)
             .ToListAsync(cancellationToken);
 
     public Task<TutorRevision?> GetActiveRevisionAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
         db.Set<TutorRevision>()
+            .Include(r => r.PromptVersion)
+            .Include(r => r.InteractionModel)
+                .ThenInclude(m => m!.RuntimeEngine)
+            .Include(r => r.QueryEmbeddingModel)
+                .ThenInclude(m => m!.RuntimeEngine)
+            .Include(r => r.Snapshots)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active, cancellationToken);
 
     public async Task<int> GetNextRevisionVersionNumberAsync(Guid tutorId, CancellationToken cancellationToken = default)
@@ -171,6 +226,27 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
     public async Task UpdateRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default)
     {
         db.Set<TutorRevision>().Update(revision);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ActivateRevisionAsync(
+        Tutor tutor,
+        TutorRevision revision,
+        TutorRevision? previousActiveRevision,
+        TutorConfigurationSnapshot snapshot,
+        CancellationToken cancellationToken = default)
+    {
+        if (previousActiveRevision is not null)
+        {
+            db.Entry(previousActiveRevision).State = EntityState.Modified;
+        }
+
+        db.Entry(revision).State = EntityState.Modified;
+        db.Entry(tutor).State = EntityState.Modified;
+        db.Set<TutorConfigurationSnapshot>().Add(snapshot);
+
+        // EF Core wraps this SaveChanges call in a transaction. No lifecycle state is persisted
+        // unless every revision, tutor pointer, and snapshot write succeeds.
         await db.SaveChangesAsync(cancellationToken);
     }
 

@@ -1,516 +1,232 @@
-import { useState, useEffect, useRef } from "react";
-import { apiFetch } from "./api/client.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Button, Modal, Spinner } from "react-bootstrap";
+import { useSelector } from "react-redux";
+import { getApiErrorDescription } from "./api/client.js";
+import DocumentPreviewDialog from "./documents/DocumentPreviewDialog.jsx";
+import DocumentRow from "./documents/DocumentRow.jsx";
+import DocumentUploadDialog from "./documents/DocumentUploadDialog.jsx";
+import VectorizeDocumentDialog from "./documents/VectorizeDocumentDialog.jsx";
+import {
+  defaultMaximumUploadLabel,
+  deleteDocument,
+  getVectorizationStatus,
+  listDocumentFolders,
+  listDocuments,
+} from "./documents/documentApi.js";
+import "./documents/FilesPage.css";
 
-const DOCUMENTS_PATH = "/api/documents";
-
-const mimeIcon = (mimeType) => {
-  if (!mimeType) return "📄";
-  if (mimeType.startsWith("image/")) return "🖼️";
-  if (mimeType.startsWith("video/")) return "🎬";
-  if (mimeType.startsWith("audio/")) return "🎵";
-  if (mimeType === "application/pdf") return "📕";
-  if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "📊";
-  if (mimeType.includes("presentation") || mimeType.includes("powerpoint")) return "📊";
-  if (mimeType.includes("word") || mimeType.includes("document")) return "📝";
-  if (mimeType.startsWith("text/")) return "📄";
-  return "📦";
-};
-
-const inputStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "12px",
-  padding: "7px 10px",
-  border: "1px solid #e8eaf0",
-  borderRadius: "4px",
-  background: "#fff",
-  color: "#1a1a2e",
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const labelStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "10px",
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  color: "#99a",
-  marginBottom: "5px",
-  display: "block",
-};
-
-function ConfirmDialog({ fileName, onConfirm, onCancel, loading }) {
-  return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: "8px", padding: "28px 32px",
-        border: "1px solid #e8eaf0", maxWidth: "380px", width: "90%",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-        fontFamily: "'DM Mono', monospace",
-      }}>
-        <p style={{ fontSize: "13px", color: "#1a1a2e", marginBottom: "6px", fontWeight: "500" }}>
-          Delete file?
-        </p>
-        <p style={{ fontSize: "12px", color: "#999", marginBottom: "24px", wordBreak: "break-all" }}>
-          "{fileName}" will be permanently deleted.
-        </p>
-        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            style={{
-              fontFamily: "'DM Mono', monospace", fontSize: "11px",
-              padding: "6px 16px", border: "1px solid #e8eaf0",
-              borderRadius: "4px", background: "#fff", color: "#555",
-              cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            style={{
-              fontFamily: "'DM Mono', monospace", fontSize: "11px",
-              padding: "6px 16px", border: "1px solid #e94560",
-              borderRadius: "4px", background: "#e94560", color: "#fff",
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.6 : 1,
-              display: "flex", alignItems: "center", gap: "6px",
-            }}
-          >
-            {loading ? "Deleting…" : "Delete"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VectorizeModal({ doc, onClose }) {
-  const [form, setForm] = useState({
-    embeddingProvider: "",
-    embeddingModel: "",
-    maxChunkLength: 512,
-    embeddingModelId: "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-
-  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
-
-  const handleSubmit = async () => {
-    if (!form.embeddingModelId.trim()) { setError("Embedding Model ID is required."); return; }
-    setSaving(true);
-    setError(null);
-    try {
-      await apiFetch(`${DOCUMENTS_PATH}/${doc.id}/vectorize`, {
-        method: "POST",
-        json: {
-          embeddingProvider: form.embeddingProvider || null,
-          embeddingModel: form.embeddingModel || null,
-          maxChunkLength: Number(form.maxChunkLength) || 512,
-          embeddingModelId: form.embeddingModelId,
-        },
-      });
-      setSuccess(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+function normalizeDocument(document) {
+  const rawTextLength = typeof document?.rawText === "string"
+    ? document.rawText.length
+    : Number(document?.rawTextLength || 0);
+  return {
+    ...document,
+    hasRawText: typeof document?.hasRawText === "boolean"
+      ? document.hasRawText
+      : rawTextLength > 0,
+    rawTextLength: Number.isFinite(rawTextLength) ? rawTextLength : 0,
   };
-
-  return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: "8px", padding: "32px",
-        border: "1px solid #e8eaf0", width: "100%", maxWidth: "480px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-        fontFamily: "'DM Mono', monospace",
-        maxHeight: "90vh", overflowY: "auto",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <span style={{ fontSize: "13px", fontWeight: "600", color: "#1a1a2e" }}>Vectorize File</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#999", lineHeight: 1 }}>×</button>
-        </div>
-        <p style={{ fontSize: "11px", color: "#999", marginBottom: "24px", wordBreak: "break-all" }}>{doc.name}</p>
-
-        {success ? (
-          <div style={{ textAlign: "center", padding: "24px 0" }}>
-            <div style={{ fontSize: "24px", marginBottom: "8px" }}>✓</div>
-            <p style={{ fontSize: "13px", color: "#276749" }}>Vectorization started successfully.</p>
-            <button
-              onClick={onClose}
-              style={{
-                marginTop: "16px", fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                padding: "7px 16px", border: "1px solid #e8eaf0",
-                borderRadius: "4px", background: "#fff", color: "#555", cursor: "pointer",
-              }}
-            >
-              Close
-            </button>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div>
-                <label style={labelStyle}>Embedding Model ID *</label>
-                <input
-                  style={inputStyle}
-                  value={form.embeddingModelId}
-                  onChange={(e) => set("embeddingModelId", e.target.value)}
-                  placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Embedding Provider</label>
-                <input
-                  style={inputStyle}
-                  value={form.embeddingProvider}
-                  onChange={(e) => set("embeddingProvider", e.target.value)}
-                  placeholder="ollama"
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Embedding Model</label>
-                <input
-                  style={inputStyle}
-                  value={form.embeddingModel}
-                  onChange={(e) => set("embeddingModel", e.target.value)}
-                  placeholder="text-embedding-3-small"
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Max Chunk Length</label>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  value={form.maxChunkLength}
-                  onChange={(e) => set("maxChunkLength", e.target.value)}
-                  placeholder="512"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <p style={{ fontSize: "11px", color: "#e94560", marginTop: "16px" }}>{error}</p>
-            )}
-
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "24px" }}>
-              <button
-                onClick={onClose}
-                disabled={saving}
-                style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                  padding: "7px 16px", border: "1px solid #e8eaf0",
-                  borderRadius: "4px", background: "#fff", color: "#555",
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                style={{
-                  fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                  padding: "7px 16px", border: "1px solid #7c3aed",
-                  borderRadius: "4px", background: "#7c3aed", color: "#fff",
-                  cursor: saving ? "not-allowed" : "pointer",
-                  opacity: saving ? 0.6 : 1,
-                  display: "flex", alignItems: "center", gap: "6px",
-                }}
-              >
-                {saving ? (
-                  <>
-                    <div style={{ width: "10px", height: "10px", border: "2px solid #fff", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                    Vectorizing…
-                  </>
-                ) : "Vectorize"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function FileRow({ doc, index, onDelete, onVectorize }) {
-  const [hovered, setHovered] = useState(false);
-  const [deleteBtnHovered, setDeleteBtnHovered] = useState(false);
-  const [vectorizeBtnHovered, setVectorizeBtnHovered] = useState(false);
-
-  const date = doc.lastModifiedUtc
-    ? new Date(doc.lastModifiedUtc)
-    : new Date(doc.createdUtc);
-
-  const formattedDate = date.toLocaleDateString(undefined, {
-    year: "numeric", month: "short", day: "numeric",
-  });
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto auto auto",
-        gap: "12px",
-        alignItems: "center",
-        padding: "14px 28px",
-        background: hovered ? "#f7f8fc" : "transparent",
-        transition: "background 0.15s ease",
-        animation: "fadeSlideIn 0.3s ease both",
-        animationDelay: `${index * 0.04}s`,
-        borderBottom: "1px solid #f0f0f5",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-        <span style={{ fontSize: "18px", flexShrink: 0 }}>{mimeIcon(doc.mimeType)}</span>
-        <span style={{
-          fontFamily: "'DM Mono', monospace", fontSize: "13px", color: "#1a1a2e",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          {doc.name}
-        </span>
-      </div>
-
-      <span style={{
-        fontFamily: "'DM Mono', monospace", fontSize: "11px",
-        color: "#999", whiteSpace: "nowrap",
-      }}>
-        {formattedDate}
-      </span>
-
-      <button
-        onClick={() => onVectorize(doc)}
-        onMouseEnter={() => setVectorizeBtnHovered(true)}
-        onMouseLeave={() => setVectorizeBtnHovered(false)}
-        style={{
-          fontFamily: "'DM Mono', monospace", fontSize: "11px",
-          padding: "4px 10px", border: "1px solid #7c3aed",
-          borderRadius: "4px",
-          background: vectorizeBtnHovered ? "#7c3aed" : "#fff",
-          color: vectorizeBtnHovered ? "#fff" : "#7c3aed",
-          cursor: "pointer", transition: "background 0.15s, color 0.15s",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Vectorize
-      </button>
-
-      <button
-        onClick={() => onDelete(doc)}
-        onMouseEnter={() => setDeleteBtnHovered(true)}
-        onMouseLeave={() => setDeleteBtnHovered(false)}
-        style={{
-          fontFamily: "'DM Mono', monospace", fontSize: "11px",
-          padding: "4px 10px", border: "1px solid #e94560",
-          borderRadius: "4px",
-          background: deleteBtnHovered ? "#e94560" : "#fff",
-          color: deleteBtnHovered ? "#fff" : "#e94560",
-          cursor: "pointer", transition: "background 0.15s, color 0.15s",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Delete
-      </button>
-    </div>
-  );
 }
 
 export default function FilesPage() {
-  const [docs, setDocs] = useState([]);
+  const { roles = [] } = useSelector((state) => state.auth);
+  // TODO post-PoC: extract role-check hook when framework auth context is installed.
+  const canManage = roles.includes("Editor") || roles.includes("Admin");
+  const [documents, setDocuments] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [statuses, setStatuses] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState(null);
-  const [confirmDoc, setConfirmDoc] = useState(null);
-  const [vectorizeDoc, setVectorizeDoc] = useState(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [uploadDocumentTarget, setUploadDocumentTarget] = useState(undefined);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [vectorizeDocumentTarget, setVectorizeDocumentTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [addHovered, setAddHovered] = useState(false);
-  const [refreshHovered, setRefreshHovered] = useState(false);
-  const fileInputRef = useRef(null);
+  const requestRef = useRef(null);
 
-  const fetchDocs = (isRefresh = false) => {
+  const loadWorkspace = useCallback(async (isRefresh = false) => {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     if (isRefresh) setRefreshing(true);
-    apiFetch(DOCUMENTS_PATH)
-      .then((data) => { setDocs(data); setError(null); })
-      .catch((err) => setError(err.message))
-      .finally(() => { setLoading(false); setRefreshing(false); });
-  };
+    else setLoading(true);
+    setError("");
 
-  useEffect(() => { fetchDocs(); }, []);
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
     try {
-      const newDoc = await apiFetch(DOCUMENTS_PATH, {
-        method: "POST",
-        json: { name: file.name, mimeType: file.type || null, sourcePath: null, rawText: null },
-      });
-      setDocs((prev) => [newDoc, ...prev]);
-    } catch (err) {
-      setUploadError(err.message);
+      const [documentValues, folderValues] = await Promise.all([
+        listDocuments(controller.signal),
+        listDocumentFolders(controller.signal),
+      ]);
+      if (!Array.isArray(documentValues) || !Array.isArray(folderValues)) {
+        throw new Error("Invalid files response.");
+      }
+      const nextDocuments = documentValues.filter((item) => item?.id).map(normalizeDocument);
+      setDocuments(nextDocuments);
+      setFolders(folderValues.filter((item) => item?.id));
+      setStatuses({});
+
+      const statusResults = await Promise.allSettled(nextDocuments.map((document) =>
+        getVectorizationStatus(document.id, controller.signal)));
+      if (!controller.signal.aborted) {
+        const nextStatuses = {};
+        statusResults.forEach((result, index) => {
+          nextStatuses[nextDocuments[index].id] = result.status === "fulfilled" && result.value
+            ? result.value
+            : { unavailable: true };
+        });
+        setStatuses(nextStatuses);
+      }
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setError(getApiErrorDescription(requestError, "Files could not be loaded."));
+      }
     } finally {
-      setUploading(false);
-      e.target.value = "";
+      if (!controller.signal.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadWorkspace(), 0);
+    return () => {
+      window.clearTimeout(timer);
+      requestRef.current?.abort();
+    };
+  }, [loadWorkspace]);
+
+  const handleSaved = (savedDocument, wasReplacement) => {
+    const normalized = normalizeDocument(savedDocument);
+    setDocuments((current) => wasReplacement
+      ? current.map((document) => document.id === normalized.id ? normalized : document)
+      : [normalized, ...current]);
+    setStatuses((current) => ({ ...current, [normalized.id]: null }));
+    setUploadDocumentTarget(undefined);
+    setNotice(wasReplacement
+      ? "File content was replaced and previous knowledge chunks were removed. You can now vectorize the new text."
+      : "File uploaded and text extracted successfully.");
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!confirmDoc) return;
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return;
     setDeleting(true);
+    setError("");
     try {
-      await apiFetch(`${DOCUMENTS_PATH}/${confirmDoc.id}`, {
-        method: "DELETE",
-        parse: "none",
+      await deleteDocument(deleteTarget.id);
+      setDocuments((current) => current.filter((document) => document.id !== deleteTarget.id));
+      setStatuses((current) => {
+        const next = { ...current };
+        delete next[deleteTarget.id];
+        return next;
       });
-      setDocs((prev) => prev.filter((d) => d.id !== confirmDoc.id));
-      setConfirmDoc(null);
-    } catch (err) {
-      setUploadError(err.message);
-      setConfirmDoc(null);
+      setDeleteTarget(null);
+      setNotice("File deleted.");
+    } catch (requestError) {
+      setError(getApiErrorDescription(requestError, "The file could not be deleted."));
     } finally {
       setDeleting(false);
     }
   };
 
+  const folderNames = Object.fromEntries(folders.map((folder) => [folder.id, folder.name]));
+
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
-
-      {confirmDoc && (
-        <ConfirmDialog
-          fileName={confirmDoc.name}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setConfirmDoc(null)}
-          loading={deleting}
-        />
-      )}
-
-      {vectorizeDoc && (
-        <VectorizeModal
-          doc={vectorizeDoc}
-          onClose={() => setVectorizeDoc(null)}
-        />
-      )}
-
-      <div style={{ background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
-        <div style={{ maxWidth: "860px", margin: "0 auto" }}>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px", gap: "8px", alignItems: "center" }}>
-            {uploadError && (
-              <span style={{ fontSize: "11px", color: "#e94560", marginRight: "4px" }}>{uploadError}</span>
-            )}
-            <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFileChange} />
-
-            <button
-              onClick={() => fetchDocs(true)}
-              disabled={refreshing}
-              onMouseEnter={() => setRefreshHovered(true)}
-              onMouseLeave={() => setRefreshHovered(false)}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                letterSpacing: "0.08em", padding: "7px 14px",
-                border: "1px solid #e8eaf0", borderRadius: "4px",
-                background: refreshHovered ? "#f7f8fc" : "#fff",
-                color: "#555", cursor: refreshing ? "not-allowed" : "pointer",
-                opacity: refreshing ? 0.6 : 1,
-                transition: "background 0.15s",
-                display: "flex", alignItems: "center", gap: "6px",
-              }}
-            >
-              {refreshing ? (
-                <div style={{ width: "10px", height: "10px", border: "2px solid #ccc", borderTop: "2px solid #555", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-              ) : "↻"} Refresh
-            </button>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              onMouseEnter={() => setAddHovered(true)}
-              onMouseLeave={() => setAddHovered(false)}
-              style={{
-                fontFamily: "'DM Mono', monospace", fontSize: "11px",
-                letterSpacing: "0.08em", padding: "7px 16px",
-                border: "1px solid #3b9ede", borderRadius: "4px",
-                background: addHovered ? "#3b9ede" : "#fff",
-                color: addHovered ? "#fff" : "#3b9ede",
-                cursor: uploading ? "not-allowed" : "pointer",
-                opacity: uploading ? 0.6 : 1,
-                transition: "background 0.15s, color 0.15s",
-                display: "flex", alignItems: "center", gap: "6px",
-              }}
-            >
-              {uploading ? (
-                <>
-                  <div style={{ width: "10px", height: "10px", border: "2px solid #3b9ede", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                  Uploading…
-                </>
-              ) : <>+ Add File</>}
-            </button>
-          </div>
-
-          <div style={{ background: "#ffffff", borderRadius: "6px", overflow: "hidden", border: "1px solid #e8eaf0" }}>
-            {loading && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 24px", gap: "16px" }}>
-                <div style={{ width: "28px", height: "28px", border: "2px solid #e8eaf0", borderTop: "2px solid #e94560", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                <span style={{ fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>LOADING…</span>
-              </div>
-            )}
-
-            {error && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "64px 24px", gap: "12px" }}>
-                <span style={{ fontSize: "24px" }}>⚠</span>
-                <span style={{ fontSize: "13px", color: "#e94560" }}>Failed to load files</span>
-                <span style={{ fontSize: "11px", color: "#999" }}>{error}</span>
-              </div>
-            )}
-
-            {!loading && !error && docs.length === 0 && (
-              <div style={{ padding: "64px 24px", textAlign: "center", fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>
-                NO FILES FOUND
-              </div>
-            )}
-
-            {!loading && !error && docs.map((doc, i) => (
-              <FileRow
-                key={doc.id}
-                doc={doc}
-                index={i}
-                onDelete={setConfirmDoc}
-                onVectorize={setVectorizeDoc}
-              />
-            ))}
-          </div>
+    <main className="files-page">
+      <div className="files-page-header">
+        <div>
+          <h1 className="h3 mb-1">Files</h1>
+          <p className="files-supported-copy mb-0">
+            Upload TXT, Markdown, CSV, JSON, PDF or DOCX files up to {defaultMaximumUploadLabel}. Text extraction happens securely on the server; OCR is not supported.
+          </p>
+        </div>
+        <div className="files-page-actions">
+          <Button variant="outline-secondary" onClick={() => loadWorkspace(true)} disabled={refreshing}>
+            {refreshing ? <><Spinner size="sm" className="me-2" />Refreshing…</> : "Refresh"}
+          </Button>
+          {canManage && <Button onClick={() => setUploadDocumentTarget(null)}>Add file</Button>}
         </div>
       </div>
-    </>
+
+      {notice && <Alert variant="success" dismissible onClose={() => setNotice("")}>{notice}</Alert>}
+      {error && <Alert variant="danger" dismissible onClose={() => setError("")}>{error}</Alert>}
+
+      {loading ? (
+        <div className="files-empty-state" role="status"><Spinner animation="border" className="me-2" />Loading files…</div>
+      ) : documents.length === 0 ? (
+        <div className="files-empty-state">
+          <h2 className="h5">No files yet</h2>
+          <p>{canManage ? "Upload a supported file to extract its text and prepare it for vectorization." : "No documents are available for your account."}</p>
+          {canManage && <Button onClick={() => setUploadDocumentTarget(null)}>Add your first file</Button>}
+        </div>
+      ) : (
+        <div className="document-list">
+          {documents.map((document) => (
+            <DocumentRow
+              key={document.id}
+              document={document}
+              folderName={folderNames[document.folderId]}
+              status={statuses[document.id]}
+              canManage={canManage}
+              onPreview={setPreviewDocument}
+              onReplace={setUploadDocumentTarget}
+              onVectorize={setVectorizeDocumentTarget}
+              onDelete={setDeleteTarget}
+            />
+          ))}
+        </div>
+      )}
+
+      {uploadDocumentTarget !== undefined && (
+        <DocumentUploadDialog
+          document={uploadDocumentTarget}
+          folders={folders}
+          onClose={() => setUploadDocumentTarget(undefined)}
+          onSaved={handleSaved}
+        />
+      )}
+
+      {previewDocument && (
+        <DocumentPreviewDialog
+          key={previewDocument.id}
+          document={previewDocument}
+          canManage={canManage}
+          onClose={() => setPreviewDocument(null)}
+          onReplace={(document) => {
+            setPreviewDocument(null);
+            setUploadDocumentTarget(document);
+          }}
+        />
+      )}
+
+      {vectorizeDocumentTarget && (
+        <VectorizeDocumentDialog
+          key={vectorizeDocumentTarget.id}
+          document={vectorizeDocumentTarget}
+          onClose={() => setVectorizeDocumentTarget(null)}
+          onVectorized={(documentId, status) => {
+            setStatuses((current) => ({ ...current, [documentId]: status }));
+            setNotice(`Vectorized successfully. Created ${status?.chunkCount ?? 0} knowledge chunks.`);
+          }}
+        />
+      )}
+
+      {deleteTarget && (
+        <Modal show onHide={deleting ? undefined : () => setDeleteTarget(null)} backdrop={deleting ? "static" : true} keyboard={!deleting} centered>
+          <Modal.Header closeButton={!deleting}><Modal.Title>Delete file</Modal.Title></Modal.Header>
+          <Modal.Body>
+            Delete <strong>{deleteTarget.name}</strong>? Its extracted text and knowledge chunks will be permanently removed.
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? <><Spinner size="sm" className="me-2" />Deleting…</> : "Delete file"}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
+    </main>
   );
 }

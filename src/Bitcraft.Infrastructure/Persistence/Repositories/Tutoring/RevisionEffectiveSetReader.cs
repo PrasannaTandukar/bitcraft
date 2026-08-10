@@ -10,7 +10,10 @@ namespace Bitcraft.Infrastructure.Persistence.Repositories.Tutoring;
 /// </summary>
 public class RevisionEffectiveSetReader(AppDbContext db) : IRevisionEffectiveSetReader
 {
-    public async Task<EffectiveDocumentSet> GetEffectiveSetAsync(Guid tutorId, CancellationToken cancellationToken = default)
+    public async Task<EffectiveDocumentSet> GetEffectiveSetAsync(
+        Guid tutorId,
+        CancellationToken cancellationToken = default,
+        Guid? queryEmbeddingModelId = null)
     {
         var directDocIds = await db.TutorDocuments
             .Where(td => td.TutorId == tutorId)
@@ -38,7 +41,10 @@ public class RevisionEffectiveSetReader(AppDbContext db) : IRevisionEffectiveSet
         var bindings = allDocIds.Count == 0
             ? new List<EffectiveKnowledgeBinding>()
             : await db.KnowledgeChunks
-                .Where(c => allDocIds.Contains(c.DocumentId) && c.EmbeddingModelId != null && c.EmbeddingDimensions != null)
+                .Where(c => allDocIds.Contains(c.DocumentId) &&
+                            c.EmbeddingModelId != null &&
+                            c.EmbeddingDimensions != null &&
+                            (!queryEmbeddingModelId.HasValue || c.EmbeddingModelId == queryEmbeddingModelId.Value))
                 .Select(c => new { c.DocumentId, EmbeddingModelId = c.EmbeddingModelId!.Value, Dimensions = c.EmbeddingDimensions!.Value })
                 .Distinct()
                 .Select(x => new EffectiveKnowledgeBinding(x.DocumentId, x.EmbeddingModelId, x.Dimensions))

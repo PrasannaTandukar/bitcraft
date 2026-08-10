@@ -25,6 +25,12 @@ internal static class TutoringMapping
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status403Forbidden },
         "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
+        "Knowledge.EmbeddingServiceUnavailable" or "Knowledge.EmbeddingRequestFailed" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
+        "Document.FileTooLarge" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status413PayloadTooLarge },
+        "Document.UnsupportedFileType" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status415UnsupportedMediaType },
         "Rag.SearchFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status500InternalServerError },
         _ => new BadRequestObjectResult(new ApiError(error.Code, error.Description)),
@@ -36,6 +42,8 @@ internal static class TutoringMapping
         document.SourcePath,
         document.MimeType,
         document.FolderId,
+        !string.IsNullOrWhiteSpace(document.RawText),
+        document.RawText?.Length ?? 0,
         document.CreatedUtc,
         document.CreatedById,
         document.ModifiedUtc,
@@ -65,6 +73,20 @@ internal static class TutoringMapping
     public static VectorizeDocumentResponse ToResponse(this KnowledgeFeatures.VectorizeDocumentResult result) => new(
         result.DocumentId,
         result.ChunkCount);
+
+    public static DocumentVectorizationStatusResponse ToResponse(this DocumentVectorizationStatus status) => new(
+        status.DocumentId,
+        status.HasRawText,
+        status.RawTextLength,
+        status.IsVectorized,
+        status.IsStale,
+        status.ChunkCount,
+        status.LastVectorizedUtc,
+        status.EmbeddingModelId,
+        status.EmbeddingModelName,
+        status.ProviderModelName,
+        status.EmbeddingProvider,
+        status.EmbeddingDimensions);
 
     public static KnowledgeChunkResponse ToResponse(this KnowledgeChunk chunk) => new(
         chunk.Id,
@@ -129,6 +151,25 @@ internal static class TutoringMapping
         model.ModifiedUtc,
         model.ModifiedById);
 
+    public static TutorInteractionModelCatalogResponse ToCatalogResponse(this InteractionModel model) => new(
+        model.Id,
+        model.Name,
+        model.ProviderModelName,
+        model.RuntimeEngineId,
+        model.RuntimeEngine?.Name,
+        model.IsEnabled,
+        model.RuntimeEngine?.IsEnabled == true);
+
+    public static TutorEmbeddingModelCatalogResponse ToCatalogResponse(this EmbeddingModel model) => new(
+        model.Id,
+        model.Name,
+        model.ProviderModelName,
+        model.RuntimeEngineId,
+        model.RuntimeEngine?.Name,
+        model.IsEnabled,
+        model.RuntimeEngine?.IsEnabled == true,
+        model.EmbeddingDimensions);
+
     public static RuntimeEngineResponse ToResponse(this RuntimeEngine engine) => new(
         engine.Id,
         engine.Name,
@@ -148,9 +189,14 @@ internal static class TutoringMapping
         tutor.Status,
         tutor.TutorModelConnection?.Id,
         tutor.ActivePromptVersionId,
+        tutor.ActiveRevisionId,
         tutor.DeploymentProfile?.Id,
         tutor.CreatedUtc,
-        tutor.ModifiedUtc);
+        tutor.ModifiedUtc,
+        tutor.ActiveRevision?.VersionNumber,
+        tutor.ActiveRevision?.Status,
+        tutor.ActiveRevision?.PromptVersion?.VersionNumber ?? tutor.ActivePromptVersion?.VersionNumber,
+        tutor.ActiveRevision?.PromptVersion?.Name ?? tutor.ActivePromptVersion?.Name);
 
     public static PromptVersionResponse ToResponse(this PromptVersion v) => new(
         v.Id, v.TutorId, v.VersionNumber, v.Name, v.Content, v.Notes, v.CreatedUtc);
@@ -175,7 +221,9 @@ internal static class TutoringMapping
     public static TutorConfigurationSnapshotResponse ToResponse(this TutorConfigurationSnapshot s) => new(
         s.Id, s.TutorId, s.VersionNumber, s.TutorName, s.PromptVersionId, s.PromptContent,
         s.TutorModelConnectionId, s.InteractionModelId, s.ModelName, s.ModelSettingsJson,
-        s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById);
+        s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById,
+        s.TutorRevisionId, s.TutorRevision?.VersionNumber, s.TutorRevision?.PromptVersion?.Name,
+        s.TutorRevision?.InteractionModel?.Name);
 
     public static TutorRevisionResponse ToResponse(this TutorRevision r) => new(
         r.Id,
@@ -183,8 +231,18 @@ internal static class TutoringMapping
         r.VersionNumber,
         r.Status,
         r.PromptVersionId,
+        r.PromptVersion?.Name,
+        r.PromptVersion?.VersionNumber,
         r.InteractionModelId,
+        r.InteractionModel?.Name,
+        r.InteractionModel?.ProviderModelName,
+        r.InteractionModel?.RuntimeEngine?.Name,
+        r.InteractionModel?.IsEnabled,
+        r.InteractionModel?.RuntimeEngine?.IsEnabled,
         r.QueryEmbeddingModelId,
+        r.QueryEmbeddingModel?.Name,
+        r.QueryEmbeddingModel?.ProviderModelName,
+        r.QueryEmbeddingModel?.EmbeddingDimensions,
         r.InteractionParametersJson,
         r.DeploymentTarget,
         r.DeploymentConfigJson,
@@ -197,7 +255,15 @@ internal static class TutoringMapping
         r.ActivationSlug,
         r.PreviousActivationSlug,
         r.CreatedUtc,
-        r.ModifiedUtc);
+        r.ModifiedUtc,
+        r.DeploymentTarget.ToString(),
+        r.Status == RevisionStatus.Draft &&
+            r.PromptVersionId.HasValue &&
+            r.InteractionModelId.HasValue &&
+            r.InteractionModel?.IsEnabled == true &&
+            r.InteractionModel.RuntimeEngine?.IsEnabled == true,
+        r.Status == RevisionStatus.Active,
+        r.Snapshots.OrderByDescending(x => x.CapturedUtc).FirstOrDefault()?.Id);
 
     public static BenchmarkTemplateResponse ToResponse(this BenchmarkTemplate template) => new(
         template.Id,
@@ -215,9 +281,15 @@ internal static class TutoringMapping
         run.Id,
         run.TutorId,
         run.BenchmarkTemplateId,
+        run.BenchmarkTemplate?.Name,
+        run.TutorRevisionId,
+        run.TutorRevision?.VersionNumber,
         run.TutorConfigurationSnapshotId,
         run.InteractionModelId,
         run.ModelAlias,
+        run.GenerateActualOutputs,
+        run.UseTutorKnowledge,
+        run.RetrievalTopK,
         run.ConsistencyRuns,
         run.Status.ToString(),
         run.QueuedUtc,

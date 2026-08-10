@@ -3,6 +3,7 @@ using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
 using Bitcraft.Domain.Tutoring;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Application.Features.Knowledge;
 
@@ -68,10 +69,11 @@ public static class KnowledgeFeatures
 
     public sealed record VectorizeDocumentCommand(
         Guid DocumentId,
-        string EmbeddingProvider,
-        string EmbeddingModel,
+        string? EmbeddingProvider = null,
+        string? EmbeddingModel = null,
         int MaxChunkLength = 1000,
-        Guid? EmbeddingModelId = null) : IRequest<Result<VectorizeDocumentResult>>;
+        Guid? EmbeddingModelId = null,
+        int ChunkOverlap = 100) : IRequest<Result<VectorizeDocumentResult>>;
 
     public sealed record VectorizeDocumentResult(Guid DocumentId, int ChunkCount);
 
@@ -80,18 +82,50 @@ public static class KnowledgeFeatures
         IVectorStore vectorStore,
         IEmbeddingProvider embeddingProvider,
         IModelRepository modelRepository,
-        ICurrentUserContext currentUser)
+        ICurrentUserContext currentUser,
+        DocumentIngestionLimits limits,
+        ILogger<VectorizeDocumentHandler> logger)
         : IRequestHandler<VectorizeDocumentCommand, Result<VectorizeDocumentResult>>
     {
         public async Task<Result<VectorizeDocumentResult>> Handle(VectorizeDocumentCommand request, CancellationToken cancellationToken)
         {
             var userId = currentUser.UserId;
 
+            if (request.MaxChunkLength is < 100 or > 8000)
+            {
+                return Result.Failure<VectorizeDocumentResult>(new Error(
+                    "Knowledge.ChunkSizeInvalid",
+                    "Maximum chunk length must be between 100 and 8000 characters."));
+            }
+
+            if (request.ChunkOverlap < 0 || request.ChunkOverlap >= request.MaxChunkLength)
+            {
+                return Result.Failure<VectorizeDocumentResult>(new Error(
+                    "Knowledge.ChunkOverlapInvalid",
+                    "Chunk overlap must be at least zero and less than the maximum chunk length."));
+            }
+
+            var document = await documentStore.GetByIdAsync(request.DocumentId, cancellationToken);
+            if (document is null)
+            {
+                return Result.Failure<VectorizeDocumentResult>(new Error("Document.NotFound", "Document not found."));
+            }
+
+            if (document.CreatedById != userId)
+            {
+                return Result.Failure<VectorizeDocumentResult>(new Error("Document.Forbidden", "Requesting user does not own this document."));
+            }
+
+            if (string.IsNullOrWhiteSpace(document.RawText))
+            {
+                return Result.Failure<VectorizeDocumentResult>(new Error("Document.RawTextRequired", "Document raw text is required before vectorization."));
+            }
+
             // D25 step 6: if an EmbeddingModelId is supplied, resolve the admin-managed model
             // and derive provider/model strings + expected dimensions from it. The legacy free-text
             // path is preserved for back-compat until callers migrate.
-            string embeddingProviderInput = request.EmbeddingProvider;
-            string embeddingModelInput = request.EmbeddingModel;
+            string? embeddingProviderInput = request.EmbeddingProvider;
+            string? embeddingModelInput = request.EmbeddingModel;
             Domain.Modeling.EmbeddingModel? embeddingModelEntity = null;
             if (request.EmbeddingModelId is { } modelId)
             {
@@ -137,39 +171,88 @@ public static class KnowledgeFeatures
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingModelRequired", "Embedding model is required."));
             }
 
-            if (request.MaxChunkLength <= 0)
+            var split = DocumentTextChunker.Split(
+                document.RawText,
+                request.MaxChunkLength,
+                request.ChunkOverlap,
+                limits.MaxVectorizationChunks);
+            if (split.IsFailure)
             {
-                return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.ChunkSizeInvalid", "Max chunk length must be positive."));
+                return Result.Failure<VectorizeDocumentResult>(split.Error);
             }
 
-            var document = await documentStore.GetByIdAsync(request.DocumentId, cancellationToken);
-            if (document is null)
-            {
-                return Result.Failure<VectorizeDocumentResult>(new Error("Document.NotFound", $"Document '{request.DocumentId}' not found."));
-            }
-
-            if (document.CreatedById != userId)
-            {
-                return Result.Failure<VectorizeDocumentResult>(new Error("Document.Forbidden", "Requesting user does not own this document."));
-            }
-
-            if (string.IsNullOrWhiteSpace(document.RawText))
-            {
-                return Result.Failure<VectorizeDocumentResult>(new Error("Document.RawTextRequired", "Document raw text is required before vectorization."));
-            }
-
-            var chunks = SplitText(document.RawText, request.MaxChunkLength);
+            var chunks = split.Value;
             var writes = new List<KnowledgeChunkWriteModel>(chunks.Count);
 
             for (var index = 0; index < chunks.Count; index++)
             {
                 var content = chunks[index];
-                var embedding = await embeddingProvider.GenerateEmbeddingAsync(content, embeddingModelInput, cancellationToken);
+                float[] embedding;
+                try
+                {
+                    embedding = await embeddingProvider.GenerateEmbeddingAsync(
+                        content,
+                        embeddingModelInput,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (EmbeddingProviderException ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Embedding generation failed for document {DocumentId}, chunk {ChunkIndex}, model {EmbeddingModel}. FailureKind={FailureKind}",
+                        document.Id,
+                        index,
+                        embeddingModelInput,
+                        ex.Kind);
+                    return Result.Failure<VectorizeDocumentResult>(ToEmbeddingError(ex.Kind));
+                }
+                catch (HttpRequestException ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Embedding service unavailable for document {DocumentId}, chunk {ChunkIndex}, model {EmbeddingModel}.",
+                        document.Id,
+                        index,
+                        embeddingModelInput);
+                    return Result.Failure<VectorizeDocumentResult>(ToEmbeddingError(EmbeddingProviderFailureKind.ServiceUnavailable));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Embedding request failed for document {DocumentId}, chunk {ChunkIndex}, model {EmbeddingModel}.",
+                        document.Id,
+                        index,
+                        embeddingModelInput);
+                    return Result.Failure<VectorizeDocumentResult>(ToEmbeddingError(EmbeddingProviderFailureKind.RequestFailed));
+                }
+
+                if (embedding.Length == 0)
+                {
+                    logger.LogWarning(
+                        "Embedding response was empty for document {DocumentId}, chunk {ChunkIndex}, model {EmbeddingModel}.",
+                        document.Id,
+                        index,
+                        embeddingModelInput);
+                    return Result.Failure<VectorizeDocumentResult>(ToEmbeddingError(EmbeddingProviderFailureKind.ResponseInvalid));
+                }
+
                 if (embeddingModelEntity is not null && embedding.Length != embeddingModelEntity.EmbeddingDimensions)
                 {
+                    logger.LogWarning(
+                        "Embedding dimensions mismatch for document {DocumentId}, chunk {ChunkIndex}, model {EmbeddingModel}. Expected={ExpectedDimensions}, Actual={ActualDimensions}",
+                        document.Id,
+                        index,
+                        embeddingModelInput,
+                        embeddingModelEntity.EmbeddingDimensions,
+                        embedding.Length);
                     return Result.Failure<VectorizeDocumentResult>(new Error(
                         "Knowledge.EmbeddingDimensionsMismatch",
-                        $"Embedding provider returned {embedding.Length} dimensions but model '{embeddingModelEntity.Name}' declares {embeddingModelEntity.EmbeddingDimensions}."));
+                        "The embedding response dimensions do not match the selected model configuration."));
                 }
                 writes.Add(new KnowledgeChunkWriteModel(
                     index,
@@ -186,18 +269,20 @@ public static class KnowledgeFeatures
             return Result.Success(new VectorizeDocumentResult(document.Id, chunks.Count));
         }
 
-        private static List<string> SplitText(string text, int maxChunkLength)
+        private static Error ToEmbeddingError(EmbeddingProviderFailureKind kind)
         {
-            var normalized = text.Trim();
-            var chunks = new List<string>();
-
-            for (var start = 0; start < normalized.Length; start += maxChunkLength)
+            return kind switch
             {
-                var length = Math.Min(maxChunkLength, normalized.Length - start);
-                chunks.Add(normalized.Substring(start, length));
-            }
-
-            return chunks;
+                EmbeddingProviderFailureKind.ServiceUnavailable => new Error(
+                    "Knowledge.EmbeddingServiceUnavailable",
+                    "The embedding service is unavailable. Confirm that the runtime is running and try again."),
+                EmbeddingProviderFailureKind.ResponseInvalid => new Error(
+                    "Knowledge.EmbeddingResponseInvalid",
+                    "The embedding service returned an invalid response for the selected model."),
+                _ => new Error(
+                    "Knowledge.EmbeddingRequestFailed",
+                    "The embedding service could not process this document. Confirm that the selected model is installed and the runtime is available.")
+            };
         }
     }
 }
