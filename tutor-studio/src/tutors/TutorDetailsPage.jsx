@@ -1,12 +1,10 @@
+import { ArrowLeftOutlined, ExperimentOutlined, MessageOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Flex, Result, Spin, Tabs, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
-import Alert from "react-bootstrap/Alert";
-import Button from "react-bootstrap/Button";
-import Container from "react-bootstrap/Container";
-import Nav from "react-bootstrap/Nav";
-import Spinner from "react-bootstrap/Spinner";
 import { useSelector } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getApiErrorDescription } from "../api/client.js";
+import StatusTag from "../components/StatusTag.jsx";
 import PromptVersionsPanel from "./PromptVersionsPanel.jsx";
 import TutorKnowledgePanel from "./TutorKnowledgePanel.jsx";
 import TutorOverviewPanel from "./TutorOverviewPanel.jsx";
@@ -19,6 +17,7 @@ import {
   listTutorRevisions,
   listTutorSnapshots,
 } from "./tutorApi.js";
+import { tutorStatus } from "./tutorUtils.js";
 import "./TutorDetails.css";
 
 const VALID_TABS = ["overview", "prompts", "revisions", "knowledge"];
@@ -47,7 +46,7 @@ export default function TutorDetailsPage() {
     const next = new URLSearchParams(searchParams);
     next.set("tab", tab);
     setSearchParams(next, { replace: true });
-  }, [requestedTab, tab, searchParams, setSearchParams]);
+  }, [requestedTab, searchParams, setSearchParams, tab]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,7 +70,7 @@ export default function TutorDetailsPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [tutorId, reload]);
+  }, [reload, tutorId]);
 
   useEffect(() => {
     if (!canManage) return undefined;
@@ -89,7 +88,7 @@ export default function TutorDetailsPage() {
         if (requestError.name !== "AbortError") setCatalogError(getApiErrorDescription(requestError, "Could not load the model catalog."));
       });
     return () => controller.abort();
-  }, [tutorId, canManage, reload]);
+  }, [canManage, reload, tutorId]);
 
   const setTab = (nextTab) => {
     const next = new URLSearchParams(searchParams);
@@ -102,43 +101,47 @@ export default function TutorDetailsPage() {
     setReload((value) => value + 1);
   };
 
-  if (loading && !tutor) return <div className="tutor-loading"><Spinner /><span>Loading tutor workspace…</span></div>;
+  if (loading && !tutor) return <div className="workspace-loading"><Spin size="large" description="Loading tutor workspace" /></div>;
+  if (!tutor && error) return <Result status="error" title="Tutor workspace unavailable" subTitle={error} extra={<Button icon={<ReloadOutlined />} onClick={refresh}>Retry</Button>} />;
+
+  const items = [
+    { key: "overview", label: "Overview", children: <TutorOverviewPanel tutor={tutor} prompts={prompts} revisions={revisions} canManage={canManage} onOpenTab={setTab} /> },
+    { key: "prompts", label: `Prompt versions (${prompts.length})`, children: <PromptVersionsPanel tutorId={tutorId} prompts={prompts} activePromptVersionId={tutor.activePromptVersionId} canManage={canManage} onChanged={refresh} /> },
+    { key: "revisions", label: `Revisions (${revisions.length})`, children: <><>{catalogError ? <Alert type="warning" title={catalogError} showIcon style={{ marginBottom: 16 }} /> : null}</><TutorRevisionsPanel tutorId={tutorId} revisions={revisions} prompts={prompts} interactionModels={interactionModels} embeddingModels={embeddingModels} canManage={canManage} onChanged={refresh} onCreatePrompt={() => setTab("prompts")} /></> },
+    { key: "knowledge", label: "Knowledge", children: <TutorKnowledgePanel tutorId={tutorId} canManage={canManage} /> },
+  ];
 
   return (
-    <main className="tutor-workspace-page">
-      <Container className="tutor-workspace-container">
-        <Button variant="link" className="tutor-back-link" onClick={() => navigate("/tutors")}>← Back to tutors</Button>
-        {error && <Alert variant="danger">{error}<div className="mt-2"><Button size="sm" variant="outline-danger" onClick={refresh}>Retry</Button></div></Alert>}
-        {tutor && <>
-          <header className="tutor-page-header">
-            <div>
-              <span className="tutor-eyebrow">Tutor workspace</span>
-              <h1>{tutor.name}</h1>
-              <p>{tutor.description || "Configure this tutor's prompt, models, knowledge, and runtime revision."}</p>
-            </div>
-            <div className="tutor-header-stat"><strong>{revisions.length}</strong><span>Revisions</span></div>
-            <div className="tutor-header-stat"><strong>{snapshots.length}</strong><span>Snapshots</span></div>
-            {tutor.activeRevisionId && <div className="d-flex flex-column gap-2">
-              <Button size="sm" onClick={() => navigate(`/ai-tutor?tutorId=${tutor.id}`)}>Chat with Tutor</Button>
-              {canManage && <Button size="sm" variant="outline-primary" onClick={() => navigate(`/benchmarking?tab=new&tutorId=${tutor.id}&revisionId=${tutor.activeRevisionId}`)}>Benchmark Tutor</Button>}
-            </div>}
-          </header>
+    <main className="workspace-page tutor-details-page">
+      <div className="workspace-page-inner">
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate("/tutors")} className="tutor-back-button">Tutors</Button>
 
-          <Nav variant="tabs" activeKey={tab} onSelect={(key) => key && setTab(key)} className="tutor-tabs" aria-label="Tutor configuration views">
-            <Nav.Item><Nav.Link eventKey="overview">Overview</Nav.Link></Nav.Item>
-            <Nav.Item><Nav.Link eventKey="prompts">Prompt Versions</Nav.Link></Nav.Item>
-            <Nav.Item><Nav.Link eventKey="revisions">Revisions</Nav.Link></Nav.Item>
-            <Nav.Item><Nav.Link eventKey="knowledge">Knowledge</Nav.Link></Nav.Item>
-          </Nav>
-          <section className="tutor-tab-content">
-            {catalogError && tab === "revisions" && <Alert variant="warning">{catalogError} Revision history is still available, but model selectors cannot be loaded.</Alert>}
-            {tab === "overview" && <TutorOverviewPanel tutor={tutor} prompts={prompts} revisions={revisions} canManage={canManage} onOpenTab={setTab} />}
-            {tab === "prompts" && <PromptVersionsPanel tutorId={tutorId} prompts={prompts} activePromptVersionId={tutor.activePromptVersionId} canManage={canManage} onChanged={refresh} />}
-            {tab === "revisions" && <TutorRevisionsPanel tutorId={tutorId} revisions={revisions} prompts={prompts} interactionModels={interactionModels} embeddingModels={embeddingModels} canManage={canManage} onChanged={refresh} onCreatePrompt={() => setTab("prompts")} />}
-            {tab === "knowledge" && <TutorKnowledgePanel tutorId={tutorId} canManage={canManage} />}
-          </section>
-        </>}
-      </Container>
+        {error ? <Alert type="error" title="Some tutor data could not be refreshed" description={error} showIcon style={{ marginBottom: 16 }} /> : null}
+
+        <Flex className="tutor-detail-header" justify="space-between" align="flex-start" gap={20} wrap>
+          <div className="tutor-detail-title">
+            <Flex align="center" gap={8} wrap>
+              <Typography.Title level={2}>{tutor.name}</Typography.Title>
+              <StatusTag value={tutorStatus(tutor.status)} />
+            </Flex>
+            <Typography.Paragraph type="secondary">{tutor.description || "Configure this tutor's prompts, models, knowledge, and runtime revisions."}</Typography.Paragraph>
+            <Flex gap={8} wrap>
+              <Tag>{revisions.length} revisions</Tag>
+              <Tag>{snapshots.length} snapshots</Tag>
+            </Flex>
+          </div>
+          {tutor.activeRevisionId ? (
+            <Flex gap={8} wrap>
+              <Button icon={<MessageOutlined />} onClick={() => navigate(`/ai-tutor?tutorId=${tutor.id}`)}>Chat</Button>
+              {canManage ? <Button type="primary" icon={<ExperimentOutlined />} onClick={() => navigate(`/benchmarking?tab=new&tutorId=${tutor.id}&revisionId=${tutor.activeRevisionId}`)}>Benchmark</Button> : null}
+            </Flex>
+          ) : null}
+        </Flex>
+
+        <Card className="tutor-tabs-card" styles={{ body: { paddingTop: 0 } }}>
+          <Tabs activeKey={tab} onChange={setTab} items={items} />
+        </Card>
+      </div>
     </main>
   );
 }

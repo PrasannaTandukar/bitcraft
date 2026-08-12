@@ -1,5 +1,5 @@
+import { Alert, Button, Descriptions, Drawer, Empty, Space, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { Alert, Button, Modal, Spinner } from "react-bootstrap";
 import { getApiErrorDescription } from "../api/client.js";
 import { getDocument } from "./documentApi.js";
 
@@ -19,49 +19,36 @@ export default function DocumentPreviewDialog({ document, canManage, onClose, on
         else setError("The document response was invalid.");
       })
       .catch((requestError) => {
-        if (requestError.name !== "AbortError") {
-          setError(getApiErrorDescription(requestError, "The extracted text could not be loaded."));
-        }
+        if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "The extracted text could not be loaded."));
       });
     return () => controller.abort();
   }, [document.id]);
 
   return (
-    <Modal show onHide={onClose} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Extracted text preview</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {!detail && !error && (
-          <div className="document-busy-message" role="status">
-            <Spinner animation="border" size="sm" />
-            <span>Loading extracted text…</span>
-          </div>
-        )}
-        {error && <Alert variant="danger">{error}</Alert>}
-        {detail && (
-          <>
-            <dl className="document-preview-metadata">
-              <div><dt>Filename</dt><dd>{detail.name || "Unnamed document"}</dd></div>
-              <div><dt>Type</dt><dd>{detail.mimeType || "Unknown"}</dd></div>
-              <div><dt>Characters</dt><dd>{safeLength(detail.rawText).toLocaleString()}</dd></div>
-            </dl>
-            {safeLength(detail.rawText) > 0 ? (
-              <pre className="document-text-preview">{detail.rawText}</pre>
-            ) : (
-              <Alert variant="warning">No extracted text is stored for this document.</Alert>
-            )}
-          </>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        {canManage && detail && (
-          <Button variant="outline-primary" onClick={() => onReplace(document)}>
-            {safeLength(detail.rawText) > 0 ? "Replace file content" : "Add file content"}
-          </Button>
-        )}
-        <Button variant="secondary" onClick={onClose}>Close</Button>
-      </Modal.Footer>
-    </Modal>
+    <Drawer
+      title="Extracted text preview"
+      open
+      onClose={onClose}
+      size={760}
+      footer={(
+        <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+          {canManage && detail ? <Button onClick={() => onReplace(document)}>{safeLength(detail.rawText) > 0 ? "Replace file content" : "Add file content"}</Button> : null}
+          <Button type="primary" onClick={onClose}>Close</Button>
+        </Space>
+      )}
+    >
+      {!detail && !error ? <div className="workspace-loading"><Spin description="Loading extracted text" /></div> : null}
+      {error ? <Alert type="error" title={error} showIcon /> : null}
+      {detail ? (
+        <Space orientation="vertical" size={20} style={{ width: "100%" }}>
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Filename">{detail.name || "Unnamed document"}</Descriptions.Item>
+            <Descriptions.Item label="Type">{detail.mimeType || "Unknown"}</Descriptions.Item>
+            <Descriptions.Item label="Characters">{safeLength(detail.rawText).toLocaleString()}</Descriptions.Item>
+          </Descriptions>
+          {safeLength(detail.rawText) > 0 ? <pre className="document-text-preview">{detail.rawText}</pre> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No extracted text is stored for this document" />}
+        </Space>
+      ) : null}
+    </Drawer>
   );
 }

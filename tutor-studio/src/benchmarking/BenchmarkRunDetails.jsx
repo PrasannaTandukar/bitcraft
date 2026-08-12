@@ -1,34 +1,25 @@
+import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Col, Collapse, Descriptions, Empty, Flex, Progress, Row, Space, Spin, Statistic, Table, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
-import Accordion from "react-bootstrap/Accordion";
-import Alert from "react-bootstrap/Alert";
-import Badge from "react-bootstrap/Badge";
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import Col from "react-bootstrap/Col";
-import ProgressBar from "react-bootstrap/ProgressBar";
-import Row from "react-bootstrap/Row";
-import Spinner from "react-bootstrap/Spinner";
-import Table from "react-bootstrap/Table";
 import { getApiErrorDescription } from "../api/client.js";
+import StatusTag from "../components/StatusTag.jsx";
 import { getBenchmarkProgress, getBenchmarkRun } from "./benchmarkingApi.js";
 import {
   formatDateTime,
   formatNumber,
   formatPercent,
-  formatProgressPercent,
   metricName,
   parseMetrics,
   runStatusLabel,
   safeParseJson,
   scorerDisplayName,
-  statusVariant,
   summarizeMetrics,
 } from "./benchmarkingUtils.js";
 
 const terminalStatus = (status) => status === "Completed" || status === "Failed";
 
 function SummaryCard({ label, value }) {
-  return <Card className="benchmark-summary-card"><Card.Body><span>{label}</span><strong>{value}</strong></Card.Body></Card>;
+  return <Card size="small"><Statistic title={label} value={value} /></Card>;
 }
 
 export default function BenchmarkRunDetails({ tutorId, runId, initialRun, onBack }) {
@@ -63,11 +54,7 @@ export default function BenchmarkRunDetails({ tutorId, runId, initialRun, onBack
         const progress = await getBenchmarkProgress(tutorId, runId, activeController.signal);
         if (disposed) return;
         consecutiveFailures = 0;
-        setSummary((current) => ({
-          ...(current ?? {}),
-          ...progress,
-          progressPercent: Math.max(Number(current?.progressPercent) || 0, Number(progress.progressPercent) || 0),
-        }));
+        setSummary((current) => ({ ...current, ...progress, progressPercent: Math.max(Number(current?.progressPercent) || 0, Number(progress.progressPercent) || 0) }));
         setError("");
         if (terminalStatus(progress.status)) {
           await loadDetail();
@@ -95,136 +82,118 @@ export default function BenchmarkRunDetails({ tutorId, runId, initialRun, onBack
           setLoading(false);
         }
       });
-    } else {
-      poll();
-    }
+    } else poll();
 
     return () => {
       disposed = true;
       if (timer) window.clearTimeout(timer);
       activeController?.abort();
     };
-  }, [tutorId, runId, retryNonce, initialStatus]);
+  }, [initialStatus, retryNonce, runId, tutorId]);
 
   const cases = useMemo(() => detail?.cases ?? [], [detail]);
   const metricSummary = useMemo(() => summarizeMetrics(cases), [cases]);
   const passedCases = cases.filter((runCase) => runCase.passed === true).length;
   const failedCases = cases.filter((runCase) => runCase.passed === false).length;
   const status = runStatusLabel(summary);
+  const progressValue = Math.max(0, Math.min(100, Number(summary?.progressPercent) || 0));
+
+  const metricColumns = [
+    { title: "Metric", dataIndex: "key", render: metricName },
+    { title: "Average", dataIndex: "average", render: formatPercent },
+    { title: "Threshold", dataIndex: "threshold", render: formatPercent },
+    { title: "Result", key: "result", render: (_, metric) => <Tag color={metric.passed === null ? "default" : metric.passed ? "success" : "error"}>{metric.passed === null ? "Not available" : metric.passed ? "Pass" : "Fail"}</Tag> },
+  ];
+
+  const caseItems = cases.map((runCase) => {
+    const metadata = safeParseJson(runCase.metadataJson, {});
+    const performance = safeParseJson(runCase.performanceJson, {});
+    const metrics = parseMetrics(runCase.metricsJson);
+    const logicalIndex = Number.isInteger(metadata?.logicalCaseIndex) ? metadata.logicalCaseIndex + 1 : runCase.caseIndex + 1;
+    const repeat = Number.isInteger(metadata?.consistencyRunIndex) ? metadata.consistencyRunIndex + 1 : null;
+    const caseResultLabel = runCase.passed === null || runCase.passed === undefined ? "Not evaluated" : runCase.passed ? "Pass" : "Fail";
+    return {
+      key: String(runCase.id),
+      label: (
+        <Flex align="center" gap={8} wrap>
+          <StatusTag value={caseResultLabel} />
+          <Typography.Text strong>Case {logicalIndex}{repeat ? ` · Repeat ${repeat}` : ""}</Typography.Text>
+          <Typography.Text type="secondary">{formatPercent(runCase.score)}</Typography.Text>
+          <Typography.Text ellipsis={{ tooltip: runCase.inputText }} className="benchmark-case-label">{runCase.inputText}</Typography.Text>
+        </Flex>
+      ),
+      children: (
+        <Space orientation="vertical" size={16} style={{ width: "100%" }}>
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Actual tutor answer"><Typography.Paragraph className="benchmark-prewrap">{runCase.actualOutput || "—"}</Typography.Paragraph></Descriptions.Item>
+            <Descriptions.Item label="Expected answer">{runCase.expectedOutput || "Not supplied"}</Descriptions.Item>
+            <Descriptions.Item label="Context used"><Typography.Paragraph className="benchmark-prewrap">{runCase.contextText || "No context used"}</Typography.Paragraph></Descriptions.Item>
+            <Descriptions.Item label="Evaluation reason">{runCase.reason || "No reason returned"}</Descriptions.Item>
+            <Descriptions.Item label="Performance">{Number.isFinite(Number(performance?.latency_ms)) ? `${formatNumber(performance.latency_ms)} ms` : "Not reported"}{Number.isFinite(Number(performance?.estimated_tokens)) ? ` · ${formatNumber(performance.estimated_tokens, 0)} estimated tokens` : ""}</Descriptions.Item>
+            {runCase.metadataJson ? <Descriptions.Item label="Metadata"><Typography.Text code>{JSON.stringify(metadata)}</Typography.Text></Descriptions.Item> : null}
+          </Descriptions>
+          {metrics.length ? <Table size="small" rowKey="key" pagination={false} scroll={{ x: 700 }} columns={[
+            { title: "Metric", dataIndex: "key", render: metricName },
+            { title: "Score", dataIndex: "score", render: formatPercent },
+            { title: "Threshold", dataIndex: "threshold", render: formatPercent },
+            { title: "Result", dataIndex: "passed", render: (value) => <Tag color={value ? "success" : "error"}>{value ? "Pass" : "Fail"}</Tag> },
+            { title: "Reason", dataIndex: "reason", render: (value) => value || "—" },
+          ]} dataSource={metrics} /> : null}
+          <Collapse ghost items={[{ key: "advanced", label: "Advanced details", children: <pre className="workspace-code">{JSON.stringify({ metadata: safeParseJson(runCase.metadataJson), metrics: safeParseJson(runCase.metricsJson), performance, resources: safeParseJson(runCase.resourceJson) }, null, 2)}</pre> }]} />
+        </Space>
+      ),
+    };
+  });
 
   return (
-    <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <Button variant="outline-secondary" onClick={onBack}>Back to run history</Button>
-        <Badge bg={statusVariant(status)}>{status}</Badge>
-      </div>
+    <div className="benchmark-panel-stack">
+      <Flex justify="space-between" align="center" gap={12} wrap>
+        <Button icon={<ArrowLeftOutlined />} onClick={onBack}>Run history</Button>
+        <StatusTag value={status} />
+      </Flex>
 
-      <Card className="benchmark-panel-card mb-4">
-        <Card.Body>
-          <div className="d-flex flex-wrap justify-content-between gap-3">
-            <div>
-              <Card.Title>Benchmark run</Card.Title>
-              <Card.Text className="text-muted mb-0">
-                Revision {summary?.tutorRevisionNumber ?? "legacy"} · {summary?.modelAlias || "Model pending"} · {summary?.benchmarkTemplateName || "Benchmark template"}
-              </Card.Text>
-            </div>
-            <div className="text-end small text-muted">Queued {formatDateTime(summary?.queuedUtc)}</div>
+      <Card title="Benchmark run" extra={<Typography.Text type="secondary">Queued {formatDateTime(summary?.queuedUtc)}</Typography.Text>}>
+        <Typography.Paragraph type="secondary">Revision {summary?.tutorRevisionNumber ?? "legacy"} · {summary?.modelAlias || "Model pending"} · {summary?.benchmarkTemplateName || "Benchmark template"}</Typography.Paragraph>
+        {!terminalStatus(summary?.status) ? (
+          <div aria-live="polite">
+            <Flex justify="space-between"><Typography.Text strong>{summary?.progressStage || "Queued"}</Typography.Text><Typography.Text>{progressValue.toFixed(0)}%</Typography.Text></Flex>
+            <Progress percent={progressValue} status="active" showInfo={false} />
+            <Typography.Text type="secondary">{summary?.progressMessage || "Waiting for the benchmark worker."} {summary?.completedCaseCount ?? 0} of {summary?.totalCaseCount ?? 0} outputs processed.</Typography.Text>
           </div>
-          {!terminalStatus(summary?.status) && (
-            <div className="mt-4" aria-live="polite">
-              <div className="d-flex justify-content-between mb-1"><strong>{summary?.progressStage || "Queued"}</strong><span>{formatProgressPercent(summary?.progressPercent)}</span></div>
-              <ProgressBar now={Math.max(0, Math.min(100, Number(summary?.progressPercent) || 0))} />
-              <p className="mt-2 mb-0 text-muted">{summary?.progressMessage || "Waiting for the benchmark worker."} {summary?.completedCaseCount ?? 0} of {summary?.totalCaseCount ?? 0} outputs processed.</p>
-            </div>
-          )}
-          {summary?.failureDescription && <Alert variant="danger" className="mt-3 mb-0"><strong>{summary.failureCode || "Benchmark failed"}</strong><div>{summary.failureDescription}</div></Alert>}
-          {error && <Alert variant="warning" className="mt-3 mb-0">{error}</Alert>}
-          {pollingStopped && <Button className="mt-3" onClick={() => { setError(""); setPollingStopped(false); setLoading(true); setRetryNonce((value) => value + 1); }}>Retry progress monitoring</Button>}
-          {loading && <p className="mt-3 mb-0"><Spinner size="sm" className="me-2" />Loading benchmark run…</p>}
-        </Card.Body>
+        ) : null}
+        {summary?.failureDescription ? <Alert type="error" title={summary.failureCode || "Benchmark failed"} description={summary.failureDescription} showIcon style={{ marginTop: 16 }} /> : null}
+        {error ? <Alert type="warning" title={error} showIcon style={{ marginTop: 16 }} /> : null}
+        {pollingStopped ? <Button icon={<ReloadOutlined />} style={{ marginTop: 16 }} onClick={() => { setError(""); setPollingStopped(false); setLoading(true); setRetryNonce((value) => value + 1); }}>Retry progress monitoring</Button> : null}
+        {loading ? <Typography.Paragraph style={{ marginTop: 16 }}><Spin size="small" /> Loading benchmark run…</Typography.Paragraph> : null}
       </Card>
 
-      {detail && (
+      {detail ? (
         <>
-          <Row className="g-3 mb-4">
-            <Col sm={6} xl={3}><SummaryCard label="Average score" value={formatPercent(summary?.averageScore)} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Pass rate" value={formatPercent(summary?.passRate)} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Passed cases" value={passedCases} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Failed cases" value={failedCases} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Evaluated outputs" value={summary?.totalCaseCount ?? cases.length} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Total latency" value={`${formatNumber(summary?.totalLatencyMs)} ms`} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Estimated tokens" value={formatNumber(summary?.totalTokens, 0)} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Tokens / second" value={formatNumber(summary?.tokensPerSecond)} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Estimated CO₂" value={`${formatNumber(summary?.estimatedCo2Grams, 6)} g`} /></Col>
-            <Col sm={6} xl={3}><SummaryCard label="Engine" value={`${scorerDisplayName(summary?.engineName)}${summary?.engineVersion ? ` · ${summary.engineVersion}` : ""}`} /></Col>
+          <Row gutter={[12, 12]}>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Average score" value={formatPercent(summary?.averageScore)} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Pass rate" value={formatPercent(summary?.passRate)} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Passed cases" value={passedCases} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Failed cases" value={failedCases} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Evaluated outputs" value={summary?.totalCaseCount ?? cases.length} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Total latency" value={`${formatNumber(summary?.totalLatencyMs)} ms`} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Estimated tokens" value={formatNumber(summary?.totalTokens, 0)} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Tokens / second" value={formatNumber(summary?.tokensPerSecond)} /></Col>
+            <Col xs={12} md={8} xl={6}><SummaryCard label="Estimated CO₂" value={`${formatNumber(summary?.estimatedCo2Grams, 6)} g`} /></Col>
+            <Col xs={24} md={16} xl={12}><SummaryCard label="Engine" value={`${scorerDisplayName(summary?.engineName)}${summary?.engineVersion ? ` · ${summary.engineVersion}` : ""}`} /></Col>
           </Row>
 
-          {summary?.engineName === "deepeval-deterministic" && (
-            <Alert variant="info">This deterministic local scorer reports approximate token- and claim-overlap indicators. It is not an LLM judge or an academic-grade correctness or hallucination assessment.</Alert>
-          )}
+          {summary?.engineName === "deepeval-deterministic" ? <Alert type="info" title="This deterministic local scorer reports approximate token- and claim-overlap indicators. It is not an LLM judge or an academic-grade correctness assessment." showIcon /> : null}
 
-          <Card className="benchmark-panel-card mb-4">
-            <Card.Body>
-              <Card.Title>Metric summary</Card.Title>
-              {metricSummary.length === 0 ? <p className="text-muted mb-0">No valid metric results were returned.</p> : (
-                <Table responsive className="mb-0">
-                  <thead><tr><th>Metric</th><th>Average</th><th>Threshold</th><th>Result</th></tr></thead>
-                  <tbody>{metricSummary.map((metric) => (
-                    <tr key={metric.key}>
-                      <td>{metricName(metric.key)}</td>
-                      <td>{formatPercent(metric.average)}</td>
-                      <td>{formatPercent(metric.threshold)}</td>
-                      <td><Badge bg={metric.passed === null ? "secondary" : metric.passed ? "success" : "danger"}>{metric.passed === null ? "Not available" : metric.passed ? "Pass" : "Fail"}</Badge></td>
-                    </tr>
-                  ))}</tbody>
-                </Table>
-              )}
-            </Card.Body>
+          <Card title="Metric summary">
+            <Table rowKey="key" columns={metricColumns} dataSource={metricSummary} pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No valid metric results were returned" /> }} />
           </Card>
 
-          <Card className="benchmark-panel-card">
-            <Card.Body>
-              <Card.Title>Case results</Card.Title>
-              <Accordion alwaysOpen>
-                {cases.map((runCase) => {
-                  const metadata = safeParseJson(runCase.metadataJson, {});
-                  const performance = safeParseJson(runCase.performanceJson, {});
-                  const metrics = parseMetrics(runCase.metricsJson);
-                  const logicalIndex = Number.isInteger(metadata?.logicalCaseIndex) ? metadata.logicalCaseIndex + 1 : runCase.caseIndex + 1;
-                  const repeat = Number.isInteger(metadata?.consistencyRunIndex) ? metadata.consistencyRunIndex + 1 : null;
-                  const caseResultLabel = runCase.passed === null || runCase.passed === undefined ? "Not evaluated" : runCase.passed ? "Pass" : "Fail";
-                  const caseResultVariant = runCase.passed === null || runCase.passed === undefined ? "secondary" : runCase.passed ? "success" : "danger";
-                  return (
-                    <Accordion.Item eventKey={String(runCase.id)} key={runCase.id}>
-                      <Accordion.Header>
-                        <span className="benchmark-case-heading"><Badge bg={caseResultVariant}>{caseResultLabel}</Badge><strong>Case {logicalIndex}{repeat ? ` · Repeat ${repeat}` : ""}</strong><span>{formatPercent(runCase.score)}</span><span>{runCase.inputText}</span></span>
-                      </Accordion.Header>
-                      <Accordion.Body>
-                        <dl className="benchmark-case-details">
-                          <dt>Actual tutor answer</dt><dd>{runCase.actualOutput || "—"}</dd>
-                          <dt>Expected answer</dt><dd>{runCase.expectedOutput || "Not supplied"}</dd>
-                          <dt>Context used</dt><dd className="benchmark-prewrap">{runCase.contextText || "No context used"}</dd>
-                          <dt>Evaluation reason</dt><dd>{runCase.reason || "No reason returned"}</dd>
-                          <dt>Performance</dt><dd>{Number.isFinite(Number(performance?.latency_ms)) ? `${formatNumber(performance.latency_ms)} ms` : "Not reported"}{Number.isFinite(Number(performance?.estimated_tokens)) ? ` · ${formatNumber(performance.estimated_tokens, 0)} estimated tokens` : ""}</dd>
-                          {runCase.metadataJson && <><dt>Metadata</dt><dd><code>{JSON.stringify(metadata)}</code></dd></>}
-                        </dl>
-                        {metrics.length > 0 && (
-                          <Table responsive size="sm">
-                            <thead><tr><th>Metric</th><th>Score</th><th>Threshold</th><th>Result</th><th>Reason</th></tr></thead>
-                            <tbody>{metrics.map((metric) => <tr key={metric.key}><td>{metricName(metric.key)}</td><td>{formatPercent(metric.score)}</td><td>{formatPercent(metric.threshold)}</td><td>{metric.passed ? "Pass" : "Fail"}</td><td>{metric.reason || "—"}</td></tr>)}</tbody>
-                          </Table>
-                        )}
-                        <details className="benchmark-advanced-details"><summary>Advanced details</summary><pre>{JSON.stringify({ metadata: safeParseJson(runCase.metadataJson), metrics: safeParseJson(runCase.metricsJson), performance, resources: safeParseJson(runCase.resourceJson) }, null, 2)}</pre></details>
-                      </Accordion.Body>
-                    </Accordion.Item>
-                  );
-                })}
-              </Accordion>
-              <details className="benchmark-advanced-details mt-3"><summary>Advanced run details</summary><pre>{JSON.stringify({ summary: safeParseJson(detail.summaryJson), systemMetrics: safeParseJson(detail.systemMetricsJson), rawResult: safeParseJson(detail.rawResultJson) }, null, 2)}</pre></details>
-            </Card.Body>
+          <Card title="Case results">
+            {caseItems.length ? <Collapse items={caseItems} /> : <Empty description="No case results" />}
+            <Collapse ghost className="benchmark-run-advanced" items={[{ key: "advanced-run", label: "Advanced run details", children: <pre className="workspace-code">{JSON.stringify({ summary: safeParseJson(detail.summaryJson), systemMetrics: safeParseJson(detail.systemMetricsJson), rawResult: safeParseJson(detail.rawResultJson) }, null, 2)}</pre> }]} />
           </Card>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

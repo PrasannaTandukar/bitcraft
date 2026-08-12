@@ -1,306 +1,151 @@
-import { useState, useEffect } from "react";
-import { apiFetch, ApiError } from "./api/client.js";
+import { SafetyCertificateOutlined, SearchOutlined } from "@ant-design/icons";
+import { Alert, App, Avatar, Button, Drawer, Empty, Flex, Input, Popconfirm, Select, Space, Table, Tag, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch, getApiErrorDescription } from "./api/client.js";
+import PageHeader from "./components/PageHeader.jsx";
 
-const BASE = "/api/admin";
-const USERS_PATH = `${BASE}/users`;
-const ROLES_PATH = `${BASE}/roles`;
+const USERS_PATH = "/api/admin/users";
+const ROLES_PATH = "/api/admin/roles";
 
-const roleColors = [
-  { bg: "#fff0f2", border: "#e94560", text: "#c0293f" },
-  { bg: "#eff7ff", border: "#3b9ede", text: "#1a6fa8" },
-  { bg: "#f0fff4", border: "#38a169", text: "#276749" },
-  { bg: "#fffbeb", border: "#d97706", text: "#92520a" },
-];
-
-function RoleBadge({ role, index }) {
-  const color = roleColors[index % roleColors.length];
-  return (
-    <span style={{
-      display: "inline-block",
-      padding: "2px 10px",
-      fontSize: "11px",
-      fontFamily: "'DM Mono', monospace",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      background: color.bg,
-      border: `1px solid ${color.border}`,
-      color: color.text,
-      borderRadius: "2px",
-      marginRight: "6px",
-      marginBottom: "4px",
-    }}>
-      {role}
-    </span>
-  );
-}
-
-const selectStyle = {
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "11px",
-  padding: "5px 8px",
-  border: "1px solid #e8eaf0",
-  borderRadius: "4px",
-  background: "#fff",
-  color: "#1a1a2e",
-  cursor: "pointer",
-  outline: "none",
-  minWidth: "120px",
-};
-
-const btnBase = (color, hovered) => ({
-  fontFamily: "'DM Mono', monospace",
-  fontSize: "11px",
-  letterSpacing: "0.06em",
-  padding: "5px 12px",
-  border: `1px solid ${color}`,
-  borderRadius: "4px",
-  background: hovered ? color : "#fff",
-  color: hovered ? "#fff" : color,
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-  transition: "background 0.15s, color 0.15s",
-});
-
-function UserRow({ user: initialUser, index, allRoles, onUpdate }) {
-  const [user, setUser] = useState(initialUser);
-  const [addRole, setAddRole] = useState("");
-  const [revokeRole, setRevokeRole] = useState("");
-  const [addLoading, setAddLoading] = useState(false);
-  const [revokeLoading, setRevokeLoading] = useState(false);
-  const [addHover, setAddHover] = useState(false);
-  const [revokeHover, setRevokeHover] = useState(false);
-
-  const availableToAdd = allRoles.filter((r) => !user.roles.includes(r));
-  const availableToRevoke = user.roles;
-
-  useEffect(() => {
-    setAddRole(availableToAdd.length > 0 ? availableToAdd[0] : "");
-  }, [user.roles, allRoles]);
-
-  useEffect(() => {
-    setRevokeRole(availableToRevoke.length > 0 ? availableToRevoke[0] : "");
-  }, [user.roles]);
-
-  const handleAdd = async () => {
-    if (!addRole) return;
-    setAddLoading(true);
-    try {
-      await apiFetch(`${USERS_PATH}/${user.userId}/roles`, {
-        method: "POST",
-        json: { role: addRole },
-        parse: "none",
-      });
-      const updated = { ...user, roles: [...user.roles, addRole] };
-      setUser(updated);
-      onUpdate(updated);
-    } catch (e) {
-      alert(`Failed to add role: ${e instanceof ApiError ? `HTTP ${e.status}` : e.message}`);
-    } finally {
-      setAddLoading(false);
-    }
-  };
-
-  const handleRevoke = async () => {
-    if (!revokeRole) return;
-    setRevokeLoading(true);
-    try {
-      await apiFetch(`${USERS_PATH}/${user.userId}/roles/${revokeRole}`, {
-        method: "DELETE",
-        parse: "none",
-      });
-      const updated = { ...user, roles: user.roles.filter((r) => r !== revokeRole) };
-      setUser(updated);
-      onUpdate(updated);
-    } catch (e) {
-      alert(`Failed to revoke role: ${e instanceof ApiError ? `HTTP ${e.status}` : e.message}`);
-    } finally {
-      setRevokeLoading(false);
-    }
-  };
-
-  return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "2fr 2fr 2fr 2fr",
-      gap: "12px",
-      alignItems: "center",
-      padding: "16px 28px",
-      borderBottom: "1px solid #e8eaf0",
-      animation: "fadeSlideIn 0.3s ease both",
-      animationDelay: `${index * 0.05}s`,
-    }}>
-      {/* Email */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <div style={{
-          width: "30px", height: "30px", borderRadius: "50%",
-          background: `hsl(${(index * 47) % 360}, 55%, 35%)`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "12px", fontWeight: "700", color: "#fff", flexShrink: 0,
-          fontFamily: "'DM Mono', monospace",
-        }}>
-          {user.email[0].toUpperCase()}
-        </div>
-        <span style={{
-          fontFamily: "'DM Mono', monospace", fontSize: "12px", color: "#1a1a2e",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          {user.email}
-        </span>
-      </div>
-
-      {/* Current Roles */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {user.roles.length > 0
-          ? user.roles.map((r, i) => <RoleBadge key={r} role={r} index={i} />)
-          : <span style={{ fontSize: "11px", color: "#bbb", fontFamily: "'DM Mono', monospace" }}>no roles</span>
-        }
-      </div>
-
-      {/* Add Role */}
-      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-        {availableToAdd.length > 0 ? (
-          <>
-            <select value={addRole} onChange={(e) => setAddRole(e.target.value)} style={selectStyle}>
-              {availableToAdd.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <button
-              onClick={handleAdd}
-              disabled={addLoading}
-              onMouseEnter={() => setAddHover(true)}
-              onMouseLeave={() => setAddHover(false)}
-              style={{ ...btnBase("#38a169", addHover), opacity: addLoading ? 0.6 : 1 }}
-            >
-              {addLoading ? "…" : "Add"}
-            </button>
-          </>
-        ) : (
-          <span style={{ fontSize: "11px", color: "#bbb", fontFamily: "'DM Mono', monospace" }}>all assigned</span>
-        )}
-      </div>
-
-      {/* Revoke Role */}
-      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-        {availableToRevoke.length > 0 ? (
-          <>
-            <select value={revokeRole} onChange={(e) => setRevokeRole(e.target.value)} style={selectStyle}>
-              {availableToRevoke.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <button
-              onClick={handleRevoke}
-              disabled={revokeLoading}
-              onMouseEnter={() => setRevokeHover(true)}
-              onMouseLeave={() => setRevokeHover(false)}
-              style={{ ...btnBase("#e94560", revokeHover), opacity: revokeLoading ? 0.6 : 1 }}
-            >
-              {revokeLoading ? "…" : "Revoke"}
-            </button>
-          </>
-        ) : (
-          <span style={{ fontSize: "11px", color: "#bbb", fontFamily: "'DM Mono', monospace" }}>no roles</span>
-        )}
-      </div>
-    </div>
-  );
+function initial(value) {
+  return value?.trim()?.[0]?.toUpperCase() || "U";
 }
 
 export default function UsersPage() {
+  const { message } = App.useApp();
   const [users, setUsers] = useState([]);
   const [allRoles, setAllRoles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [roleToAdd, setRoleToAdd] = useState();
+  const [busy, setBusy] = useState("");
+  const [manageError, setManageError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      apiFetch(USERS_PATH),
-      apiFetch(ROLES_PATH),
-    ])
+    const controller = new AbortController();
+    Promise.all([apiFetch(USERS_PATH, { signal: controller.signal }), apiFetch(ROLES_PATH, { signal: controller.signal })])
       .then(([usersData, rolesData]) => {
-        setUsers(usersData);
-        // Normalize roles: handle both ["ADMIN"] and [{ name: "ADMIN" }]
-        const normalized = rolesData.map((r) => (typeof r === "object" ? r.name : r));
-        setAllRoles(normalized);
-        setLoading(false);
+        setUsers(usersData ?? []);
+        setAllRoles((rolesData ?? []).map((role) => typeof role === "object" ? role.name : role).filter(Boolean));
+        setError("");
       })
-      .catch((err) => {
-        setError(err instanceof ApiError ? `HTTP ${err.status}: ${err.statusText}` : err.message);
-        setLoading(false);
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "Role management data could not be loaded."));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
+    return () => controller.abort();
   }, []);
 
-  const handleUpdate = (updatedUser) => {
-    setUsers((prev) => prev.map((u) => u.userId === updatedUser.userId ? updatedUser : u));
+  const selectedUser = users.find((user) => user.userId === selectedUserId) || null;
+  const availableRoles = selectedUser ? allRoles.filter((role) => !selectedUser.roles.includes(role)) : [];
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return users;
+    return users.filter((user) => user.email?.toLowerCase().includes(query) || user.roles.some((role) => role.toLowerCase().includes(query)));
+  }, [search, users]);
+
+  const updateUser = (userId, updater) => {
+    setUsers((current) => current.map((user) => user.userId === userId ? updater(user) : user));
   };
 
+  const addRole = async () => {
+    if (!selectedUser || !roleToAdd || busy) return;
+    setBusy(`add:${roleToAdd}`);
+    setManageError("");
+    try {
+      await apiFetch(`${USERS_PATH}/${selectedUser.userId}/roles`, { method: "POST", json: { role: roleToAdd }, parse: "none" });
+      updateUser(selectedUser.userId, (user) => ({ ...user, roles: [...user.roles, roleToAdd] }));
+      message.success(`${roleToAdd} role assigned.`);
+      setRoleToAdd(undefined);
+    } catch (requestError) {
+      setManageError(getApiErrorDescription(requestError, "The role could not be assigned."));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const revokeRole = async (role) => {
+    if (!selectedUser || busy) return;
+    setBusy(`revoke:${role}`);
+    setManageError("");
+    try {
+      await apiFetch(`${USERS_PATH}/${selectedUser.userId}/roles/${encodeURIComponent(role)}`, { method: "DELETE", parse: "none" });
+      updateUser(selectedUser.userId, (user) => ({ ...user, roles: user.roles.filter((item) => item !== role) }));
+      message.success(`${role} role revoked.`);
+    } catch (requestError) {
+      setManageError(getApiErrorDescription(requestError, "The role could not be revoked."));
+      throw requestError;
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const columns = [
+    {
+      title: "User",
+      key: "user",
+      sorter: (a, b) => a.email.localeCompare(b.email),
+      render: (_, user) => (
+        <Space>
+          <Avatar>{initial(user.email)}</Avatar>
+          <Typography.Text ellipsis={{ tooltip: user.email }}>{user.email}</Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Roles",
+      dataIndex: "roles",
+      render: (roles) => roles.length ? <Flex gap={6} wrap>{roles.map((role) => <Tag key={role}>{role}</Tag>)}</Flex> : <Typography.Text type="secondary">No roles assigned</Typography.Text>,
+    },
+    {
+      title: "",
+      key: "action",
+      width: 130,
+      render: (_, user) => <Button icon={<SafetyCertificateOutlined />} onClick={() => { setSelectedUserId(user.userId); setRoleToAdd(undefined); setManageError(""); }}>Manage roles</Button>,
+    },
+  ];
+
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        select:focus { border-color: #3b9ede !important; box-shadow: 0 0 0 2px rgba(59,158,222,0.15); }
-      `}</style>
-
-      <div style={{  background: "#ffffff", padding: "24px", fontFamily: "'DM Mono', monospace" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div style={{ background: "#ffffff", border: "1px solid #e8eaf0", borderRadius: "6px", overflow: "hidden" }}>
-
-            {/* Table Header */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 2fr 2fr 2fr",
-              gap: "12px",
-              padding: "12px 28px",
-              background: "#f7f8fc",
-              borderBottom: "1px solid #e8eaf0",
-            }}>
-              {["Email", "Roles", "Add Role", "Revoke Role"].map((h) => (
-                <span key={h} style={{
-                  fontSize: "10px", letterSpacing: "0.15em",
-                  textTransform: "uppercase", color: "#99a",
-                  fontFamily: "'DM Mono', monospace",
-                }}>
-                  {h}
-                </span>
-              ))}
-            </div>
-
-            {loading && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 24px", gap: "16px" }}>
-                <div style={{ width: "28px", height: "28px", border: "2px solid #e8eaf0", borderTop: "2px solid #e94560", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                <span style={{ fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>LOADING…</span>
-              </div>
-            )}
-
-            {error && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "64px 24px", gap: "12px" }}>
-                <span style={{ fontSize: "24px" }}>⚠</span>
-                <span style={{ fontSize: "13px", color: "#e94560", fontFamily: "'DM Mono', monospace" }}>Failed to load data</span>
-                <span style={{ fontSize: "11px", color: "#999", fontFamily: "'DM Mono', monospace" }}>{error}</span>
-              </div>
-            )}
-
-            {!loading && !error && users.length === 0 && (
-              <div style={{ padding: "64px 24px", textAlign: "center", fontSize: "12px", color: "#999", letterSpacing: "0.1em" }}>
-                NO USERS FOUND
-              </div>
-            )}
-
-            {!loading && !error && users.map((user, i) => (
-              <UserRow
-                key={user.userId}
-                user={user}
-                index={i}
-                allRoles={allRoles}
-                onUpdate={handleUpdate}
-              />
-            ))}
-          </div>
-        </div>
+    <main className="workspace-page">
+      <div className="workspace-page-inner">
+        <PageHeader title="Role management" description="Assign and revoke the existing workspace roles available through ASP.NET Core Identity." />
+        {error ? <Alert type="error" title="Users and roles could not be loaded" description={error} showIcon style={{ marginBottom: 16 }} /> : null}
+        <Input className="management-search" prefix={<SearchOutlined />} allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email or role" />
+        <Table className="workspace-table" rowKey="userId" columns={columns} dataSource={filteredUsers} loading={loading} pagination={{ pageSize: 10, showSizeChanger: true }} scroll={{ x: 680 }} locale={{ emptyText: <Empty description="No users found" /> }} />
       </div>
-    </>
+
+      <Drawer title="Manage roles" open={Boolean(selectedUser)} onClose={() => setSelectedUserId(null)} size={520}>
+        {selectedUser ? (
+          <Space orientation="vertical" size={20} style={{ width: "100%" }}>
+            <Space><Avatar size="large">{initial(selectedUser.email)}</Avatar><div><Typography.Text strong>{selectedUser.email}</Typography.Text><br /><Typography.Text type="secondary">Workspace access</Typography.Text></div></Space>
+            {manageError ? <Alert type="error" title={manageError} showIcon /> : null}
+            <div>
+              <Typography.Title level={5}>Assign role</Typography.Title>
+              <Flex gap={8}>
+                <Select value={roleToAdd} onChange={setRoleToAdd} placeholder={availableRoles.length ? "Select a role" : "All roles assigned"} disabled={!availableRoles.length || Boolean(busy)} style={{ flex: 1 }} options={availableRoles.map((role) => ({ value: role, label: role }))} />
+                <Button type="primary" onClick={addRole} loading={busy.startsWith("add:")} disabled={!roleToAdd}>Assign</Button>
+              </Flex>
+            </div>
+            <div>
+              <Typography.Title level={5}>Assigned roles</Typography.Title>
+              {selectedUser.roles.length ? (
+                <div className="management-resource-list">
+                  {selectedUser.roles.map((role) => (
+                    <Flex className="management-resource-row" key={role} align="center" justify="space-between" gap={12}>
+                      <Tag>{role}</Tag>
+                      <Popconfirm title={`Revoke ${role}?`} description="The user's access changes immediately after the backend accepts this action." okText="Revoke role" okButtonProps={{ danger: true }} onConfirm={() => revokeRole(role)}><Button danger size="small" loading={busy === `revoke:${role}`}>Revoke</Button></Popconfirm>
+                    </Flex>
+                  ))}
+                </div>
+              ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No roles assigned" />}
+            </div>
+          </Space>
+        ) : null}
+      </Drawer>
+    </main>
   );
 }

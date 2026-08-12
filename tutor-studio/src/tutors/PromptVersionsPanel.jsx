@@ -1,46 +1,36 @@
+import { PlusOutlined } from "@ant-design/icons";
+import { Alert, Button, Checkbox, Collapse, Drawer, Empty, Flex, Form, Input, Space, Tag, Typography } from "antd";
 import { useState } from "react";
-import Accordion from "react-bootstrap/Accordion";
-import Alert from "react-bootstrap/Alert";
-import Badge from "react-bootstrap/Badge";
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import Form from "react-bootstrap/Form";
-import Spinner from "react-bootstrap/Spinner";
 import { getApiErrorDescription } from "../api/client.js";
 import { createPromptVersion } from "./tutorApi.js";
 import { formatDateTime } from "./tutorUtils.js";
 
 export default function PromptVersionsPanel({ tutorId, prompts, activePromptVersionId, canManage, onChanged }) {
+  const [form] = Form.useForm();
   const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState("");
-  const [content, setContent] = useState("");
-  const [notes, setNotes] = useState("");
-  const [setAsActive, setSetAsActive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const reset = () => {
-    setName("");
-    setContent("");
-    setNotes("");
-    setSetAsActive(false);
+  const close = () => {
+    if (saving) return;
+    form.resetFields();
     setError("");
     setShowForm(false);
   };
 
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!name.trim() || !content.trim() || saving) return;
+  const submit = async (values) => {
     setSaving(true);
     setError("");
     try {
       await createPromptVersion(tutorId, {
-        name: name.trim(),
-        content,
-        notes: notes.trim() || null,
-        setAsActive,
+        name: values.name.trim(),
+        content: values.content,
+        notes: values.notes?.trim() || null,
+        setAsActive: Boolean(values.setAsActive),
       });
-      reset();
+      form.resetFields();
+      setError("");
+      setShowForm(false);
       onChanged();
     } catch (requestError) {
       setError(getApiErrorDescription(requestError, "Could not create the prompt version."));
@@ -49,73 +39,73 @@ export default function PromptVersionsPanel({ tutorId, prompts, activePromptVers
     }
   };
 
+  const items = prompts.map((prompt) => ({
+    key: prompt.id,
+    label: (
+      <Flex gap={8} align="center" wrap>
+        <Typography.Text strong>Prompt v{prompt.versionNumber} · {prompt.name}</Typography.Text>
+        {activePromptVersionId === prompt.id ? <Tag>Legacy active</Tag> : null}
+      </Flex>
+    ),
+    children: (
+      <Space orientation="vertical" size={16} style={{ width: "100%" }}>
+        <Flex gap={24} wrap>
+          <Typography.Text type="secondary">Created {formatDateTime(prompt.createdUtc)}</Typography.Text>
+          <Typography.Text type="secondary">Notes: {prompt.notes || "—"}</Typography.Text>
+        </Flex>
+        <Typography.Text strong>Prompt content</Typography.Text>
+        <pre className="workspace-code prompt-content-view">{prompt.content}</pre>
+      </Space>
+    ),
+  }));
+
   return (
-    <div>
-      <div className="tutor-section-heading">
-        <div><h2>Prompt Versions</h2><p>Immutable tutor instruction history. Create a new version whenever the instructions change.</p></div>
-        {canManage && <Button onClick={() => setShowForm((value) => !value)}>{showForm ? "Close form" : "Create prompt version"}</Button>}
-      </div>
+    <div className="tutor-panel-stack">
+      <Flex justify="space-between" align="flex-start" gap={16} wrap>
+        <div>
+          <Typography.Title level={4}>Prompt versions</Typography.Title>
+          <Typography.Paragraph type="secondary">Immutable tutor instruction history. Create a new version whenever instructions change.</Typography.Paragraph>
+        </div>
+        {canManage ? <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowForm(true)}>Create prompt version</Button> : null}
+      </Flex>
 
-      <Alert variant="info">Prompt versions cannot be edited after creation. Create a new version to make changes. The legacy active prompt is separate from the active Tutor Revision.</Alert>
+      <Alert type="info" title="Prompt versions are immutable" description="Create a new version to make changes. The legacy active prompt is separate from the active Tutor Revision." showIcon />
 
-      {showForm && canManage && (
-        <Card className="tutor-panel-card mb-4">
-          <Card.Body>
-            <Card.Title>Create prompt version</Card.Title>
-            {error && <Alert variant="danger">{error}</Alert>}
-            <Form onSubmit={submit}>
-              <Form.Group className="mb-3" controlId="prompt-version-name">
-                <Form.Label>Name *</Form.Label>
-                <Form.Control value={name} onChange={(event) => setName(event.target.value)} placeholder="Robotics Tutor Instructions" maxLength={200} />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="prompt-version-content">
-                <Form.Label>Prompt content *</Form.Label>
-                <Form.Control as="textarea" rows={10} value={content} onChange={(event) => setContent(event.target.value)} placeholder="You are a helpful robotics tutor…" />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="prompt-version-notes">
-                <Form.Label>Notes</Form.Label>
-                <Form.Control as="textarea" rows={2} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="What changed in this version?" />
-              </Form.Group>
-              <Form.Check
-                className="mb-3"
-                id="prompt-set-legacy-active"
-                checked={setAsActive}
-                onChange={(event) => setSetAsActive(event.target.checked)}
-                label="Set as legacy active prompt"
-              />
-              <div className="d-flex justify-content-end gap-2">
-                <Button variant="outline-secondary" onClick={reset} disabled={saving}>Cancel</Button>
-                <Button type="submit" disabled={saving || !name.trim() || !content.trim()}>
-                  {saving && <Spinner size="sm" className="me-2" />}Create immutable version
-                </Button>
-              </div>
-            </Form>
-          </Card.Body>
-        </Card>
+      {prompts.length ? <Collapse items={items} /> : (
+        <Empty description="No prompt versions">
+          {canManage ? <Button type="primary" onClick={() => setShowForm(true)}>Create first prompt</Button> : null}
+        </Empty>
       )}
 
-      {prompts.length === 0 ? (
-        <div className="tutor-empty-state"><h3>No prompt versions</h3><p>A prompt defines how this tutor should behave and teach.</p>{canManage && <Button variant="outline-primary" onClick={() => setShowForm(true)}>Create first prompt</Button>}</div>
-      ) : (
-        <Accordion alwaysOpen>
-          {prompts.map((prompt) => (
-            <Accordion.Item eventKey={prompt.id} key={prompt.id}>
-              <Accordion.Header>
-                <span className="prompt-accordion-title">Prompt v{prompt.versionNumber} · {prompt.name}</span>
-                {activePromptVersionId === prompt.id && <Badge bg="secondary" className="ms-2">Legacy active</Badge>}
-              </Accordion.Header>
-              <Accordion.Body>
-                <div className="tutor-detail-meta mb-3">
-                  <span><strong>Created</strong>{formatDateTime(prompt.createdUtc)}</span>
-                  <span><strong>Notes</strong>{prompt.notes || "—"}</span>
-                </div>
-                <Form.Label>Prompt content</Form.Label>
-                <pre className="prompt-content-view">{prompt.content}</pre>
-              </Accordion.Body>
-            </Accordion.Item>
-          ))}
-        </Accordion>
-      )}
+      <Drawer
+        title="Create prompt version"
+        open={showForm && canManage}
+        onClose={close}
+        size={640}
+        destroyOnHidden
+        footer={(
+          <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+            <Button onClick={close} disabled={saving}>Cancel</Button>
+            <Button type="primary" onClick={() => form.submit()} loading={saving}>Create immutable version</Button>
+          </Space>
+        )}
+      >
+        {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
+        <Form form={form} layout="vertical" onFinish={submit} requiredMark={false} initialValues={{ setAsActive: false }}>
+          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a version name." }]}>
+            <Input placeholder="Robotics Tutor Instructions" maxLength={200} showCount />
+          </Form.Item>
+          <Form.Item label="Prompt content" name="content" rules={[{ required: true, whitespace: true, message: "Enter the prompt instructions." }]}>
+            <Input.TextArea rows={12} placeholder="You are a helpful robotics tutor…" />
+          </Form.Item>
+          <Form.Item label="Notes" name="notes">
+            <Input.TextArea rows={3} placeholder="What changed in this version?" />
+          </Form.Item>
+          <Form.Item name="setAsActive" valuePropName="checked">
+            <Checkbox>Set as legacy active prompt</Checkbox>
+          </Form.Item>
+        </Form>
+      </Drawer>
     </div>
   );
 }

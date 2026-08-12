@@ -1,10 +1,9 @@
+import { MessageOutlined, PlusOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Empty, Spin, Typography } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Alert from "react-bootstrap/Alert";
-import Button from "react-bootstrap/Button";
-import Container from "react-bootstrap/Container";
-import Spinner from "react-bootstrap/Spinner";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import PageHeader from "../components/PageHeader.jsx";
 import { askRuntimeTutor, listRuntimeTutors } from "./aiTutorApi.js";
 import { buildBoundedHistory, getTutorRuntimeError } from "./aiTutorUtils.js";
 import ChatComposer from "./ChatComposer.jsx";
@@ -23,6 +22,7 @@ const welcomeMessage = (tutor) => tutor ? [{
 }] : [];
 
 export default function AiTutorPage() {
+  const { modal } = App.useApp();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { roles = [] } = useSelector((state) => state.auth);
@@ -39,10 +39,7 @@ export default function AiTutorPage() {
   const [requestedTutorUnavailable, setRequestedTutorUnavailable] = useState("");
   const endRef = useRef(null);
 
-  const selectedTutor = useMemo(
-    () => tutors.find((tutor) => tutor.tutorId === selectedTutorId) || null,
-    [tutors, selectedTutorId],
-  );
+  const selectedTutor = useMemo(() => tutors.find((tutor) => tutor.tutorId === selectedTutorId) || null, [selectedTutorId, tutors]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -51,9 +48,7 @@ export default function AiTutorPage() {
         const values = loaded ?? [];
         setTutors(values);
         const requestedTutorId = searchParams.get("tutorId");
-        const requested = requestedTutorId
-          ? values.find((tutor) => tutor.tutorId === requestedTutorId) || null
-          : null;
+        const requested = requestedTutorId ? values.find((tutor) => tutor.tutorId === requestedTutorId) || null : null;
         const selected = requestedTutorId ? requested : values[0] || null;
         setRequestedTutorUnavailable(requestedTutorId && !requested ? requestedTutorId : "");
         setSelectedTutorId(selected?.tutorId || "");
@@ -80,8 +75,7 @@ export default function AiTutorPage() {
     setDraft("");
   };
 
-  const changeTutor = (tutorId) => {
-    if (messages.some((message) => !message.local) && !window.confirm("Changing tutors will start a new local conversation. Continue?")) return;
+  const applyTutor = (tutorId) => {
     const tutor = tutors.find((value) => value.tutorId === tutorId) || null;
     setRequestedTutorUnavailable("");
     setSelectedTutorId(tutorId);
@@ -91,10 +85,22 @@ export default function AiTutorPage() {
     setSearchParams(next, { replace: true });
   };
 
+  const changeTutor = (tutorId) => {
+    if (!messages.some((message) => !message.local)) {
+      applyTutor(tutorId);
+      return;
+    }
+    modal.confirm({
+      title: "Start a new conversation?",
+      content: "Changing tutors clears the local conversation shown on this page.",
+      okText: "Change tutor",
+      onOk: () => applyTutor(tutorId),
+    });
+  };
+
   const sendQuestion = async (questionOverride, historyOverride) => {
     const question = (questionOverride ?? draft).trim();
     if (!question || !selectedTutor || sending) return;
-
     const history = historyOverride ?? buildBoundedHistory(messages);
     const userMessage = { id: crypto.randomUUID(), role: "user", content: question, local: false };
     setMessages((current) => [...current.filter((message) => !message.error), userMessage]);
@@ -102,78 +108,61 @@ export default function AiTutorPage() {
     setSending(true);
     try {
       const response = await askRuntimeTutor(selectedTutor.activationSlug, { question, topK, history });
-      setMessages((current) => [...current, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response.answer,
-        local: false,
-        sources: response.sources,
-      }]);
+      setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: response.answer, local: false, sources: response.sources }]);
     } catch (error) {
-      setMessages((current) => [
-        ...current.filter((message) => message.id !== userMessage.id),
-        { ...userMessage, error: getTutorRuntimeError(error), retryHistory: history },
-      ]);
+      setMessages((current) => [...current.filter((message) => message.id !== userMessage.id), { ...userMessage, error: getTutorRuntimeError(error), retryHistory: history }]);
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <main className="ai-runtime-page">
-      <Container className="ai-runtime-container">
-        <header className="ai-runtime-title">
-          <div><span>Revision-aware learning</span><h1>AI Tutor</h1><p>Chat with the active, versioned configuration of a tutor.</p></div>
-          <Button variant="outline-secondary" onClick={() => resetConversation()} disabled={!selectedTutor || sending}>New Chat</Button>
-        </header>
+    <main className="workspace-page ai-runtime-page">
+      <div className="workspace-page-inner ai-runtime-container">
+        <PageHeader
+          title="AI Tutor"
+          description="Chat with the active, versioned configuration of a tutor."
+          extra={<Button icon={<PlusOutlined />} onClick={() => resetConversation()} disabled={!selectedTutor || sending}>New chat</Button>}
+        />
 
-        {loadError && <Alert variant="danger">{loadError}</Alert>}
-        {loadingTutors && <div className="runtime-loading"><Spinner /><span>Loading active tutors…</span></div>}
-        {!loadingTutors && !loadError && tutors.length === 0 && !requestedTutorUnavailable && (
-          <Alert variant="warning">
-            <h2>No tutors are ready for chat</h2>
-            <p>Activate a revision with a prompt, interaction model, and configuration snapshot first.</p>
-            {canManage && <Button size="sm" variant="outline-primary" onClick={() => navigate("/tutors")}>Configure tutors</Button>}
-          </Alert>
-        )}
+        {loadError ? <Alert type="error" title="Active tutors could not be loaded" description={loadError} showIcon /> : null}
+        {loadingTutors ? <div className="workspace-loading"><Spin size="large" description="Loading active tutors" /></div> : null}
+        {!loadingTutors && !loadError && !tutors.length && !requestedTutorUnavailable ? (
+          <Empty image={<MessageOutlined className="runtime-empty-icon" />} description="No tutors are ready for chat">
+            <Typography.Paragraph type="secondary">Activate a revision with a prompt, interaction model, and configuration snapshot first.</Typography.Paragraph>
+            {canManage ? <Button type="primary" onClick={() => navigate("/tutors")}>Configure tutors</Button> : null}
+          </Empty>
+        ) : null}
+        {!loadingTutors && !loadError && requestedTutorUnavailable ? (
+          <Alert type="warning" title="This tutor is not ready for chat" description="Activate a valid revision with its configuration snapshot before trying again." action={canManage ? <Button size="small" onClick={() => navigate(`/tutors/${requestedTutorUnavailable}?tab=revisions`)}>Configure tutor</Button> : null} showIcon />
+        ) : null}
 
-        {!loadingTutors && !loadError && requestedTutorUnavailable && (
-          <Alert variant="warning">
-            <h2>This tutor is not ready for chat</h2>
-            <p>Activate a valid revision with its configuration snapshot before trying again.</p>
-            {canManage && <Button size="sm" variant="outline-primary" onClick={() => navigate(`/tutors/${requestedTutorUnavailable}?tab=revisions`)}>Configure tutor</Button>}
-          </Alert>
-        )}
+        {!loadingTutors && tutors.length ? (
+          <div className="runtime-workspace">
+            <TutorSelector tutors={tutors} selectedTutorId={selectedTutorId} disabled={sending} onChange={changeTutor} />
+            <TutorRuntimeHeader tutor={selectedTutor} canManage={canManage} onConfigure={() => navigate(`/tutors/${selectedTutor.tutorId}?tab=revisions`)} onBenchmark={() => navigate(`/benchmarking?tab=new&tutorId=${selectedTutor.tutorId}&revisionId=${selectedTutor.activeRevisionId}`)} />
+            <ChatSettings topK={topK} showSources={showSources} onTopKChange={setTopK} onShowSourcesChange={setShowSources} />
 
-        {!loadingTutors && tutors.length > 0 && <>
-          <TutorSelector tutors={tutors} selectedTutorId={selectedTutorId} disabled={sending} onChange={changeTutor} />
-          <TutorRuntimeHeader
-            tutor={selectedTutor}
-            canManage={canManage}
-            onConfigure={() => navigate(`/tutors/${selectedTutor.tutorId}?tab=revisions`)}
-            onBenchmark={() => navigate(`/benchmarking?tab=new&tutorId=${selectedTutor.tutorId}&revisionId=${selectedTutor.activeRevisionId}`)}
-          />
-          <ChatSettings topK={topK} showSources={showSources} onTopKChange={setTopK} onShowSourcesChange={setShowSources} />
-
-          <section className="runtime-chat" aria-live="polite">
-            <div className="runtime-messages">
-              {messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  tutorName={selectedTutor?.tutorName || "Tutor"}
-                  showSources={showSources}
-                  retryDisabled={sending}
-                  onRetry={(failed) => sendQuestion(failed.content, failed.retryHistory)}
-                />
-              ))}
-              {sending && <div className="runtime-thinking"><Spinner size="sm" />{selectedTutor.tutorName} is thinking…</div>}
-              <div ref={endRef} />
-            </div>
-            <ChatComposer value={draft} tutorName={selectedTutor?.tutorName} disabled={!selectedTutor || sending} onChange={setDraft} onSend={() => sendQuestion()} />
-          </section>
-        </>}
-      </Container>
+            <section className="runtime-chat" aria-live="polite">
+              <div className="runtime-messages">
+                {messages.map((message) => <ChatMessage
+                    key={message.id}
+                    message={message}
+                    tutorName={selectedTutor?.tutorName || "Tutor"}
+                    showSources={showSources}
+                    retryDisabled={sending}
+                    onRetry={(failed) =>
+                        sendQuestion(failed.content, failed.retryHistory)
+                    }
+                />)}
+                {sending ? <div className="runtime-thinking"><Spin size="small" /> <span>{selectedTutor.tutorName} is thinking…</span></div> : null}
+                <div ref={endRef} />
+              </div>
+              <ChatComposer value={draft} tutorName={selectedTutor?.tutorName} disabled={!selectedTutor || sending} onChange={setDraft} onSend={() => sendQuestion()} />
+            </section>
+          </div>
+        ) : null}
+      </div>
     </main>
   );
 }

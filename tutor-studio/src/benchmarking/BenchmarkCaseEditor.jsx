@@ -1,55 +1,38 @@
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import Col from "react-bootstrap/Col";
-import Form from "react-bootstrap/Form";
-import Row from "react-bootstrap/Row";
+import { CopyOutlined, DeleteOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
+import { Button, Card, Col, Flex, Form, Input, Row, Tooltip, Typography } from "antd";
 
 export default function BenchmarkCaseEditor({ runCase, index, total, automatic, onChange, onRemove, onDuplicate, onMove }) {
   const set = (field, value) => onChange(index, { ...runCase, [field]: value });
 
   return (
-    <Card className="benchmark-case-card">
-      <Card.Header className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <strong>Case {index + 1}</strong>
-        <div className="d-flex flex-wrap gap-2">
-          <Button size="sm" variant="outline-secondary" onClick={() => onMove(index, -1)} disabled={index === 0}>Move up</Button>
-          <Button size="sm" variant="outline-secondary" onClick={() => onMove(index, 1)} disabled={index === total - 1}>Move down</Button>
-          <Button size="sm" variant="outline-primary" onClick={() => onDuplicate(index)}>Duplicate</Button>
-          <Button size="sm" variant="outline-danger" onClick={() => onRemove(index)} disabled={total === 1}>Remove</Button>
-        </div>
-      </Card.Header>
-      <Card.Body>
-        <Form.Group className="mb-3" controlId={`benchmark-question-${index}`}>
-          <Form.Label>Question *</Form.Label>
-          <Form.Control as="textarea" rows={2} value={runCase.inputText} onChange={(event) => set("inputText", event.target.value)} />
-        </Form.Group>
-        {!automatic && (
-          <Form.Group className="mb-3" controlId={`benchmark-actual-${index}`}>
-            <Form.Label>Actual answer *</Form.Label>
-            <Form.Control as="textarea" rows={3} value={runCase.actualOutput} onChange={(event) => set("actualOutput", event.target.value)} />
-          </Form.Group>
-        )}
-        <Row className="g-3">
-          <Col lg={6}>
-            <Form.Group controlId={`benchmark-expected-${index}`}>
-              <Form.Label>Expected answer</Form.Label>
-              <Form.Control as="textarea" rows={3} value={runCase.expectedOutput} onChange={(event) => set("expectedOutput", event.target.value)} />
-            </Form.Group>
-          </Col>
-          <Col lg={6}>
-            <Form.Group controlId={`benchmark-context-${index}`}>
-              <Form.Label>Context override</Form.Label>
-              <Form.Control as="textarea" rows={3} value={runCase.contextText} onChange={(event) => set("contextText", event.target.value)} />
-            </Form.Group>
-          </Col>
-          <Col xs={12}>
-            <Form.Group controlId={`benchmark-metadata-${index}`}>
-              <Form.Label>Metadata (JSON)</Form.Label>
-              <Form.Control as="textarea" rows={2} value={runCase.metadataJson} onChange={(event) => set("metadataJson", event.target.value)} placeholder='{"difficulty":"easy"}' />
-            </Form.Group>
-          </Col>
+    <Card
+      size="small"
+      className="benchmark-case-card"
+      title={<Typography.Text strong>Case {index + 1}</Typography.Text>}
+      extra={(
+        <Flex gap={4}>
+          <Tooltip title="Move up"><Button type="text" size="small" aria-label="Move case up" icon={<UpOutlined />} onClick={() => onMove(index, -1)} disabled={index === 0} /></Tooltip>
+          <Tooltip title="Move down"><Button type="text" size="small" aria-label="Move case down" icon={<DownOutlined />} onClick={() => onMove(index, 1)} disabled={index === total - 1} /></Tooltip>
+          <Tooltip title="Duplicate"><Button type="text" size="small" aria-label="Duplicate case" icon={<CopyOutlined />} onClick={() => onDuplicate(index)} /></Tooltip>
+          <Tooltip title="Remove"><Button type="text" size="small" danger aria-label="Remove case" icon={<DeleteOutlined />} onClick={() => onRemove(index)} disabled={total === 1} /></Tooltip>
+        </Flex>
+      )}
+    >
+      <Form layout="vertical" requiredMark={false}>
+        <Form.Item label="Question" required>
+          <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} value={runCase.inputText} onChange={(event) => set("inputText", event.target.value)} />
+        </Form.Item>
+        {!automatic ? (
+          <Form.Item label="Actual answer" required>
+            <Input.TextArea autoSize={{ minRows: 3, maxRows: 10 }} value={runCase.actualOutput} onChange={(event) => set("actualOutput", event.target.value)} />
+          </Form.Item>
+        ) : null}
+        <Row gutter={16}>
+          <Col xs={24} lg={12}><Form.Item label="Expected answer"><Input.TextArea autoSize={{ minRows: 3, maxRows: 10 }} value={runCase.expectedOutput} onChange={(event) => set("expectedOutput", event.target.value)} /></Form.Item></Col>
+          <Col xs={24} lg={12}><Form.Item label="Context override"><Input.TextArea autoSize={{ minRows: 3, maxRows: 10 }} value={runCase.contextText} onChange={(event) => set("contextText", event.target.value)} /></Form.Item></Col>
+          <Col span={24}><Form.Item label="Metadata (JSON)"><Input.TextArea className="workspace-code" autoSize={{ minRows: 2, maxRows: 8 }} value={runCase.metadataJson} onChange={(event) => set("metadataJson", event.target.value)} placeholder='{"difficulty":"easy"}' /></Form.Item></Col>
         </Row>
-      </Card.Body>
+      </Form>
     </Card>
   );
 }

@@ -1,5 +1,5 @@
-import Button from "react-bootstrap/Button";
-import Form from "react-bootstrap/Form";
+import { SendOutlined } from "@ant-design/icons";
+import { Button, Input, Tooltip } from "antd";
 
 export default function ChatComposer({ value, tutorName, disabled, onChange, onSend }) {
   const submit = (event) => {
@@ -7,10 +7,9 @@ export default function ChatComposer({ value, tutorName, disabled, onChange, onS
     onSend();
   };
   return (
-    <Form className="runtime-composer" onSubmit={submit}>
-      <Form.Control
-        as="textarea"
-        rows={2}
+    <form className="runtime-composer" onSubmit={submit}>
+      <Input.TextArea
+        autoSize={{ minRows: 1, maxRows: 6 }}
         value={value}
         disabled={disabled}
         placeholder={tutorName ? `Ask ${tutorName}…` : "Select a tutor to begin…"}
@@ -23,7 +22,9 @@ export default function ChatComposer({ value, tutorName, disabled, onChange, onS
         }}
         maxLength={20000}
       />
-      <Button type="submit" disabled={disabled || !value.trim()}>Send</Button>
-    </Form>
+      <Tooltip title="Send message">
+        <Button type="primary" htmlType="submit" aria-label="Send message" icon={<SendOutlined />} disabled={disabled || !value.trim()} />
+      </Tooltip>
+    </form>
   );
 }

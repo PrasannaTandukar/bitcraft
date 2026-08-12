@@ -1,20 +1,12 @@
+import { PlusOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Col, Descriptions, Empty, Flex, Form, InputNumber, Radio, Row, Select, Space, Spin, Steps, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
-import Alert from "react-bootstrap/Alert";
-import Badge from "react-bootstrap/Badge";
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import Col from "react-bootstrap/Col";
-import Form from "react-bootstrap/Form";
-import ListGroup from "react-bootstrap/ListGroup";
-import ProgressBar from "react-bootstrap/ProgressBar";
-import Row from "react-bootstrap/Row";
-import Spinner from "react-bootstrap/Spinner";
 import { getApiErrorDescription } from "../api/client.js";
 import BenchmarkCaseEditor from "./BenchmarkCaseEditor.jsx";
 import { createBenchmarkRun, listBenchmarkTemplates, listTutorRevisions } from "./benchmarkingApi.js";
 import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus } from "./benchmarkingUtils.js";
 
-const STEPS = ["Tutor & revision", "Template", "Test cases", "Review & launch"];
+const STEP_LABELS = ["Tutor & revision", "Template", "Test cases", "Review & launch"];
 
 export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError, initialTutorId, initialRevisionId, onSelectionChange, onConfigureTutor, onOpenTemplates, onCreated }) {
   const [step, setStep] = useState(1);
@@ -61,7 +53,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
   useEffect(() => {
     if (!tutorId) return undefined;
-
     const controller = new AbortController();
     listTutorRevisions(tutorId, controller.signal)
       .then((data) => {
@@ -82,7 +73,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         if (!controller.signal.aborted) setRevisionsLoading(false);
       });
     return () => controller.abort();
-  }, [tutorId, initialRevisionId, onSelectionChange]);
+  }, [initialRevisionId, onSelectionChange, tutorId]);
 
   const selectTutor = (value) => {
     setTutorId(value);
@@ -97,13 +88,11 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     if (stepNumber === 1) {
       if (!selectedTutor) return "Select a tutor.";
       if (!selectedRevision) return "Select a tutor revision.";
-      if (!isUsableRevision(selectedRevision)) {
-        return "This revision is not benchmark-ready. Activate a configured revision so its immutable snapshot can be captured.";
-      }
+      if (!isUsableRevision(selectedRevision)) return "This revision is not benchmark-ready. Activate a configured revision so its immutable snapshot can be captured.";
     }
     if (stepNumber === 2 && !selectedTemplate) return "Select an enabled benchmark template.";
     if (stepNumber === 3 || stepNumber === 4) {
-      if (cases.length === 0) return "Add at least one test case.";
+      if (!cases.length) return "Add at least one test case.";
       if (cases.some((runCase) => !runCase.inputText.trim())) return "Every case requires a question.";
       if (!automatic && cases.some((runCase) => !runCase.actualOutput.trim())) return "Every existing-output case requires an actual answer.";
       if (cases.some((runCase) => {
@@ -119,18 +108,14 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   };
 
   const goNext = () => {
-    const error = validateStep(step);
-    setValidationError(error);
-    if (!error) setStep((current) => Math.min(4, current + 1));
+    const nextError = validateStep(step);
+    setValidationError(nextError);
+    if (!nextError) setStep((current) => Math.min(4, current + 1));
   };
 
   const updateCase = (index, value) => setCases((current) => current.map((runCase, position) => position === index ? value : runCase));
   const removeCase = (index) => setCases((current) => current.filter((_, position) => position !== index));
-  const duplicateCase = (index) => setCases((current) => [
-    ...current.slice(0, index + 1),
-    { ...current[index] },
-    ...current.slice(index + 1),
-  ]);
+  const duplicateCase = (index) => setCases((current) => [...current.slice(0, index + 1), { ...current[index] }, ...current.slice(index + 1)]);
   const moveCase = (index, direction) => setCases((current) => {
     const target = index + direction;
     if (target < 0 || target >= current.length) return current;
@@ -150,7 +135,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       setValidationError(errors[0] ?? "");
       return;
     }
-
     setSubmitting(true);
     setLaunchError("");
     try {
@@ -181,178 +165,129 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   };
 
   return (
-    <div>
-      <div className="benchmark-step-labels" aria-label="Benchmark setup progress">
-        {STEPS.map((label, index) => (
-          <span key={label} className={step === index + 1 ? "active" : step > index + 1 ? "complete" : ""}>
-            {index + 1}. {label}
-          </span>
-        ))}
-      </div>
-      <ProgressBar now={step * 25} visuallyHidden className="mb-4" />
+    <div className="benchmark-wizard">
+      <Steps current={step - 1} items={STEP_LABELS.map((title) => ({ title }))} responsive />
 
-      {step === 1 && (
-        <Card className="benchmark-panel-card">
-          <Card.Body>
-            <Card.Title>Select tutor and revision</Card.Title>
-            <Card.Text className="text-muted">Choose the exact tutor configuration to execute and preserve with this run.</Card.Text>
-            {tutorsError && <Alert variant="danger">{tutorsError}</Alert>}
-            <Form.Group className="mb-3" controlId="benchmark-tutor">
-              <Form.Label>Tutor *</Form.Label>
-              <Form.Select value={tutorId} onChange={(event) => selectTutor(event.target.value)} disabled={tutorsLoading}>
-                <option value="">Select a tutor</option>
-                {tutors.map((tutor) => <option key={tutor.id} value={tutor.id}>{tutor.name}</option>)}
-              </Form.Select>
-              {selectedTutor?.description && <Form.Text>{selectedTutor.description}</Form.Text>}
-            </Form.Group>
-            {revisionsLoading && <p><Spinner size="sm" className="me-2" />Loading revisions…</p>}
-            {revisionsError && <Alert variant="danger">{revisionsError}</Alert>}
-            <Form.Group controlId="benchmark-revision">
-              <Form.Label>Revision *</Form.Label>
-              <Form.Select value={revisionId} onChange={(event) => { setRevisionId(event.target.value); onSelectionChange(tutorId, event.target.value); }} disabled={!tutorId || revisionsLoading}>
-                <option value="">Select a revision</option>
-                {revisions.filter((revision) => revisionStatus(revision.status) !== "Archived").map((revision) => (
-                  <option key={revision.id} value={revision.id} disabled={!isUsableRevision(revision)}>
-                    Revision {revision.versionNumber} · {revisionStatus(revision.status)}{revisionStatus(revision.status) === "Active" ? " · Active" : ""}{!isUsableRevision(revision) ? " · Configuration required" : ""}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-            {!revisionsLoading && tutorId && !revisions.some(isUsableRevision) && (
-              <Alert variant="warning" className="mt-3">
-                <p className="mb-2">This tutor does not have a configured revision yet.</p>
-                <Button size="sm" variant="outline-primary" onClick={() => onConfigureTutor(tutorId)}>Configure tutor</Button>
-              </Alert>
-            )}
-            {selectedRevision && (
-              <div className="benchmark-selection-summary mt-3">
-                <div><span>Status</span><strong>{revisionStatus(selectedRevision.status)}</strong></div>
-                <div><span>Interaction model</span><strong>{selectedRevision.interactionModelName || selectedRevision.providerModelName || "Configured model"}</strong></div>
-                <div><span>Model alias</span><strong>{selectedRevision.providerModelName || "Resolved when launched"}</strong></div>
-                <div><span>Activation slug</span><strong>{selectedRevision.activationSlug || "Not active"}</strong></div>
-              </div>
-            )}
-            {selectedRevision && !isUsableRevision(selectedRevision) && (
-              <Alert variant="warning" className="mt-3">This revision needs a valid prompt, an enabled interaction model, and an activation snapshot before it can be benchmarked. Configure and activate it in the Tutor workspace.</Alert>
-            )}
-          </Card.Body>
+      {step === 1 ? (
+        <Card title="Select tutor and revision">
+          <Typography.Paragraph type="secondary">Choose the exact tutor configuration to execute and preserve with this run.</Typography.Paragraph>
+          {tutorsError ? <Alert type="error" title={tutorsError} showIcon style={{ marginBottom: 16 }} /> : null}
+          <Form layout="vertical" requiredMark={false}>
+            <Form.Item label="Tutor" required extra={selectedTutor?.description}>
+              <Select showSearch optionFilterProp="label" value={tutorId || undefined} onChange={selectTutor} loading={tutorsLoading} placeholder="Select a tutor" options={tutors.map((tutor) => ({ value: tutor.id, label: tutor.name }))} />
+            </Form.Item>
+            <Form.Item label="Revision" required>
+              <Select
+                value={revisionId || undefined}
+                onChange={(value) => { setRevisionId(value); onSelectionChange(tutorId, value); }}
+                loading={revisionsLoading}
+                disabled={!tutorId}
+                placeholder="Select a revision"
+                options={revisions.filter((revision) => revisionStatus(revision.status) !== "Archived").map((revision) => ({
+                  value: revision.id,
+                  disabled: !isUsableRevision(revision),
+                  label: `Revision ${revision.versionNumber} · ${revisionStatus(revision.status)}${revisionStatus(revision.status) === "Active" ? " · Active" : ""}${!isUsableRevision(revision) ? " · Configuration required" : ""}`,
+                }))}
+              />
+            </Form.Item>
+          </Form>
+          {revisionsError ? <Alert type="error" title={revisionsError} showIcon /> : null}
+          {!revisionsLoading && tutorId && !revisions.some(isUsableRevision) ? <Alert type="warning" title="This tutor does not have a benchmark-ready revision." action={<Button size="small" onClick={() => onConfigureTutor(tutorId)}>Configure tutor</Button>} showIcon /> : null}
+          {selectedRevision ? (
+            <Descriptions className="benchmark-selection-summary" bordered size="small" column={{ xs: 1, sm: 2 }}>
+              <Descriptions.Item label="Status">{revisionStatus(selectedRevision.status)}</Descriptions.Item>
+              <Descriptions.Item label="Interaction model">{selectedRevision.interactionModelName || selectedRevision.providerModelName || "Configured model"}</Descriptions.Item>
+              <Descriptions.Item label="Model alias">{selectedRevision.providerModelName || "Resolved when launched"}</Descriptions.Item>
+              <Descriptions.Item label="Activation slug">{selectedRevision.activationSlug || "Not active"}</Descriptions.Item>
+            </Descriptions>
+          ) : null}
+          {selectedRevision && !isUsableRevision(selectedRevision) ? <Alert type="warning" title="This revision needs a valid prompt, an enabled interaction model, and an activation snapshot before it can be benchmarked." showIcon style={{ marginTop: 16 }} /> : null}
         </Card>
-      )}
+      ) : null}
 
-      {step === 2 && (
-        <Card className="benchmark-panel-card">
-          <Card.Body>
-            <Card.Title>Select evaluation template</Card.Title>
-            <Card.Text className="text-muted">Templates define which approximate local indicators are calculated and their thresholds.</Card.Text>
-            {templatesLoading && <p><Spinner size="sm" className="me-2" />Loading templates…</p>}
-            {templatesError && <Alert variant="danger">{templatesError}</Alert>}
-            {!templatesLoading && !templatesError && templates.length === 0 && (
-              <div className="benchmark-empty-state">
-                <h3>No enabled templates</h3>
-                <p>Create an enabled evaluation template before launching a run.</p>
-                <Button onClick={onOpenTemplates}>Open Templates</Button>
-              </div>
-            )}
-            <div className="benchmark-template-grid">
+      {step === 2 ? (
+        <Card title="Select evaluation template">
+          <Typography.Paragraph type="secondary">Templates define which approximate local indicators are calculated and their thresholds.</Typography.Paragraph>
+          {templatesLoading ? <Spin description="Loading templates" /> : null}
+          {templatesError ? <Alert type="error" title={templatesError} showIcon /> : null}
+          {!templatesLoading && !templatesError && !templates.length ? <Empty description="No enabled benchmark templates"><Button type="primary" onClick={onOpenTemplates}>Open templates</Button></Empty> : null}
+          {templates.length ? (
+            <Radio.Group className="benchmark-template-options" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
               {templates.map((template) => (
-                <button key={template.id} type="button" className={`benchmark-template-option ${templateId === template.id ? "selected" : ""}`} onClick={() => setTemplateId(template.id)}>
-                  <strong>{template.name}</strong>
-                  <span>{template.description || "No description provided."}</span>
-                  <div className="d-flex flex-wrap gap-2 mt-2">
-                    {parseMetrics(template.metricsJson).map((metric) => (
-                      <Badge bg="light" text="dark" key={metric.key}>{metricName(metric.key)} · {formatPercent(metric.threshold)}</Badge>
-                    ))}
-                  </div>
-                </button>
+                <label key={template.id} className={`benchmark-template-option ${templateId === template.id ? "selected" : ""}`}>
+                  <Radio value={template.id} />
+                  <span className="benchmark-template-copy">
+                    <Typography.Text strong>{template.name}</Typography.Text>
+                    <Typography.Text type="secondary">{template.description || "No description provided."}</Typography.Text>
+                    <Flex gap={6} wrap>{parseMetrics(template.metricsJson).map((metric) => <Tag key={metric.key}>{metricName(metric.key)} · {formatPercent(metric.threshold)}</Tag>)}</Flex>
+                  </span>
+                </label>
+              ))}
+            </Radio.Group>
+          ) : null}
+          {selectedMetrics.length ? (
+            <div className="benchmark-metric-list">
+              {selectedMetrics.map((metric) => (
+                <div className="benchmark-metric-summary" key={metric.key}>
+                  <Typography.Text strong>{metricName(metric.key)} · threshold {formatPercent(metric.threshold)}</Typography.Text>
+                  <Typography.Text type="secondary">{METRIC_DETAILS[metric.key]?.description}</Typography.Text>
+                </div>
               ))}
             </div>
-            {selectedMetrics.length > 0 && (
-              <ListGroup className="mt-3">
-                {selectedMetrics.map((metric) => (
-                  <ListGroup.Item key={metric.key}>
-                    <strong>{metricName(metric.key)}</strong> — threshold {formatPercent(metric.threshold)}
-                    <div className="small text-muted">{METRIC_DETAILS[metric.key]?.description}</div>
-                  </ListGroup.Item>
-                ))}
-              </ListGroup>
-            )}
-          </Card.Body>
+          ) : null}
         </Card>
-      )}
+      ) : null}
 
-      {step === 3 && (
-        <div>
-          <Card className="benchmark-panel-card mb-3">
-            <Card.Body>
-              <Card.Title>Add test cases</Card.Title>
-              <Form.Check type="radio" id="automatic-generation" name="generation-mode" label="Generate tutor answers automatically" checked={automatic} onChange={() => setGenerationMode(true)} />
-              <Form.Check type="radio" id="existing-answers" name="generation-mode" label="Evaluate existing answers (Advanced)" checked={!automatic} onChange={() => setGenerationMode(false)} />
-              <Alert variant="info" className="mt-3 mb-3">
-                Expected answers enable correctness scoring. Automatic answers execute the same activated tutor prompt, models, parameters, and knowledge scope as chat. Supplied context is retained for evaluation and does not replace tutor retrieval.
-              </Alert>
-              <Row className="g-3">
-                <Col md={4}>
-                  <Form.Group>
-                    <Form.Label>Tutor knowledge</Form.Label>
-                    <Form.Control plaintext readOnly value="Activated configuration" />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group controlId="retrieval-top-k">
-                    <Form.Label>Retrieval Top K</Form.Label>
-                    <Form.Control type="number" min="1" max="10" value={topK} onChange={(event) => setTopK(Number(event.target.value))} />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group controlId="consistency-runs">
-                    <Form.Label>Consistency runs</Form.Label>
-                    <Form.Control type="number" min="1" max="10" value={consistencyRuns} onChange={(event) => setConsistencyRuns(Number(event.target.value))} disabled={!automatic} />
-                  </Form.Group>
-                </Col>
+      {step === 3 ? (
+        <Space orientation="vertical" size={16} style={{ width: "100%" }}>
+          <Card title="Test cases and execution">
+            <Form layout="vertical">
+              <Form.Item label="Answer source">
+                <Radio.Group value={automatic} onChange={(event) => setGenerationMode(event.target.value)}>
+                  <Space orientation="vertical">
+                    <Radio value>Generate tutor answers automatically</Radio>
+                    <Radio value={false}>Evaluate existing answers (advanced)</Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+              <Alert type="info" title="Expected answers enable correctness scoring. Automatic answers use the activated tutor prompt, models, parameters, and knowledge scope." showIcon style={{ marginBottom: 16 }} />
+              <Row gutter={16}>
+                <Col xs={24} md={8}><Form.Item label="Tutor knowledge"><Typography.Text>Activated configuration</Typography.Text></Form.Item></Col>
+                <Col xs={12} md={8}><Form.Item label="Retrieval Top K"><InputNumber min={1} max={10} value={topK} onChange={setTopK} style={{ width: "100%" }} /></Form.Item></Col>
+                <Col xs={12} md={8}><Form.Item label="Consistency runs"><InputNumber min={1} max={10} value={consistencyRuns} onChange={setConsistencyRuns} disabled={!automatic} style={{ width: "100%" }} /></Form.Item></Col>
               </Row>
-              {automatic && consistencyRuns > 1 && <Alert variant="warning" className="mt-3 mb-0">Consistency runs multiply generated outputs: {cases.length} questions × {consistencyRuns} repeats = {totalOutputs} outputs.</Alert>}
-            </Card.Body>
+            </Form>
+            {automatic && consistencyRuns > 1 ? <Alert type="warning" title={`${cases.length} questions × ${consistencyRuns} repeats = ${totalOutputs} evaluated outputs.`} showIcon /> : null}
           </Card>
-          <div className="d-grid gap-3">
-            {cases.map((runCase, index) => (
-              <BenchmarkCaseEditor key={index} runCase={runCase} index={index} total={cases.length} automatic={automatic} onChange={updateCase} onRemove={removeCase} onDuplicate={duplicateCase} onMove={moveCase} />
-            ))}
-          </div>
-          <Button className="mt-3" variant="outline-primary" onClick={() => setCases((current) => [...current, emptyBenchmarkCase()])} disabled={cases.length >= 200}>Add case</Button>
-        </div>
-      )}
+          {cases.map((runCase, index) => <BenchmarkCaseEditor key={index} runCase={runCase} index={index} total={cases.length} automatic={automatic} onChange={updateCase} onRemove={removeCase} onDuplicate={duplicateCase} onMove={moveCase} />)}
+          <Button icon={<PlusOutlined />} onClick={() => setCases((current) => [...current, emptyBenchmarkCase()])} disabled={cases.length >= 200}>Add case</Button>
+        </Space>
+      ) : null}
 
-      {step === 4 && (
-        <Card className="benchmark-panel-card">
-          <Card.Body>
-            <Card.Title>Review and launch</Card.Title>
-            <div className="benchmark-review-grid">
-              <div><span>Tutor</span><strong>{selectedTutor?.name}</strong></div>
-              <div><span>Revision</span><strong>Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</strong></div>
-              <div><span>Model</span><strong>{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</strong></div>
-              <div><span>Template</span><strong>{selectedTemplate?.name}</strong></div>
-              <div><span>Metrics</span><strong>{selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "None"}</strong></div>
-              <div><span>Logical questions</span><strong>{cases.length}</strong></div>
-              <div><span>Consistency runs</span><strong>{consistencyRuns}</strong></div>
-              <div><span>Total evaluated outputs</span><strong>{totalOutputs}</strong></div>
-              <div><span>Tutor knowledge</span><strong>Activated configuration · Top {topK}</strong></div>
-            </div>
-          </Card.Body>
+      {step === 4 ? (
+        <Card title="Review and launch">
+          <Descriptions bordered column={{ xs: 1, sm: 2 }}>
+            <Descriptions.Item label="Tutor">{selectedTutor?.name}</Descriptions.Item>
+            <Descriptions.Item label="Revision">Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</Descriptions.Item>
+            <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
+            <Descriptions.Item label="Template">{selectedTemplate?.name}</Descriptions.Item>
+            <Descriptions.Item label="Metrics">{selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "None"}</Descriptions.Item>
+            <Descriptions.Item label="Logical questions">{cases.length}</Descriptions.Item>
+            <Descriptions.Item label="Consistency runs">{consistencyRuns}</Descriptions.Item>
+            <Descriptions.Item label="Total evaluated outputs">{totalOutputs}</Descriptions.Item>
+            <Descriptions.Item label="Tutor knowledge">Activated configuration · Top {topK}</Descriptions.Item>
+          </Descriptions>
         </Card>
-      )}
+      ) : null}
 
-      {validationError && <Alert variant="warning" className="mt-3">{validationError}</Alert>}
-      {launchError && <Alert variant="danger" className="mt-3">{launchError}</Alert>}
-      <div className="d-flex justify-content-between mt-4">
-        <Button variant="outline-secondary" onClick={() => { setValidationError(""); setStep((current) => Math.max(1, current - 1)); }} disabled={step === 1 || submitting}>Back</Button>
-        {step < 4 ? (
-          <Button onClick={goNext}>Continue</Button>
-        ) : (
-          <Button onClick={launch} disabled={submitting || Boolean(validateStep(4))}>
-            {submitting ? <><Spinner size="sm" className="me-2" />Launching…</> : "Launch benchmark"}
-          </Button>
-        )}
-      </div>
+      {validationError ? <Alert type="warning" title={validationError} showIcon /> : null}
+      {launchError ? <Alert type="error" title={launchError} showIcon /> : null}
+      <Flex justify="space-between">
+        <Button onClick={() => { setValidationError(""); setStep((current) => Math.max(1, current - 1)); }} disabled={step === 1 || submitting}>Back</Button>
+        {step < 4
+          ? <Button type="primary" onClick={goNext}>Continue</Button>
+          : <Button type="primary" onClick={launch} loading={submitting} disabled={Boolean(validateStep(4))}>Launch benchmark</Button>}
+      </Flex>
     </div>
   );
 }

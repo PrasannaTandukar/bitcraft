@@ -1,0 +1,115 @@
+.workspace-page {
+  min-height: 100%;
+  padding: 24px;
+}
+
+.workspace-page-inner {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.workspace-page-header {
+  margin-bottom: 24px;
+}
+
+.workspace-page-header .ant-typography {
+  margin: 0;
+}
+
+.workspace-page-header h2.ant-typography {
+  margin-bottom: 4px;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+.workspace-page-header p.ant-typography {
+  max-width: 720px;
+}
+
+.workspace-section {
+  margin-top: 24px;
+}
+
+.workspace-section-heading {
+  margin: 0 0 12px !important;
+}
+
+.workspace-surface {
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: var(--bitcraft-border-radius-lg);
+  background: var(--bitcraft-color-bg-container);
+}
+
+.workspace-table .ant-table-container {
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: var(--bitcraft-border-radius-lg);
+}
+
+.workspace-table .ant-table-cell {
+  vertical-align: top;
+}
+
+.workspace-loading {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+}
+
+.workspace-code {
+  overflow: auto;
+  max-width: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #344054;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.workspace-muted {
+  color: var(--bitcraft-color-text-secondary);
+}
+
+.management-search {
+  width: min(100%, 380px);
+  margin-bottom: 16px;
+}
+
+.management-name-cell {
+  display: grid;
+  min-width: 220px;
+  max-width: 440px;
+  gap: 3px;
+}
+
+.management-resource-list {
+  overflow: hidden;
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: 8px;
+}
+
+.management-resource-row {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bitcraft-color-border-secondary);
+}
+
+.management-resource-row:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 767px) {
+  .workspace-page {
+    padding: 16px;
+  }
+
+  .workspace-page-header {
+    margin-bottom: 16px;
+  }
+
+  .workspace-page-header h2.ant-typography {
+    font-size: 22px;
+  }
+}

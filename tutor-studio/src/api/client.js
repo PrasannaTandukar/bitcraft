@@ -31,7 +31,7 @@ async function clearAuthSession() {
     ]);
     store.dispatch(logout());
   } catch {
-    // Store may not yet be initialized (e.g. early bootstrap or tests).
+    // Store may not yet be initialized (e.g. early application startup or tests).
     // localStorage cleanup above is still sufficient to invalidate the session.
   }
 }

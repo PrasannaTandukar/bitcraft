@@ -1,157 +1,168 @@
-import Badge from 'react-bootstrap/Badge';
-import Button from 'react-bootstrap/Button';
-import Card from 'react-bootstrap/Card';
-import Col from 'react-bootstrap/Col';
-import Container from 'react-bootstrap/Container';
-import Row from 'react-bootstrap/Row';
-import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import './Dashboard.css';
+import {
+  DatabaseOutlined,
+  ExperimentOutlined,
+  FolderOpenOutlined,
+  PlusOutlined,
+  RobotOutlined,
+} from "@ant-design/icons";
+import { Alert, Button, Card, Col, Empty, Flex, Row, Skeleton, Statistic, Tag, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import PageHeader from "./components/PageHeader.jsx";
+import { listDocuments } from "./documents/documentApi.js";
+import { listTutors } from "./tutors/tutorApi.js";
+import { formatDateTime, tutorStatus } from "./tutors/tutorUtils.js";
+import StatusTag from "./components/StatusTag.jsx";
+import "./Dashboard.css";
 
-const stats = [
-  {
-    title: 'Documents',
-    value: '0',
-    description: 'Uploaded learning materials',
-  },
-  {
-    title: 'Tutor Sessions',
-    value: '0',
-    description: 'AI-assisted study sessions',
-  },
-  {
-    title: 'Benchmarks',
-    value: '0',
-    description: 'Model tests completed',
-  },
-  {
-    title: 'Active Model',
-    value: 'Ollama',
-    description: 'Local LLM provider',
-  },
-];
-
-const actions = [
-  {
-    title: 'Start Tutor Chat',
-    description:
-      'Ask questions, generate explanations, and interact with the local AI tutor.',
-    buttonLabel: 'Open Tutor',
-    route: '/ai-tutor',
-  },
-  {
-    title: 'Upload Documents',
-    description:
-      'Add learning materials so the tutor can use them for context-aware answers.',
-    buttonLabel: 'Manage Documents',
-    route: '/files',
-    roles: ['Editor', 'Admin'],
-  },
-  {
-    title: 'Run Benchmark',
-    description: 'Test model responses and compare AI tutor performance.',
-    buttonLabel: 'Go to Benchmarking',
-    route: '/benchmarking',
-    roles: ['Auditor', 'Editor', 'Admin'],
-  },
-];
-
-const statuses = [
-  { label: 'Backend API', value: 'Online' },
-  { label: 'Database', value: 'Connected' },
-  { label: 'Ollama', value: 'Local model provider' },
-  { label: 'Authentication', value: 'Active' },
-];
+const { Text, Title } = Typography;
 
 function Dashboard() {
   const navigate = useNavigate();
   const { roles = [] } = useSelector((state) => state.auth);
-  const visibleActions = actions.filter((action) => !action.roles || action.roles.some((role) => roles.includes(role)));
+  const canViewWorkspaceData = roles.some((role) => ["Auditor", "Editor", "Admin"].includes(role));
+  const canManage = roles.some((role) => ["Editor", "Admin"].includes(role));
+  const [loading, setLoading] = useState(canViewWorkspaceData);
+  const [error, setError] = useState("");
+  const [tutors, setTutors] = useState([]);
+  const [documents, setDocuments] = useState([]);
+
+  useEffect(() => {
+    if (!canViewWorkspaceData) return undefined;
+
+    const controller = new AbortController();
+    Promise.all([listTutors(controller.signal), listDocuments(controller.signal)])
+      .then(([tutorItems, documentItems]) => {
+        setTutors(tutorItems ?? []);
+        setDocuments(documentItems ?? []);
+        setError("");
+      })
+      .catch((requestError) => {
+        if (requestError?.name !== "AbortError") {
+          setError(requestError?.message || "Workspace data could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [canViewWorkspaceData]);
+
+  const actions = useMemo(() => {
+    const items = [
+      {
+        title: "Open AI Tutor",
+        description: "Start a focused conversation with an available tutor.",
+        label: "Open tutor",
+        route: "/ai-tutor",
+        icon: <RobotOutlined />,
+      },
+    ];
+
+    if (canViewWorkspaceData) {
+      items.push({
+        title: "Browse knowledge",
+        description: "Review uploaded documents and their vectorization state.",
+        label: canManage ? "Manage files" : "View files",
+        route: "/files",
+        icon: <FolderOpenOutlined />,
+      });
+      items.push({
+        title: "Evaluate tutors",
+        description: "Configure benchmark cases and inspect evaluation runs.",
+        label: "Open benchmarking",
+        route: "/benchmarking",
+        icon: <ExperimentOutlined />,
+      });
+    }
+
+    return items;
+  }, [canManage, canViewWorkspaceData]);
 
   return (
-    <main className="dashboard-page">
-      <Container className="dashboard-container">
-        <section className="dashboard-welcome">
-          <Badge className="dashboard-badge">Tutor Studio</Badge>
-          <h1>Welcome back</h1>
-          <p>
-            Manage your AI tutor workspace, documents, and model tools from one
-            place.
-          </p>
-        </section>
+    <main className="workspace-page dashboard-page">
+      <div className="workspace-page-inner">
+        <PageHeader
+          title="Dashboard"
+          description="A concise view of the tutors and knowledge available in your workspace."
+          extra={canManage ? <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/tutors")}>Create tutor</Button> : null}
+        />
 
-        <section aria-label="Workspace statistics">
-          <Row className="g-3 g-xl-4">
-            {stats.map((stat) => (
-              <Col key={stat.title} sm={6} xl={3}>
-                <Card className="dashboard-card stat-card">
-                  <Card.Body>
-                    <span>{stat.title}</span>
-                    <strong>{stat.value}</strong>
-                    <p>{stat.description}</p>
-                  </Card.Body>
+        {error ? <Alert className="dashboard-alert" type="error" title="Some workspace data is unavailable" description={error} showIcon /> : null}
+
+        {canViewWorkspaceData ? (
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
+              <Card>
+                <Skeleton loading={loading} active paragraph={false}>
+                  <Statistic title="Tutors" value={tutors.length} prefix={<RobotOutlined />} />
+                </Skeleton>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Card>
+                <Skeleton loading={loading} active paragraph={false}>
+                  <Statistic title="Knowledge documents" value={documents.length} prefix={<DatabaseOutlined />} />
+                </Skeleton>
+              </Card>
+            </Col>
+          </Row>
+        ) : null}
+
+        <section className="workspace-section">
+          <Title className="workspace-section-heading" level={4}>Quick actions</Title>
+          <Row gutter={[16, 16]}>
+            {actions.map((action) => (
+              <Col key={action.route} xs={24} md={12} xl={8}>
+                <Card className="dashboard-action-card">
+                  <span className="dashboard-action-icon">{action.icon}</span>
+                  <Title level={5}>{action.title}</Title>
+                  <Text type="secondary">{action.description}</Text>
+                  <Button onClick={() => navigate(action.route)}>{action.label}</Button>
                 </Card>
               </Col>
             ))}
           </Row>
         </section>
 
-        <section className="dashboard-section" aria-labelledby="actions-title">
-          <div className="section-heading">
-            <h2 id="actions-title">Workspace actions</h2>
-          </div>
-          <Row className="g-3 g-xl-4">
-            {visibleActions.map((action) => (
-              <Col key={action.title} lg={4}>
-                <Card className="dashboard-card action-card">
-                  <Card.Body>
-                    <h3>{action.title}</h3>
-                    <p>{action.description}</p>
-                    <Button
-                      className="dashboard-button"
-                      onClick={() => navigate(action.route)}
-                    >
-                      {action.buttonLabel}
-                    </Button>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </section>
-
-        <Row className="dashboard-section g-3 g-xl-4">
-          <Col lg={8}>
-            <Card className="dashboard-card utility-card">
-              <Card.Body>
-                <h2>Recent Activity</h2>
-                <div className="empty-state">
-                  <strong>No recent activity yet.</strong>
-                  <p>
-                    Once you start using the tutor, your activity will appear
-                    here.
-                  </p>
-                </div>
-              </Card.Body>
+        {canViewWorkspaceData ? (
+          <section className="workspace-section">
+            <Card title="Available tutors" extra={<Button type="link" onClick={() => navigate("/tutors")}>View all</Button>}>
+              <Skeleton loading={loading} active>
+                {tutors.length ? (
+                  <div className="dashboard-tutor-list">
+                    {tutors.slice(0, 5).map((tutor) => (
+                      <Flex className="dashboard-tutor-row" key={tutor.id} align="center" gap={12}>
+                        <span className="dashboard-list-icon"><RobotOutlined /></span>
+                        <div className="dashboard-tutor-copy">
+                          <Typography.Text strong>{tutor.name}</Typography.Text>
+                          <Typography.Text type="secondary" ellipsis={{ tooltip: tutor.description }}>{tutor.description || `Updated ${formatDateTime(tutor.updatedAt)}`}</Typography.Text>
+                        </div>
+                        <StatusTag value={tutorStatus(tutor.status)} />
+                        <Button type="link" onClick={() => navigate(`/tutors/${tutor.id}`)}>Open</Button>
+                      </Flex>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No tutors are available yet">
+                    {canManage ? <Button type="primary" onClick={() => navigate("/tutors")}>Create a tutor</Button> : null}
+                  </Empty>
+                )}
+              </Skeleton>
             </Card>
-          </Col>
-          <Col lg={4}>
-            <Card className="dashboard-card utility-card status-card">
-              <Card.Body>
-                <h2>System Status</h2>
-                <ul>
-                  {statuses.map((status) => (
-                    <li key={status.label}>
-                      <span>{status.label}</span>
-                      <strong>{status.value}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+          </section>
+        ) : (
+          <Alert
+            className="workspace-section"
+            type="info"
+            showIcon
+            title="Workspace access is limited"
+            description="Your account can use the AI Tutor. Additional management areas appear when a workspace role is assigned."
+          />
+        )}
+      </div>
     </main>
   );
 }
