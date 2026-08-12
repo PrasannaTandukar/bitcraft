@@ -1,5 +1,7 @@
 import Alert from "react-bootstrap/Alert";
 import Button from "react-bootstrap/Button";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import SourceList from "./SourceList.jsx";
 
 export default function ChatMessage({ message, tutorName, showSources, onRetry, retryDisabled }) {
@@ -21,7 +23,15 @@ export default function ChatMessage({ message, tutorName, showSources, onRetry, 
     <div className={`runtime-message-row ${message.role}`}>
       <div className={`runtime-message ${message.role}`}>
         <span>{message.role === "user" ? "You" : tutorName}</span>
-        <p>{message.content}</p>
+          {message.role === "assistant" ? (
+              <div className="runtime-markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                  </ReactMarkdown>
+              </div>
+          ) : (
+              <p>{message.content}</p>
+          )}
         {message.role === "assistant" && showSources && <SourceList sources={message.sources} />}
       </div>
     </div>
