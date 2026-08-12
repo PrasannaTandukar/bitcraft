@@ -396,10 +396,12 @@ public static class BenchmarkFeatures
                 InteractionModelId = interactionModelId,
                 InteractionModel = interactionModel,
                 ModelAlias = request.GenerateActualOutputs
-                    ? interactionModel?.ProviderModelName
+                    ? selectedSnapshot?.ModelName
                     : string.IsNullOrWhiteSpace(request.ModelAlias) ? null : request.ModelAlias.Trim(),
                 GenerateActualOutputs = request.GenerateActualOutputs,
-                UseTutorKnowledge = request.UseTutorKnowledge,
+                // Automatic generation always executes the tutor's activated knowledge
+                // configuration. The request flag remains for manual-run contract compatibility.
+                UseTutorKnowledge = request.GenerateActualOutputs || request.UseTutorKnowledge,
                 RetrievalTopK = topK,
                 ConsistencyRuns = request.ConsistencyRuns,
                 Status = BenchmarkRunStatus.Queued,
@@ -663,7 +665,8 @@ public static class BenchmarkFeatures
                         runCase.InputText,
                         runCase.ContextText,
                         run.UseTutorKnowledge,
-                        run.RetrievalTopK),
+                        run.RetrievalTopK,
+                        run.CreatedById ?? Guid.Empty),
                     cancellationToken);
 
                 if (generated.IsFailure)

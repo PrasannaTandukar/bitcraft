@@ -541,11 +541,11 @@ public static class TutorRevisionFeatures
                 "Deployment target must be Local or Server."));
         }
 
-        if (!IsValidOptionalJson(interactionParametersJson))
+        if (!TutorInteractionParametersParser.TryParse(interactionParametersJson, out _, out var parameterError))
         {
             return Result.Failure<ValidatedConfiguration>(new Error(
                 "TutorRevision.InvalidInteractionParameters",
-                "Interaction parameters must be valid JSON."));
+                parameterError.Description));
         }
 
         if (!IsValidOptionalJson(deploymentConfigJson))

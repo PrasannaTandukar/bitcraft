@@ -20,7 +20,7 @@ import RuntimeEnginesPage from './RuntimeEngines.jsx';
 import BenchmarkingPage from './BenchmarkingPage.jsx';
 import RoleRoute from './RoleRoute.jsx';
 import Dashboard from './Dashboard.jsx';
-import OllamaChat from "./OllamaChat.jsx";
+import AiTutorPage from "./aiTutor/AiTutorPage.jsx";
 
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);
@@ -112,7 +112,7 @@ function AppContent() {
           <RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><FilesPage /></RoleRoute>
         } />
         <Route path="/ai-tutor" element={
-          <ProtectedRoute><OllamaChat /></ProtectedRoute>
+          <ProtectedRoute><AiTutorPage /></ProtectedRoute>
         } />
         <Route path="/tutors" element={
           <RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorsPage /></RoleRoute>

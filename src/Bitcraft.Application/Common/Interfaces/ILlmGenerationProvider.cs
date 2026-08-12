@@ -8,4 +8,9 @@ public interface ILlmGenerationProvider
         string prompt,
         string? model,
         CancellationToken cancellationToken = default);
+
+    Task<Result<LlmGenerationResult>> GenerateAsync(
+        LlmGenerationRequest request,
+        CancellationToken cancellationToken = default) =>
+        GenerateAsync(request.Prompt, request.Model, cancellationToken);
 }

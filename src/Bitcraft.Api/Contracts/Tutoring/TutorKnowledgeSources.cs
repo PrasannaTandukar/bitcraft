@@ -9,3 +9,24 @@ public sealed record KnowledgeSourceLinkResponse(
     Guid TutorId,
     Guid DocumentId,
     DateTime LinkedUtc);
+
+public sealed record AttachTutorDocumentRequest(Guid DocumentId);
+
+public sealed record TutorKnowledgeDocumentResponse(
+    Guid LinkId,
+    Guid TutorId,
+    Guid DocumentId,
+    string DocumentName,
+    string AttachedVia,
+    bool IsVectorized,
+    Guid? EmbeddingModelId,
+    string? EmbeddingModelName,
+    bool LegacyCompatibility);
+
+public sealed record AttachTutorDocumentFolderRequest(Guid FolderId);
+
+public sealed record TutorKnowledgeFolderResponse(
+    Guid LinkId,
+    Guid TutorId,
+    Guid FolderId,
+    string FolderName);

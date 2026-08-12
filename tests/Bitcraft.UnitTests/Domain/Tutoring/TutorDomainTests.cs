@@ -192,6 +192,51 @@ public class TutorConfigurationSnapshotTests
     }
 
     [Fact]
+    public void Capture_WithRevision_DoesNotInheritLegacyConnectionOverrides()
+    {
+        var tutor = Tutor.Create("Algebra", null, Guid.NewGuid());
+        var prompt = new PromptVersion { TutorId = tutor.Id, Content = "system prompt", Name = "v1" };
+        var interactionModel = new InteractionModel
+        {
+            Name = "m",
+            RuntimeEngineId = Guid.NewGuid(),
+            ProviderModelName = "llama3.1",
+            SettingsJson = "{\"temperature\":0.2}"
+        };
+        var legacyConnection = new TutorModelConnection
+        {
+            TutorId = tutor.Id,
+            InteractionModelId = interactionModel.Id,
+            InteractionModel = interactionModel,
+            OverrideSettingsJson = "{\"temperature\":1.8}"
+        };
+        var revision = new TutorRevision
+        {
+            TutorId = tutor.Id,
+            VersionNumber = 2,
+            PromptVersionId = prompt.Id,
+            PromptVersion = prompt,
+            InteractionModelId = interactionModel.Id,
+            InteractionModel = interactionModel
+        };
+
+        var snapshot = TutorConfigurationSnapshot.Capture(
+            tutor,
+            revision.VersionNumber,
+            prompt,
+            legacyConnection,
+            null,
+            null,
+            null,
+            Guid.NewGuid(),
+            revision);
+
+        Assert.Equal(interactionModel.SettingsJson, snapshot.ModelSettingsJson);
+        Assert.NotEqual(legacyConnection.OverrideSettingsJson, snapshot.ModelSettingsJson);
+        Assert.Null(snapshot.TutorModelConnectionId);
+    }
+
+    [Fact]
     public void Capture_WithNullTutor_ThrowsArgumentNullException()
     {
         // Arrange / Act / Assert

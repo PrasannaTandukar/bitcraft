@@ -15,16 +15,23 @@ public class OllamaEmbeddingProvider(
     public async Task<float[]> GenerateEmbeddingAsync(
         string text,
         string embeddingModel,
+        CancellationToken cancellationToken = default) =>
+        await GenerateEmbeddingAsync(
+            new EmbeddingGenerationRequest(text, embeddingModel),
+            cancellationToken);
+
+    public async Task<float[]> GenerateEmbeddingAsync(
+        EmbeddingGenerationRequest embeddingRequest,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(embeddingRequest.Text))
         {
-            throw new ArgumentException("Embedding text is required.", nameof(text));
+            throw new ArgumentException("Embedding text is required.", nameof(embeddingRequest));
         }
 
-        var model = string.IsNullOrWhiteSpace(embeddingModel)
+        var model = string.IsNullOrWhiteSpace(embeddingRequest.Model)
             ? configuration["ModelProviders:Ollama:EmbeddingModel"] ?? configuration["OLLAMA_EMBED_MODEL"]
-            : embeddingModel.Trim();
+            : embeddingRequest.Model.Trim();
 
         if (string.IsNullOrWhiteSpace(model))
         {
@@ -33,11 +40,13 @@ public class OllamaEmbeddingProvider(
                 "An Ollama embedding model is not configured.");
         }
 
-        var baseUrl = configuration["ModelProviders:Ollama:BaseUrl"]
+        var baseUrl = embeddingRequest.RuntimeEndpoint
+            ?? configuration["ModelProviders:Ollama:BaseUrl"]
             ?? configuration["OLLAMA_BASE_URL"]
             ?? "http://localhost:11434";
 
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri))
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
+            (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
         {
             throw new EmbeddingProviderException(
                 EmbeddingProviderFailureKind.RequestFailed,
@@ -45,7 +54,7 @@ public class OllamaEmbeddingProvider(
         }
 
         var client = httpClientFactory.CreateClient(nameof(OllamaEmbeddingProvider));
-        var request = new EmbeddingRequest(model, text);
+        var request = new EmbeddingRequest(model, embeddingRequest.Text);
         var endpoint = new Uri(baseUri, "/api/embeddings");
 
         HttpResponseMessage response;
@@ -76,12 +85,11 @@ public class OllamaEmbeddingProvider(
         {
             if (!response.IsSuccessStatusCode)
             {
-                var responsePreview = await ReadBoundedResponseAsync(response.Content, cancellationToken);
                 logger.LogWarning(
-                    "Ollama embedding request failed. StatusCode={StatusCode}, Model={EmbeddingModel}, ResponsePreview={ResponsePreview}",
+                    "Ollama embedding request failed. Operation={Operation}, StatusCode={StatusCode}, Model={EmbeddingModel}",
+                    "embed",
                     (int)response.StatusCode,
-                    model,
-                    responsePreview);
+                    model);
                 throw new EmbeddingProviderException(
                     EmbeddingProviderFailureKind.RequestFailed,
                     "Ollama could not process the embedding request.");
@@ -109,18 +117,6 @@ public class OllamaEmbeddingProvider(
 
             return payload.Embedding;
         }
-    }
-
-    private static async Task<string> ReadBoundedResponseAsync(
-        HttpContent content,
-        CancellationToken cancellationToken)
-    {
-        const int maximumBytes = 2048;
-        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-        var buffer = new byte[maximumBytes];
-        var bytesRead = await stream.ReadAsync(buffer.AsMemory(), cancellationToken);
-        var preview = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead);
-        return preview.Replace('\r', ' ').Replace('\n', ' ').Trim();
     }
 
     private sealed record EmbeddingRequest(string Model, string Prompt);

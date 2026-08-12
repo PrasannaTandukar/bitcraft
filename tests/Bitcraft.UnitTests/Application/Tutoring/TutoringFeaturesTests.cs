@@ -286,6 +286,65 @@ public class DocumentFeaturesTests
 public class KnowledgeSourceFeaturesTests
 {
     [Fact]
+    public async Task LegacyLinkRouteWritesCanonicalTutorDocumentWithoutDuplicatingLegacyLinks()
+    {
+        var ownerId = Guid.NewGuid();
+        var tutorRepository = new FakeTutorRepository();
+        var tutor = Tutor.Create("Tutor", null, ownerId);
+        tutorRepository.Tutors[tutor.Id] = tutor;
+        var documentStore = new FakeDocumentStore();
+        var document = new Document { Name = "robotics.pdf" };
+        document.UpdateMetadata(ownerId);
+        documentStore.Documents[document.Id] = document;
+        var handler = new KnowledgeSourceFeatures.LinkKnowledgeSourceHandler(
+            tutorRepository,
+            documentStore,
+            new FakeTutorMembershipReader(tutorRepository),
+            new FakeCurrentUserContext(ownerId));
+
+        var result = await handler.Handle(
+            new KnowledgeSourceFeatures.LinkKnowledgeSourceCommand(tutor.Id, document.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var canonical = Assert.Single(tutorRepository.TutorDocuments);
+        Assert.Equal(document.Id, canonical.DocumentId);
+        Assert.Equal(AttachmentSource.Direct, canonical.AttachedVia);
+        Assert.Empty(tutorRepository.KnowledgeSources);
+    }
+
+    [Fact]
+    public async Task AttachDocument_RejectsDocumentAlreadyPresentThroughLegacyCompatibilityLink()
+    {
+        var ownerId = Guid.NewGuid();
+        var tutorRepository = new FakeTutorRepository();
+        var tutor = Tutor.Create("Tutor", null, ownerId);
+        tutorRepository.Tutors[tutor.Id] = tutor;
+        var documentStore = new FakeDocumentStore();
+        var document = new Document { Name = "legacy.pdf" };
+        document.UpdateMetadata(ownerId);
+        documentStore.Documents[document.Id] = document;
+        tutorRepository.KnowledgeSources.Add(new KnowledgeSourceLink
+        {
+            TutorId = tutor.Id,
+            DocumentId = document.Id
+        });
+        var handler = new KnowledgeSourceFeatures.LinkKnowledgeSourceHandler(
+            tutorRepository,
+            documentStore,
+            new FakeTutorMembershipReader(tutorRepository),
+            new FakeCurrentUserContext(ownerId));
+
+        var result = await handler.Handle(
+            new KnowledgeSourceFeatures.AttachTutorDocumentCommand(tutor.Id, document.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("TutorKnowledge.AlreadyAttached", result.Error.Code);
+        Assert.Empty(tutorRepository.TutorDocuments);
+    }
+
+    [Fact]
     public async Task LinkKnowledgeSourceHandler_WithForeignDocument_ReturnsForbidden()
     {
         // Arrange
@@ -331,6 +390,7 @@ public class KnowledgeFeaturesTests
         var handler = new KnowledgeFeatures.SearchKnowledgeHandler(
             retriever,
             tutorRepository,
+            new FakeRevisionEffectiveSetReader([firstDocumentId, secondDocumentId]),
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(ownerId));
         var queryEmbedding = new[] { 0.1f, 0.2f, 0.3f };
         var query = new KnowledgeFeatures.SearchKnowledgeQuery(tutor.Id, queryEmbedding, TopK: 3);
@@ -355,6 +415,7 @@ public class KnowledgeFeaturesTests
         var handler = new KnowledgeFeatures.SearchKnowledgeHandler(
             new FakeKnowledgeRetriever(),
             tutorRepository,
+            new FakeRevisionEffectiveSetReader(),
             new FakeTutorMembershipReader(tutorRepository), new FakeCurrentUserContext(Guid.NewGuid()));
         var query = new KnowledgeFeatures.SearchKnowledgeQuery(tutor.Id, new[] { 0.1f }, TopK: 3);
 

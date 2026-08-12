@@ -118,6 +118,10 @@ export default function TutorDetailsPage() {
             </div>
             <div className="tutor-header-stat"><strong>{revisions.length}</strong><span>Revisions</span></div>
             <div className="tutor-header-stat"><strong>{snapshots.length}</strong><span>Snapshots</span></div>
+            {tutor.activeRevisionId && <div className="d-flex flex-column gap-2">
+              <Button size="sm" onClick={() => navigate(`/ai-tutor?tutorId=${tutor.id}`)}>Chat with Tutor</Button>
+              {canManage && <Button size="sm" variant="outline-primary" onClick={() => navigate(`/benchmarking?tab=new&tutorId=${tutor.id}&revisionId=${tutor.activeRevisionId}`)}>Benchmark Tutor</Button>}
+            </div>}
           </header>
 
           <Nav variant="tabs" activeKey={tab} onSelect={(key) => key && setTab(key)} className="tutor-tabs" aria-label="Tutor configuration views">
@@ -131,7 +135,7 @@ export default function TutorDetailsPage() {
             {tab === "overview" && <TutorOverviewPanel tutor={tutor} prompts={prompts} revisions={revisions} canManage={canManage} onOpenTab={setTab} />}
             {tab === "prompts" && <PromptVersionsPanel tutorId={tutorId} prompts={prompts} activePromptVersionId={tutor.activePromptVersionId} canManage={canManage} onChanged={refresh} />}
             {tab === "revisions" && <TutorRevisionsPanel tutorId={tutorId} revisions={revisions} prompts={prompts} interactionModels={interactionModels} embeddingModels={embeddingModels} canManage={canManage} onChanged={refresh} onCreatePrompt={() => setTab("prompts")} />}
-            {tab === "knowledge" && <TutorKnowledgePanel canManage={canManage} />}
+            {tab === "knowledge" && <TutorKnowledgePanel tutorId={tutorId} canManage={canManage} />}
           </section>
         </>}
       </Container>

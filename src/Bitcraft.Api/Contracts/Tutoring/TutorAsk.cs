@@ -5,7 +5,11 @@ public sealed record AskTutorQuestionRequest(
     string? Model = null,
     bool UseMemory = false,
     bool SaveToMemory = false,
-    int? TopK = null);
+    int? TopK = null,
+    Guid? TutorId = null,
+    IReadOnlyList<TutorConversationMessageRequest>? History = null);
+
+public sealed record TutorConversationMessageRequest(string Role, string Content);
 
 public sealed record AskTutorQuestionResponse(
     string Answer,

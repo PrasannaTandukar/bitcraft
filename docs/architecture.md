@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-05-20
+edited_at: 2026-08-09
 creator: planner
-editor: secretary
+editor: codex
 ai_gen: true
 ---
 # Bitcraft Architecture (Living Document)
@@ -475,6 +475,14 @@ sequenceDiagram
 ```
 
 Slug resolution reads from the activation record, not from `Tutor`: per D22.a, `ActivationSlug` lives on the `Active` `TutorRevision` and `PreviousActivationSlug` provides the one-revision redirect window after a rename. The effective document set the runtime sees is the one **materialized into the Snapshot at activation time** (D23); documents and folder attachments mutated after activation do not affect the active runtime until the next activation captures a new Snapshot.
+
+### 8.1 Runtime configuration source of truth
+
+`ITutorRuntime` is the single Application-layer execution path for interactive chat and automatic benchmark output generation. The revision remains the human-managed identity and lifecycle record, while its activation snapshot is the immutable execution payload: snapshot prompt content, provider model name, interaction parameters, effective document IDs, and effective embedding bindings take precedence over mutable live values. The revision deployment payload is also captured in that snapshot for provenance; current Ollama connectivity still resolves through the referenced `RuntimeEngine`. Live prompt, model, and engine rows are loaded only to validate tutor ownership, revision status, referential consistency, enabled state, and supported connectivity. An Active revision without its matching snapshot fails closed; it never falls back to all documents owned by the caller.
+
+`TutorDocument` and `TutorDocumentFolder` are the canonical tutor-knowledge attachment entities. `KnowledgeSourceLink` is retained only as an explicit compatibility read path for records written by older clients; current attachment endpoints write `TutorDocument`, and effective-set resolution de-duplicates legacy and canonical rows before activation. Activation materializes the exact direct and folder-derived document IDs plus their embedding-model bindings into the snapshot. Runtime pgvector searches are restricted to that captured set and the captured embedding-model identity.
+
+Interactive requests resolve `Tutor.ActiveRevisionId` and accept bounded in-request `user`/`assistant` history. The legacy `/api/tutor/ask` endpoint is a compatibility adapter over `ITutorRuntime`; it cannot override the configured model and no longer retrieves user-global `TutorMemory`. Automatic benchmark generation also delegates to `ITutorRuntime`, selecting its explicit Published or Active revision and bound snapshot, so it does not rebuild a separate prompt or retrieval pipeline or disable activated tutor knowledge. Optional per-case benchmark context is retained for evaluator input; it does not replace runtime retrieval. Persistent tutor-scoped conversations and tool/function execution remain separate future milestones.
 
 ## 9. Cross-Cutting Concerns
 

@@ -29,7 +29,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [templatesError, setTemplatesError] = useState("");
   const [automatic, setAutomatic] = useState(true);
   const [cases, setCases] = useState([emptyBenchmarkCase()]);
-  const [useTutorKnowledge, setUseTutorKnowledge] = useState(true);
   const [topK, setTopK] = useState(5);
   const [consistencyRuns, setConsistencyRuns] = useState(1);
   const [validationError, setValidationError] = useState("");
@@ -162,7 +161,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         interactionModelId: null,
         modelAlias: null,
         generateActualOutputs: automatic,
-        useTutorKnowledge,
+        useTutorKnowledge: true,
         topK,
         consistencyRuns,
         cases: cases.map((runCase) => ({
@@ -289,16 +288,19 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
               <Form.Check type="radio" id="automatic-generation" name="generation-mode" label="Generate tutor answers automatically" checked={automatic} onChange={() => setGenerationMode(true)} />
               <Form.Check type="radio" id="existing-answers" name="generation-mode" label="Evaluate existing answers (Advanced)" checked={!automatic} onChange={() => setGenerationMode(false)} />
               <Alert variant="info" className="mt-3 mb-3">
-                Expected answers enable correctness scoring. Context supports meaningful faithfulness and groundedness indicators. Tutor knowledge retrieves context automatically; supplied context overrides retrieval for that case.
+                Expected answers enable correctness scoring. Automatic answers execute the same activated tutor prompt, models, parameters, and knowledge scope as chat. Supplied context is retained for evaluation and does not replace tutor retrieval.
               </Alert>
               <Row className="g-3">
                 <Col md={4}>
-                  <Form.Check id="use-tutor-knowledge" label="Use tutor knowledge" checked={useTutorKnowledge} onChange={(event) => setUseTutorKnowledge(event.target.checked)} />
+                  <Form.Group>
+                    <Form.Label>Tutor knowledge</Form.Label>
+                    <Form.Control plaintext readOnly value="Activated configuration" />
+                  </Form.Group>
                 </Col>
                 <Col md={4}>
                   <Form.Group controlId="retrieval-top-k">
                     <Form.Label>Retrieval Top K</Form.Label>
-                    <Form.Control type="number" min="1" max="10" value={topK} onChange={(event) => setTopK(Number(event.target.value))} disabled={!useTutorKnowledge} />
+                    <Form.Control type="number" min="1" max="10" value={topK} onChange={(event) => setTopK(Number(event.target.value))} />
                   </Form.Group>
                 </Col>
                 <Col md={4}>
@@ -333,7 +335,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
               <div><span>Logical questions</span><strong>{cases.length}</strong></div>
               <div><span>Consistency runs</span><strong>{consistencyRuns}</strong></div>
               <div><span>Total evaluated outputs</span><strong>{totalOutputs}</strong></div>
-              <div><span>Tutor knowledge</span><strong>{useTutorKnowledge ? `Enabled · Top ${topK}` : "Disabled"}</strong></div>
+              <div><span>Tutor knowledge</span><strong>Activated configuration · Top {topK}</strong></div>
             </div>
           </Card.Body>
         </Card>

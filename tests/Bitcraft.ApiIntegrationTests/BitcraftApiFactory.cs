@@ -44,6 +44,9 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
             services.RemoveAll<IDocumentVectorizationReader>();
+            services.RemoveAll<ILlmGenerationProvider>();
+            services.RemoveAll<IEmbeddingProvider>();
+            services.RemoveAll<IKnowledgeRetriever>();
 
             services.AddScoped<AppDbContext>(serviceProvider =>
             {
@@ -56,6 +59,15 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<TestDocumentVectorizationReader>();
             services.AddSingleton<IDocumentVectorizationReader>(serviceProvider =>
                 serviceProvider.GetRequiredService<TestDocumentVectorizationReader>());
+            services.AddSingleton<TestLlmGenerationProvider>();
+            services.AddSingleton<ILlmGenerationProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<TestLlmGenerationProvider>());
+            services.AddSingleton<TestEmbeddingProvider>();
+            services.AddSingleton<IEmbeddingProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<TestEmbeddingProvider>());
+            services.AddSingleton<TestKnowledgeRetriever>();
+            services.AddSingleton<IKnowledgeRetriever>(serviceProvider =>
+                serviceProvider.GetRequiredService<TestKnowledgeRetriever>());
 
             services.Configure<RateLimiterOptions>(options =>
             {
@@ -63,6 +75,83 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
                     RateLimitPartition.GetNoLimiter("integration-tests"));
             });
         });
+    }
+}
+
+internal sealed class TestEmbeddingProvider : IEmbeddingProvider
+{
+    public ConcurrentQueue<EmbeddingGenerationRequest> Requests { get; } = new();
+
+    public Task<float[]> GenerateEmbeddingAsync(
+        string text,
+        string embeddingModel,
+        CancellationToken cancellationToken = default) =>
+        GenerateEmbeddingAsync(new EmbeddingGenerationRequest(text, embeddingModel), cancellationToken);
+
+    public Task<float[]> GenerateEmbeddingAsync(
+        EmbeddingGenerationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Requests.Enqueue(request);
+        return Task.FromResult(new[] { 1f, 0f, 0f });
+    }
+}
+
+internal sealed class TestKnowledgeRetriever : IKnowledgeRetriever
+{
+    public ConcurrentQueue<KnowledgeSearchRequest> Requests { get; } = new();
+
+    public Task<List<KnowledgeChunk>> SearchNearestChunksAsync(
+        IReadOnlyCollection<Guid> documentIds,
+        float[] queryEmbedding,
+        int topK = 5,
+        CancellationToken cancellationToken = default) =>
+        SearchNearestChunksAsync(
+            new KnowledgeSearchRequest(documentIds, Guid.Empty, queryEmbedding.Length, queryEmbedding, topK),
+            cancellationToken);
+
+    public Task<List<KnowledgeChunk>> SearchNearestChunksAsync(
+        KnowledgeSearchRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Requests.Enqueue(request);
+        var chunks = request.DocumentIds
+            .Take(request.TopK)
+            .Select((documentId, index) => new KnowledgeChunk
+            {
+                DocumentId = documentId,
+                ChunkIndex = index + 1,
+                Content = "Bounded source content.",
+                Embedding = new[] { 1f, 0f, 0f },
+                EmbeddingModelId = request.EmbeddingModelId,
+                EmbeddingDimensions = request.EmbeddingDimensions,
+                EmbeddingModel = "test-embed",
+                EmbeddingProvider = "Ollama"
+            })
+            .ToList();
+        return Task.FromResult(chunks);
+    }
+}
+
+internal sealed class TestLlmGenerationProvider : ILlmGenerationProvider
+{
+    public ConcurrentQueue<LlmGenerationRequest> Requests { get; } = new();
+
+    public Task<Result<LlmGenerationResult>> GenerateAsync(
+        string prompt,
+        string? model,
+        CancellationToken cancellationToken = default) =>
+        GenerateAsync(new LlmGenerationRequest(prompt, model), cancellationToken);
+
+    public Task<Result<LlmGenerationResult>> GenerateAsync(
+        LlmGenerationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Requests.Enqueue(request);
+        return Task.FromResult(Result.Success(new LlmGenerationResult(
+            request.Model ?? string.Empty,
+            "A configured tutor answer.",
+            true)));
     }
 }
 

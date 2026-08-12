@@ -1,4 +1,6 @@
 using System.Reflection;
+using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Features.Tutoring;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bitcraft.Application;
@@ -9,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        services.AddScoped<ITutorRuntime, TutorRuntime>();
 
         return services;
     }

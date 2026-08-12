@@ -21,6 +21,7 @@ public static class KnowledgeFeatures
     public sealed class SearchKnowledgeHandler(
         IKnowledgeRetriever knowledgeRetriever,
         ITutorRepository tutorRepository,
+        IRevisionEffectiveSetReader effectiveSetReader,
         ITutorMembershipReader membership,
         ICurrentUserContext currentUser)
         : IRequestHandler<SearchKnowledgeQuery, Result<List<KnowledgeChunk>>>
@@ -39,7 +40,7 @@ public static class KnowledgeFeatures
                 return Result.Failure<List<KnowledgeChunk>>(new Error("Knowledge.TopKInvalid", "TopK must be between 1 and 50."));
             }
 
-            var tutor = await tutorRepository.GetByIdWithDetailsAsync(request.TutorId, cancellationToken);
+            var tutor = await tutorRepository.GetByIdAsync(request.TutorId, cancellationToken);
             if (tutor is null)
             {
                 return Result.Failure<List<KnowledgeChunk>>(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
@@ -52,7 +53,8 @@ public static class KnowledgeFeatures
                 return Result.Failure<List<KnowledgeChunk>>(new Error("Tutor.Forbidden", "Tutor membership required."));
             }
 
-            var documentIds = tutor.KnowledgeSources.Select(x => x.DocumentId).Distinct().ToList();
+            var effective = await effectiveSetReader.GetEffectiveSetAsync(tutor.Id, cancellationToken);
+            var documentIds = effective.DocumentIds;
             if (documentIds.Count == 0)
             {
                 return Result.Success(new List<KnowledgeChunk>());
