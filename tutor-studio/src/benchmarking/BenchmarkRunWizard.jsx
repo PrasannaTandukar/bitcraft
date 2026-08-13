@@ -63,7 +63,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         const nextRevision = requested || active;
         if (nextRevision) {
           setRevisionId(nextRevision.id);
-          onSelectionChange(tutorId, nextRevision.id);
         }
       })
       .catch((error) => {
@@ -73,7 +72,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         if (!controller.signal.aborted) setRevisionsLoading(false);
       });
     return () => controller.abort();
-  }, [initialRevisionId, onSelectionChange, tutorId]);
+  }, [initialRevisionId, tutorId]);
 
   const selectTutor = (value) => {
     setTutorId(value);
