@@ -112,8 +112,13 @@ public static class DependencyInjection
         services.AddScoped<IDocumentTextExtractionService, DocumentTextExtractionService>();
         services.AddScoped<IDocumentFolderStore, DocumentFolderStore>();
         services.AddScoped<ITutorMemoryStore, PgvectorTutorMemoryStore>();
-        services.AddScoped<IEmbeddingProvider, OllamaEmbeddingProvider>();
-        services.AddScoped<ILlmGenerationProvider, OllamaGenerationProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Embeddings.OllamaEmbeddingProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider>();
+        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.CompositeEmbeddingProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Ollama.OllamaGenerationProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleGenerationProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider>();
+        services.AddScoped<ILlmGenerationProvider, Bitcraft.Infrastructure.ExternalServices.CompositeLlmGenerationProvider>();
         services.AddKnowledgePersistence(configuration);
         services.Configure<DeepEvalBenchmarkOptions>(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName));
 
@@ -140,6 +145,18 @@ public static class DependencyInjection
         });
         var ollamaGenerateTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
         services.AddHttpClient(nameof(OllamaGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
+        });
+        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
+        });
+        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
+        });
+        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
         });

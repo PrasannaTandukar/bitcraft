@@ -190,6 +190,88 @@ public static class RuntimeEngineFeatures
         }
     }
 
+    // ----- Test Connection -----
+
+    public sealed record TestRuntimeEngineConnectionResult(
+        bool IsSuccess,
+        double LatencyMs,
+        string Message,
+        IReadOnlyList<string>? AvailableModels = null);
+
+    public sealed record TestRuntimeEngineCommand(
+        RuntimeEngineProviderType ProviderType,
+        string Endpoint,
+        string? ApiKeySecretRef) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
+
+    public sealed class TestRuntimeEngineHandler(
+        ILlmGenerationProvider generationProvider,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<TestRuntimeEngineCommand, Result<TestRuntimeEngineConnectionResult>>
+    {
+        public async Task<Result<TestRuntimeEngineConnectionResult>> Handle(
+            TestRuntimeEngineCommand request,
+            CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<TestRuntimeEngineConnectionResult>(
+                    new Error("RuntimeEngine.Forbidden", "Only administrators can test runtime engines."));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Endpoint) ||
+                !Uri.TryCreate(request.Endpoint, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                return Result.Failure<TestRuntimeEngineConnectionResult>(
+                    new Error("RuntimeEngine.EndpointInvalid", "Endpoint must be a valid http or https URI."));
+            }
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var testModel = request.ProviderType switch
+                {
+                    RuntimeEngineProviderType.Anthropic => "claude-3-5-sonnet-20241022",
+                    RuntimeEngineProviderType.OpenAI => "gpt-4o-mini",
+                    _ => "default"
+                };
+
+                var genResult = await generationProvider.GenerateAsync(
+                    new LlmGenerationRequest(
+                        "Ping",
+                        testModel,
+                        MaxTokens: 5,
+                        RuntimeEndpoint: request.Endpoint.Trim(),
+                        ApiKeySecretRef: string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
+                        ProviderType: request.ProviderType.ToString()),
+                    cancellationToken);
+
+                stopwatch.Stop();
+
+                if (genResult.IsSuccess)
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
+                        $"Successfully connected to {request.ProviderType} endpoint."));
+                }
+
+                return Result.Success(new TestRuntimeEngineConnectionResult(
+                    false,
+                    Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
+                    genResult.Error.Description));
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                return Result.Success(new TestRuntimeEngineConnectionResult(
+                    false,
+                    Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
+                    $"Connection failed: {ex.Message}"));
+            }
+        }
+    }
+
     // ----- Validation -----
 
     private static Error? Validate(string name, RuntimeEngineProviderType providerType, string endpoint, string? apiKeySecretRef)

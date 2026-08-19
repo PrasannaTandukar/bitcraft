@@ -60,3 +60,16 @@ public sealed record EmbeddingModelResponse(
     Guid? CreatedById,
     DateTime? ModifiedUtc,
     Guid? ModifiedById);
+
+/// <summary>Request to test an interaction model directly.</summary>
+public sealed record TestInteractionModelRequest(
+    Guid? InteractionModelId,
+    Guid? RuntimeEngineId,
+    string? ProviderModelName);
+
+/// <summary>Request to test an embedding model directly.</summary>
+public sealed record TestEmbeddingModelRequest(
+    Guid? EmbeddingModelId,
+    Guid? RuntimeEngineId,
+    string? ProviderModelName,
+    int? EmbeddingDimensions);

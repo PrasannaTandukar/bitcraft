@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { Alert, App, Button, Drawer, Empty, Form, Input, Popconfirm, Select, Space, Switch, Table, Tag, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, getApiErrorDescription } from "./api/client.js";
@@ -7,9 +7,10 @@ import useRolePermissions from "./hooks/useRolePermissions.js";
 
 const API_PATH = "/api/admin/runtime-engines";
 const PROVIDER_TYPES = [
-  { value: 0, label: "Ollama" },
-  { value: 1, label: "OpenAI" },
-  { value: 2, label: "Anthropic" },
+  { value: 0, label: "Ollama", defaultEndpoint: "http://localhost:11434" },
+  { value: 2, label: "OpenAI Compatible", defaultEndpoint: "http://localhost:8080/v1" },
+  { value: 1, label: "OpenAI", defaultEndpoint: "https://api.openai.com/v1" },
+  { value: 101, label: "Anthropic", defaultEndpoint: "https://api.anthropic.com" },
 ];
 const PROVIDER_LABELS = Object.fromEntries(PROVIDER_TYPES.map((provider) => [provider.value, provider.label]));
 
@@ -27,6 +28,8 @@ export default function RuntimeEnginesPage() {
   const [formError, setFormError] = useState("");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   const load = useCallback((refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -55,12 +58,14 @@ export default function RuntimeEnginesPage() {
 
   const openCreate = () => {
     setEditingEngine(null);
+    setTestResult(null);
     form.resetFields();
     setOpen(true);
   };
 
   const openEdit = (engine) => {
     setEditingEngine(engine);
+    setTestResult(null);
     form.setFieldsValue({
       name: engine.name,
       providerType: engine.providerType,
@@ -71,11 +76,49 @@ export default function RuntimeEnginesPage() {
     setOpen(true);
   };
 
+  const handleProviderTypeChange = (value) => {
+    const currentEndpoint = form.getFieldValue("endpoint");
+    const matched = PROVIDER_TYPES.find((p) => p.value === value);
+    if (matched && (!currentEndpoint || PROVIDER_TYPES.some((p) => p.defaultEndpoint === currentEndpoint))) {
+      form.setFieldValue("endpoint", matched.defaultEndpoint);
+    }
+  };
+
+  const testConnection = async () => {
+    const values = form.getFieldsValue();
+    if (!values.endpoint?.trim()) {
+      message.error("Enter an endpoint to test.");
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await apiFetch(`${API_PATH}/test`, {
+        method: "POST",
+        json: {
+          providerType: Number(values.providerType ?? 0),
+          endpoint: values.endpoint.trim(),
+          apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+        },
+      });
+      setTestResult(result);
+    } catch (requestError) {
+      setTestResult({
+        isSuccess: false,
+        latencyMs: 0,
+        message: getApiErrorDescription(requestError, "Test connection request failed."),
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const close = () => {
-    if (saving) return;
+    if (saving || testing) return;
     setOpen(false);
     setEditingEngine(null);
     setFormError("");
+    setTestResult(null);
     form.resetFields();
   };
 
@@ -158,13 +201,25 @@ export default function RuntimeEnginesPage() {
         <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredEngines} loading={loading} scroll={{ x: 880 }} pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No runtime engines found" /> }} />
       </div>
 
-      <Drawer title={editingEngine ? "Edit runtime engine" : "Add runtime engine"} open={open} onClose={close} size={560} destroyOnHidden footer={<Space style={{ width: "100%", justifyContent: "flex-end" }}><Button onClick={close} disabled={saving}>Cancel</Button><Button type="primary" onClick={() => form.submit()} loading={saving}>Save engine</Button></Space>}>
+      <Drawer title={editingEngine ? "Edit runtime engine" : "Add runtime engine"} open={open} onClose={close} size={560} destroyOnHidden footer={<Space style={{ width: "100%", justifyContent: "flex-end" }}><Button onClick={close} disabled={saving || testing}>Cancel</Button><Button icon={<ExperimentOutlined />} onClick={testConnection} loading={testing} disabled={saving}>Test connection</Button><Button type="primary" onClick={() => form.submit()} loading={saving} disabled={testing}>Save engine</Button></Space>}>
         {formError ? <Alert type="error" title={formError} showIcon style={{ marginBottom: 16 }} /> : null}
-        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ providerType: 0, isEnabled: true }}>
-          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter an engine name." }]}><Input placeholder="Local Ollama" /></Form.Item>
-          <Form.Item label="Provider type" name="providerType"><Select options={PROVIDER_TYPES} /></Form.Item>
-          <Form.Item label="Endpoint" name="endpoint" rules={[{ required: true, whitespace: true, message: "Enter the runtime endpoint." }]}><Input placeholder="http://localhost:11434" /></Form.Item>
-          <Form.Item label="API key secret reference" name="apiKeySecretRef" extra="Store only a secret reference here, never an API key value."><Input placeholder="my-api-key-ref" /></Form.Item>
+        {testResult ? (
+          <Alert
+            type={testResult.isSuccess ? "success" : "warning"}
+            icon={testResult.isSuccess ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+            title={testResult.isSuccess ? `Connection verified (${testResult.latencyMs}ms)` : "Connection test failed"}
+            description={testResult.message}
+            showIcon
+            closable
+            onClose={() => setTestResult(null)}
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
+        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ providerType: 0, endpoint: "http://localhost:11434", isEnabled: true }}>
+          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter an engine name." }]}><Input placeholder="Local Ollama or Llama.CPP" /></Form.Item>
+          <Form.Item label="Provider type" name="providerType"><Select options={PROVIDER_TYPES} onChange={handleProviderTypeChange} /></Form.Item>
+          <Form.Item label="Endpoint" name="endpoint" rules={[{ required: true, whitespace: true, message: "Enter the runtime endpoint." }]} extra="OpenAI Compatible servers default to port 8080 (e.g. http://localhost:8080/v1), Ollama to 11434 (e.g. http://localhost:11434)."><Input placeholder="http://localhost:8080/v1" /></Form.Item>
+          <Form.Item label="API key secret reference" name="apiKeySecretRef" extra="Store only a secret reference here, never an API key value. Optional for local Llama.CPP/Ollama."><Input placeholder="my-api-key-ref" /></Form.Item>
           <Form.Item label="Enabled" name="isEnabled" valuePropName="checked"><Switch /></Form.Item>
         </Form>
       </Drawer>

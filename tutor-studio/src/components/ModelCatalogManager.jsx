@@ -13,14 +13,30 @@ const catalogConfig = {
     title: "Model catalog",
     description: "Manage embedding models used for document vectorization and tutor knowledge retrieval.",
     singular: "embedding model",
-    providerPlaceholder: "text-embedding-3-small",
+    providerPlaceholder: "nomic-embed-text / text-embedding-3-small / bge-m3",
+    suggestions: [
+      { label: "Ollama: nomic-embed-text (768d)", model: "nomic-embed-text", dims: 768 },
+      { label: "Ollama: bge-m3 (1024d)", model: "bge-m3", dims: 1024 },
+      { label: "Ollama: mxbai-embed-large (1024d)", model: "mxbai-embed-large", dims: 1024 },
+      { label: "OpenAI: text-embedding-3-small (1536d)", model: "text-embedding-3-small", dims: 1536 },
+      { label: "OpenAI: text-embedding-3-large (3072d)", model: "text-embedding-3-large", dims: 3072 },
+    ],
   },
   interaction: {
     apiPath: "/api/admin/interaction-models",
     title: "Interaction models",
     description: "Manage the language models that power active tutor conversations and benchmark generation.",
     singular: "interaction model",
-    providerPlaceholder: "gpt-4o",
+    providerPlaceholder: "llama3.3:70b / gpt-4o / claude-3-5-sonnet-20241022",
+    suggestions: [
+      { label: "Ollama: llama3.3 (70B)", model: "llama3.3" },
+      { label: "Ollama: qwen2.5 (32B/72B)", model: "qwen2.5:32b" },
+      { label: "Ollama: deepseek-r1 (14B/32B)", model: "deepseek-r1:14b" },
+      { label: "OpenAI: gpt-4o", model: "gpt-4o" },
+      { label: "OpenAI: gpt-4o-mini", model: "gpt-4o-mini" },
+      { label: "Anthropic: claude-3-5-sonnet-20241022", model: "claude-3-5-sonnet-20241022" },
+      { label: "Anthropic: claude-3-5-haiku-20241022", model: "claude-3-5-haiku-20241022" },
+    ],
   },
 };
 
@@ -190,7 +206,25 @@ export default function ModelCatalogManager({ kind }) {
         <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, embeddingDimensions: 0 }}>
           <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a model name." }]}><Input placeholder={`My ${isEmbedding ? "Embedding" : "Interaction"} Model`} /></Form.Item>
           <Form.Item label="Runtime engine" name="runtimeEngineId" rules={[{ required: true, message: "Select a runtime engine." }]}><Select placeholder="Select an enabled runtime engine" options={engines.map((engine) => ({ value: engine.id, label: engine.name }))} /></Form.Item>
-          <Form.Item label="Provider model name" name="providerModelName"><Input placeholder={config.providerPlaceholder} /></Form.Item>
+          <Form.Item label="Provider model name" name="providerModelName" extra={(
+            <Space wrap size={[4, 4]} style={{ marginTop: 6 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Suggestions:</Typography.Text>
+              {config.suggestions.map((item) => (
+                <Tag
+                  key={item.model}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    form.setFieldValue("providerModelName", item.model);
+                    if (isEmbedding && !editingModel && item.dims) {
+                      form.setFieldValue("embeddingDimensions", item.dims);
+                    }
+                  }}
+                >
+                  {item.label}
+                </Tag>
+              ))}
+            </Space>
+          )}><Input placeholder={config.providerPlaceholder} /></Form.Item>
           {isEmbedding ? (
             <Form.Item label="Embedding dimensions" name="embeddingDimensions" extra={editingModel ? "Dimensions cannot be changed after a model is created." : undefined}>
               <InputNumber min={0} precision={0} style={{ width: "100%" }} disabled={Boolean(editingModel)} />

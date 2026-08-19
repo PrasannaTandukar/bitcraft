@@ -1,6 +1,6 @@
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Alert, Button, Empty, Modal, Select, Spin } from "antd";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorDescription } from "./api/client.js";
 import PageHeader from "./components/PageHeader.jsx";
 import DocumentCreateDialog from "./documents/DocumentCreateDialog.jsx";
@@ -51,6 +51,7 @@ export default function FilesPage({ initialUploadOpen = false }) {
     const [deleting, setDeleting] = useState(false);
     const [moveTarget, setMoveTarget] = useState(null);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [selectedFolderId, setSelectedFolderId] = useState("all");
     const requestRef = useRef(null);
 
     const loadWorkspace = useCallback(async (isRefresh = false) => {
@@ -164,6 +165,22 @@ export default function FilesPage({ initialUploadOpen = false }) {
 
     const folderNames = Object.fromEntries(folders.map((folder) => [folder.id, folder.name]));
 
+    const documentCounts = useMemo(() => {
+        const counts = {};
+        documents.forEach((doc) => {
+            if (doc.folderId) {
+                counts[doc.folderId] = (counts[doc.folderId] || 0) + 1;
+            }
+        });
+        return counts;
+    }, [documents]);
+
+    const filteredDocuments = useMemo(() => {
+        if (selectedFolderId === "all" || !selectedFolderId) return documents;
+        if (selectedFolderId === "root") return documents.filter((doc) => !doc.folderId);
+        return documents.filter((doc) => doc.folderId === selectedFolderId);
+    }, [documents, selectedFolderId]);
+
     return (
         <main className="workspace-page files-page">
             <div className="workspace-page-inner">
@@ -179,15 +196,26 @@ export default function FilesPage({ initialUploadOpen = false }) {
 
                 {notice ? <Alert type="success" title={notice} closable onClose={() => setNotice("")} showIcon style={{ marginBottom: 16 }} /> : null}
                 {error ? <Alert type="error" title={error} closable onClose={() => setError("")} showIcon style={{ marginBottom: 16 }} /> : null}
-                <DocumentFolders folders={folders} canManage={canManage} canDelete={canDelete} onFoldersChanged={() => loadWorkspace(true)} />
+                <DocumentFolders
+                    folders={folders}
+                    selectedFolderId={selectedFolderId}
+                    onSelectFolder={setSelectedFolderId}
+                    documentCounts={documentCounts}
+                    totalCount={documents.length}
+                    canManage={canManage}
+                    canDelete={canDelete}
+                    onFoldersChanged={() => loadWorkspace(true)}
+                />
 
                 <div className="files-list-surface">
                     <Spin spinning={loading} description="Loading documents">
-                        {!loading && !documents.length ? (
-                            <Empty description={canManage ? "No documents yet" : "No documents are available for your account"}>
-                                {canManage ? <Button type="primary" onClick={() => setUploadDocumentTarget(null)}>Upload a document</Button> : null}
+                        {!loading && !filteredDocuments.length ? (
+                            <Empty description={documents.length ? "No documents match this folder filter" : (canManage ? "No documents yet" : "No documents are available for your account")}>
+                                {documents.length && selectedFolderId !== "all" ? (
+                                    <Button onClick={() => setSelectedFolderId("all")}>Show all documents</Button>
+                                ) : (canManage ? <Button type="primary" onClick={() => setUploadDocumentTarget(null)}>Upload a document</Button> : null)}
                             </Empty>
-                        ) : documents.map((document) => (
+                        ) : filteredDocuments.map((document) => (
                             <DocumentRow
                                 key={document.id}
                                 document={document}

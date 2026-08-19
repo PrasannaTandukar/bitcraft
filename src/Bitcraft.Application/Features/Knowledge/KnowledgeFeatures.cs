@@ -165,7 +165,9 @@ public static class KnowledgeFeatures
             var embeddingProviderName = EmbeddingProviders.Normalize(embeddingProviderInput);
             if (embeddingProviderName is null)
             {
-                return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingProviderUnsupported", "Only the Ollama embedding provider is implemented."));
+                return Result.Failure<VectorizeDocumentResult>(new Error(
+                    "Knowledge.EmbeddingProviderUnsupported",
+                    $"The embedding provider '{embeddingProviderInput}' is not supported. Supported providers are: {string.Join(", ", EmbeddingProviders.All)}."));
             }
 
             if (string.IsNullOrWhiteSpace(embeddingModelInput))
@@ -193,8 +195,12 @@ public static class KnowledgeFeatures
                 try
                 {
                     embedding = await embeddingProvider.GenerateEmbeddingAsync(
-                        content,
-                        embeddingModelInput,
+                        new EmbeddingGenerationRequest(
+                            content,
+                            embeddingModelInput,
+                            embeddingModelEntity?.RuntimeEngine?.Endpoint,
+                            embeddingModelEntity?.RuntimeEngine?.ApiKeySecretRef,
+                            embeddingProviderName),
                         cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

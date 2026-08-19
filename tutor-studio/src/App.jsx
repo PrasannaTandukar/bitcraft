@@ -37,7 +37,7 @@ function AppContent() {
         <Route path="tutors" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorsPage /></RoleRoute>} />
         <Route path="tutors/:tutorId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorDetailsPage /></RoleRoute>} />
         <Route path="benchmarking" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><BenchmarkingPage /></RoleRoute>} />
-        <Route path="tutor-setup" element={<RoleRoute allowedRoles={["Editor", "Admin"]}><div className="workspace-page"><h1>Tutor setup</h1><p>Coming soon — tutor configuration and setup surfaces.</p></div></RoleRoute>} />
+        <Route path="tutor-setup" element={<Navigate to="/tutors" replace />} />
         <Route path="admin/roles" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
         <Route path="admin/embedding-models" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><EmbeddingModels /></RoleRoute>} />
         <Route path="admin/ai-models" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><InteractionModelsPage /></RoleRoute>} />

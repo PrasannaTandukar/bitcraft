@@ -586,7 +586,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(ownerId),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "OpenAI", "text-embedding-3-small");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "UnsupportedProvider", "text-embedding-3-small");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);

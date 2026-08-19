@@ -1,4 +1,4 @@
-import { DeleteOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons";
 import { Alert, App, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -155,11 +155,11 @@ export default function TutorsPage() {
     {
       title: "",
       key: "action",
-      width: canDelete ? 190 : 100,
+      width: canDelete ? 210 : 130,
       fixed: "right",
       render: (_, tutor) => (
-        <Space>
-          <Button type="link" onClick={() => navigate(`/tutors/${tutor.id}`)}>{canManage ? "Configure" : "Open"}</Button>
+        <Space size={8}>
+          <Button icon={<SettingOutlined />} onClick={() => navigate(`/tutors/${tutor.id}`)}>{canManage ? "Configure" : "Open"}</Button>
           {canDelete ? (
             <Popconfirm title="Delete this tutor?" description="This permanently removes the tutor and its configuration." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => removeTutor(tutor)}>
               <Button danger icon={<DeleteOutlined />} loading={deletingId === tutor.id} />

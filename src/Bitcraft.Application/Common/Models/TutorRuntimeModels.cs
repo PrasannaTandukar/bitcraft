@@ -76,12 +76,16 @@ public sealed record LlmGenerationRequest(
     double? Temperature = null,
     double? TopP = null,
     int? MaxTokens = null,
-    string? RuntimeEndpoint = null);
+    string? RuntimeEndpoint = null,
+    string? ApiKeySecretRef = null,
+    string? ProviderType = null);
 
 public sealed record EmbeddingGenerationRequest(
     string Text,
     string Model,
-    string? RuntimeEndpoint = null);
+    string? RuntimeEndpoint = null,
+    string? ApiKeySecretRef = null,
+    string? ProviderType = null);
 
 public sealed record KnowledgeSearchRequest(
     IReadOnlyCollection<Guid> DocumentIds,

@@ -1,15 +1,45 @@
-import { PlusOutlined } from "@ant-design/icons";
-import { Alert, Button, Checkbox, Collapse, Drawer, Empty, Flex, Form, Input, Space, Tag, Typography } from "antd";
+import { AppstoreAddOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { Alert, Button, Checkbox, Collapse, Drawer, Empty, Flex, Form, Input, Segmented, Space, Tag, Typography } from "antd";
 import { useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
 import { createPromptVersion } from "./tutorApi.js";
 import { formatDateTime } from "./tutorUtils.js";
+
+function buildStructuredPrompt({ steering = "", toneStyle = "", guardrails = "", responseFormat = "" }) {
+  const sections = [];
+  if (steering.trim()) {
+    sections.push(`## Role & Steering\n${steering.trim()}`);
+  }
+  if (toneStyle.trim()) {
+    sections.push(`## Tone & Style Guidelines\n${toneStyle.trim()}`);
+  }
+  if (guardrails.trim()) {
+    sections.push(`## Pedagogical Guardrails & Boundaries\n${guardrails.trim()}`);
+  }
+  if (responseFormat.trim()) {
+    sections.push(`## Response Format & Output Structure\n${responseFormat.trim()}`);
+  }
+  return sections.join("\n\n");
+}
 
 export default function PromptVersionsPanel({ tutorId, prompts, activePromptVersionId, canManage, onChanged }) {
   const [form] = Form.useForm();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [builderMode, setBuilderMode] = useState("structured");
+
+  const handleValuesChange = (_, allValues) => {
+    if (builderMode === "structured") {
+      const generated = buildStructuredPrompt({
+        steering: allValues.steering || "",
+        toneStyle: allValues.toneStyle || "",
+        guardrails: allValues.guardrails || "",
+        responseFormat: allValues.responseFormat || "",
+      });
+      form.setFieldValue("content", generated);
+    }
+  };
 
   const close = () => {
     if (saving) return;
@@ -22,9 +52,19 @@ export default function PromptVersionsPanel({ tutorId, prompts, activePromptVers
     setSaving(true);
     setError("");
     try {
+      const finalContent = builderMode === "structured"
+        ? (values.content || buildStructuredPrompt(values))
+        : values.content;
+
+      if (!finalContent || !finalContent.trim()) {
+        setError("Prompt content cannot be empty.");
+        setSaving(false);
+        return;
+      }
+
       await createPromptVersion(tutorId, {
         name: values.name.trim(),
-        content: values.content,
+        content: finalContent.trim(),
         notes: values.notes?.trim() || null,
         setAsActive: Boolean(values.setAsActive),
       });
@@ -81,7 +121,7 @@ export default function PromptVersionsPanel({ tutorId, prompts, activePromptVers
         title="Create prompt version"
         open={showForm && canManage}
         onClose={close}
-        size={640}
+        size={720}
         destroyOnHidden
         footer={(
           <Space style={{ width: "100%", justifyContent: "flex-end" }}>
@@ -91,16 +131,93 @@ export default function PromptVersionsPanel({ tutorId, prompts, activePromptVers
         )}
       >
         {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
-        <Form form={form} layout="vertical" onFinish={submit} requiredMark={false} initialValues={{ setAsActive: false }}>
-          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a version name." }]}>
-            <Input placeholder="Robotics Tutor Instructions" maxLength={200} showCount />
+
+        <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
+          <Segmented
+            value={builderMode}
+            onChange={(val) => {
+              setBuilderMode(val);
+              if (val === "structured" && !form.getFieldValue("steering")) {
+                const currentRaw = form.getFieldValue("content");
+                if (currentRaw) form.setFieldValue("steering", currentRaw);
+              }
+            }}
+            options={[
+              { label: "Structured Builder", value: "structured", icon: <AppstoreAddOutlined /> },
+              { label: "Raw Prompt Editor", value: "raw", icon: <EditOutlined /> },
+            ]}
+          />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {builderMode === "structured" ? "Steering, tone, guardrails & output format" : "Direct markdown/template editing"}
+          </Typography.Text>
+        </Flex>
+
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={submit}
+          onValuesChange={handleValuesChange}
+          requiredMark={false}
+          initialValues={{ setAsActive: false }}
+        >
+          <Form.Item label="Version name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a version name." }]}>
+            <Input placeholder="e.g. Socratic Robotics Guide v2" maxLength={200} showCount />
           </Form.Item>
-          <Form.Item label="Prompt content" name="content" rules={[{ required: true, whitespace: true, message: "Enter the prompt instructions." }]}>
-            <Input.TextArea rows={12} placeholder="You are a helpful robotics tutor…" />
+
+          {builderMode === "structured" ? (
+            <>
+              <Form.Item
+                label="System Steering & Persona"
+                name="steering"
+                rules={[{ required: true, whitespace: true, message: "Enter persona and pedagogical role." }]}
+                extra="Who the tutor is, pedagogical mission, target audience, and subject matter context."
+              >
+                <Input.TextArea rows={4} placeholder="You are an expert AI tutor specializing in Robotics and Control Systems. Guide the student step-by-step with clear, foundational concepts." />
+              </Form.Item>
+
+              <Form.Item
+                label="Tone & Teaching Style"
+                name="toneStyle"
+                extra="Socratic questioning, technical depth, direct vs exploratory, encouragement level."
+              >
+                <Input.TextArea rows={3} placeholder="Adopt a supportive, Socratic teaching style. Ask guiding questions before providing complete equations. Keep responses concise and focused." />
+              </Form.Item>
+
+              <Form.Item
+                label="Pedagogical Guardrails & Boundaries"
+                name="guardrails"
+                extra="Safety boundaries, refusal rules, preventing answer-spoonfeeding, adherence to course material."
+              >
+                <Input.TextArea rows={3} placeholder="Never solve graded homework problems directly. Always ask the student to propose the first step. If asked about unrelated topics, politely guide back to robotics." />
+              </Form.Item>
+
+              <Form.Item
+                label="Response Structure & Output Format"
+                name="responseFormat"
+                extra="Markdown guidelines, code block formatting, equation formats (LaTeX/KaTeX)."
+              >
+                <Input.TextArea rows={3} placeholder="Format equations using LaTeX/KaTeX notation ($ for inline, $$ for block). Use bold headers for multi-step explanations. End every explanation with a check-for-understanding question." />
+              </Form.Item>
+
+              <Form.Item label="Assembled Prompt Preview" name="content">
+                <Input.TextArea rows={6} className="workspace-code" readOnly style={{ backgroundColor: "rgba(0,0,0,0.02)" }} />
+              </Form.Item>
+            </>
+          ) : (
+            <Form.Item
+              label="Prompt content"
+              name="content"
+              rules={[{ required: true, whitespace: true, message: "Enter the prompt instructions." }]}
+              extra="Raw instruction template with markdown headers or custom formatting."
+            >
+              <Input.TextArea rows={14} className="workspace-code" placeholder="You are an expert AI tutor..." />
+            </Form.Item>
+          )}
+
+          <Form.Item label="Notes / Change summary" name="notes">
+            <Input.TextArea rows={2} placeholder="What changed in this prompt revision?" />
           </Form.Item>
-          <Form.Item label="Notes" name="notes">
-            <Input.TextArea rows={3} placeholder="What changed in this version?" />
-          </Form.Item>
+
           <Form.Item name="setAsActive" valuePropName="checked">
             <Checkbox>Set as legacy active prompt</Checkbox>
           </Form.Item>

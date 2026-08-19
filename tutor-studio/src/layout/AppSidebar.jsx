@@ -1,4 +1,3 @@
-import { RobotOutlined } from "@ant-design/icons";
 import { Button, Menu } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -33,7 +32,7 @@ export default function AppSidebar({
         aria-label="Go to dashboard"
       >
         <span className="bitcraft-brand-mark" aria-hidden="true">
-          <RobotOutlined />
+          <img src="/favicon.svg" alt="Bitcraft Logo" className="bitcraft-brand-logo" />
         </span>
         {(!collapsed || mobile) && (
           <span className="bitcraft-brand-copy">

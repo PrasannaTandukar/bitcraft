@@ -47,7 +47,6 @@ export const navigationGroups = [
         roles: ["Auditor", "Editor", "Admin"],
       },
       { key: "/benchmarking", label: "Benchmarking", icon: <ExperimentOutlined />, roles: ["Auditor", "Editor", "Admin"] },
-      { key: "/tutor-setup", label: "Tutor Setup", icon: <FileTextOutlined />, roles: ["Editor", "Admin"] },
     ],
   },
   {

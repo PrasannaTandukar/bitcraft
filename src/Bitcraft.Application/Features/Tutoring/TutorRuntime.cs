@@ -122,7 +122,9 @@ public sealed class TutorRuntime(
                 parameters.Temperature,
                 parameters.TopP,
                 parameters.MaxTokens,
-                interaction.Engine.Endpoint),
+                interaction.Engine.Endpoint,
+                interaction.Engine.ApiKeySecretRef,
+                interaction.Engine.ProviderType.ToString()),
             cancellationToken);
         stopwatch.Stop();
 
@@ -363,7 +365,16 @@ public sealed class TutorRuntime(
                 "TutorRuntime.InteractionModelDisabled",
                 "This tutor's interaction runtime is unavailable."));
         }
-        if (engine.ProviderType != RuntimeEngineProviderType.Ollama)
+
+        var isSupportedProvider = engine.ProviderType is
+            RuntimeEngineProviderType.Ollama or
+            RuntimeEngineProviderType.OpenAI or
+            RuntimeEngineProviderType.OpenAICompatible or
+            RuntimeEngineProviderType.vLLM or
+            RuntimeEngineProviderType.LlamaCpp or
+            RuntimeEngineProviderType.Anthropic;
+
+        if (!isSupportedProvider)
         {
             return Result.Failure<ResolvedInteractionModel>(new Error(
                 "TutorRuntime.InteractionModelNotConfigured",
@@ -408,11 +419,24 @@ public sealed class TutorRuntime(
 
         var engine = model.RuntimeEngine ??
             await runtimeEngines.GetByIdAsync(model.RuntimeEngineId, cancellationToken);
-        if (engine is null || !engine.IsEnabled || engine.ProviderType != RuntimeEngineProviderType.Ollama)
+        if (engine is null || !engine.IsEnabled)
         {
             return Result.Failure<RetrievalResult>(new Error(
                 "TutorRuntime.EmbeddingModelDisabled",
                 "Tutor knowledge could not be searched because its embedding runtime is unavailable."));
+        }
+
+        var isSupportedEmbeddingProvider = engine.ProviderType is
+            RuntimeEngineProviderType.Ollama or
+            RuntimeEngineProviderType.OpenAI or
+            RuntimeEngineProviderType.OpenAICompatible or
+            RuntimeEngineProviderType.LlamaCpp;
+
+        if (!isSupportedEmbeddingProvider)
+        {
+            return Result.Failure<RetrievalResult>(new Error(
+                "TutorRuntime.EmbeddingModelDisabled",
+                "Tutor knowledge could not be searched because its embedding runtime provider is not supported."));
         }
 
         if (!TryParseKnowledgeBindings(snapshot.EffectiveKnowledgeBindingJson, out var bindings) ||
@@ -443,7 +467,12 @@ public sealed class TutorRuntime(
         try
         {
             queryEmbedding = await embeddings.GenerateEmbeddingAsync(
-                new EmbeddingGenerationRequest(request.UserQuestion.Trim(), providerModelName, engine.Endpoint),
+                new EmbeddingGenerationRequest(
+                    request.UserQuestion.Trim(),
+                    providerModelName,
+                    engine.Endpoint,
+                    engine.ApiKeySecretRef,
+                    engine.ProviderType.ToString()),
                 cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
