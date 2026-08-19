@@ -21,7 +21,7 @@ function statusLabel(document, status) {
   return { color: "blue", text: "Ready for vectorization" };
 }
 
-export default function DocumentRow({ document, folderName, status, canManage, onPreview, onReplace, onVectorize, onDelete }) {
+export default function DocumentRow({ document, folderName, status, canManage, onPreview, onReplace, onVectorize, onDelete, onMove }) {
   const state = statusLabel(document, status);
   const actions = [
     <Tooltip key="preview" title="Preview extracted text"><Button aria-label="Preview extracted text" icon={<EyeOutlined />} onClick={() => onPreview(document)} /></Tooltip>,
@@ -35,13 +35,13 @@ export default function DocumentRow({ document, folderName, status, canManage, o
       <span className="document-type-icon">{fileIcon(document.mimeType, document.name)}</span>
       <div className="document-list-copy">
         <Typography.Text strong>{document.name || "Unnamed document"}</Typography.Text>
-          <Space orientation="vertical" size={5}>
-            <Typography.Text type="secondary">{document.mimeType || "Unknown type"} · {formatDate(document.lastModifiedUtc || document.createdUtc)}{folderName ? ` · ${folderName}` : ""}</Typography.Text>
-            <Flex gap={6} wrap>
-              <Tag color={document.hasRawText ? "success" : "warning"}>{document.hasRawText ? `${Number(document.rawTextLength || 0).toLocaleString()} extracted characters` : "No extracted text"}</Tag>
-              <Tag color={state.color}>{state.text}</Tag>
-            </Flex>
-          </Space>
+        <Space orientation="vertical" size={5}>
+          <Typography.Text type="secondary">{document.mimeType || "Unknown type"} · {formatDate(document.lastModifiedUtc || document.createdUtc)}{folderName ? ` · ${folderName}` : ""}</Typography.Text>
+          <Flex gap={6} wrap>
+            <Tag color={document.hasRawText ? "success" : "warning"}>{document.hasRawText ? `${Number(document.rawTextLength || 0).toLocaleString()} extracted characters` : "No extracted text"}</Tag>
+            <Tag color={state.color}>{state.text}</Tag>
+          </Flex>
+        </Space>
       </div>
       <Flex className="document-row-actions" gap={8}>{actions}</Flex>
     </div>

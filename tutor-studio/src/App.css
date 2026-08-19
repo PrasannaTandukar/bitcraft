@@ -253,6 +253,7 @@
 }
 
 @media (max-width: 575px) {
+
   .bitcraft-header-account-copy,
   .bitcraft-account-chevron {
     display: none;
@@ -260,5 +261,10 @@
 
   .bitcraft-account-trigger.ant-btn {
     padding-inline: 4px;
+  }
+
+  .app-user-dropdown-toggle {
+    width: 100%;
+    text-align: left;
   }
 }

@@ -1,0 +1,22 @@
+# plan.yaml — Frontend navigation rehaul
+branch: feature/ui-navbar-improvement
+created_at: 2026-08-13
+updated_at: 2026-08-13
+status: active
+goal: Restructure Tutor Studio navigation into a two-layer grouped menu with renamed pages, a user-profile dropdown, and clarified admin-model naming.
+cil: medium
+css: 4
+dis: 5
+agents:
+  lead: lead-dev
+  supporting:
+    - web-dev
+model_family: claude
+human_locks: []
+notes: >
+  Frontend-only restructuring of the navigation shell, page renames, and naming
+  clarification. No backend contract changes. Settings page remains a stub;
+  Profile page is new. Documents sub-menu (Browse / Upload) is new structure
+  on existing FilesPage surface. Branch source: dev. Branch: feature/ui-navbar-improvement.
+  Inbox conflicts resolved: Document Folders UI folded into this branch; ESLint fixes
+  applied alongside; activation slug deep links verified. Jira ticket deferred.

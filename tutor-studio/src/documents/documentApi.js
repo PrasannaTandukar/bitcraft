@@ -62,3 +62,39 @@ export function vectorizeDocument(documentId, payload, signal) {
     signal,
   });
 }
+
+export function moveDocument(documentId, folderId) {
+  return apiFetch(`${DOCUMENTS_PATH}/${encodeURIComponent(documentId)}/folder`, {
+    method: "PATCH",
+    json: { folderId },
+  });
+}
+
+export function createDocumentFolder(name) {
+  return apiFetch("/api/document-folders", {
+    method: "POST",
+    json: { name },
+  });
+}
+
+export function renameDocumentFolder(folderId, name) {
+  return apiFetch(`/api/document-folders/${encodeURIComponent(folderId)}`, {
+    method: "PATCH",
+    json: { name },
+    parse: "none",
+  });
+}
+
+export function deleteDocumentFolder(folderId) {
+  return apiFetch(`/api/document-folders/${encodeURIComponent(folderId)}`, {
+    method: "DELETE",
+    parse: "none",
+  });
+}
+
+export function createDocument(name, rawText, folderId) {
+  return apiFetch(DOCUMENTS_PATH, {
+    method: "POST",
+    json: { name, rawText, folderId: folderId || null },
+  });
+}
