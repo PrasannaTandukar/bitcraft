@@ -59,3 +59,35 @@ class SidecarResponse(BaseModel):
 class SidecarError(BaseModel):
     code: str
     description: str
+
+
+class SidecarJudgeModelConfig(BaseModel):
+    """Identifies the model to benchmark. No credentials are embedded here:
+    `api_key_env` names an environment variable that must already be set in
+    the sidecar process; the key value itself is never part of the request."""
+
+    provider: str  # "ollama" | "openai" | "anthropic"
+    model_name: str
+    base_url: str | None = None
+    api_key_env: str | None = None
+
+
+class SidecarLlmBenchmarkRequest(BaseModel):
+    benchmark_key: str
+    judge_model: SidecarJudgeModelConfig
+    tasks: list[str] | None = None
+    n_shots: int = Field(default=0, ge=0, le=5)
+    # HumanEval executes model-generated Python code to check pass/fail.
+    # This must be explicitly opted into and should never be enabled against
+    # an untrusted model or outside a sandboxed execution context.
+    allow_code_execution: bool = False
+
+
+class SidecarLlmBenchmarkResponse(BaseModel):
+    benchmark_key: str
+    overall_score: float | None
+    task_count: int
+    engine_version: str
+    notes: str
+    error: str | None = None
+
