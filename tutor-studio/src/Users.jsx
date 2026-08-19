@@ -104,8 +104,16 @@ export default function UsersPage() {
     {
       title: "",
       key: "action",
-      width: 130,
-      render: (_, user) => <Button icon={<SafetyCertificateOutlined />} onClick={() => { setSelectedUserId(user.userId); setRoleToAdd(undefined); setManageError(""); }}>Manage roles</Button>,
+      width: 50,
+      align: "right",
+      render: (_, user) => (
+        <Button
+          aria-label="Manage roles"
+          title="Manage roles"
+          icon={<SafetyCertificateOutlined />}
+          onClick={() => { setSelectedUserId(user.userId); setRoleToAdd(undefined); setManageError(""); }}
+        />
+      ),
     },
   ];
 
@@ -115,7 +123,7 @@ export default function UsersPage() {
         <PageHeader title="Role management" description="Assign and revoke the existing workspace roles available through ASP.NET Core Identity." />
         {error ? <Alert type="error" title="Users and roles could not be loaded" description={error} showIcon style={{ marginBottom: 16 }} /> : null}
         <Input className="management-search" prefix={<SearchOutlined />} allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email or role" />
-        <Table className="workspace-table" rowKey="userId" columns={columns} dataSource={filteredUsers} loading={loading} pagination={{ pageSize: 10, showSizeChanger: true }} scroll={{ x: 680 }} locale={{ emptyText: <Empty description="No users found" /> }} />
+        <Table className="workspace-table" rowKey="userId" columns={columns} dataSource={filteredUsers} loading={loading} size="middle" pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No users found" /> }} />
       </div>
 
       <Drawer title="Manage roles" open={Boolean(selectedUser)} onClose={() => setSelectedUserId(null)} size={520}>

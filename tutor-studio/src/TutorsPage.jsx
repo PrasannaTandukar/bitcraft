@@ -124,7 +124,7 @@ export default function TutorsPage() {
     {
       title: "Status",
       dataIndex: "status",
-      width: 120,
+      width: 100,
       filters: ["Draft", "Active", "Inactive", "Disabled"].map((value) => ({ text: value, value })),
       onFilter: (value, record) => tutorStatus(record.status) === value,
       render: (value) => <StatusTag value={tutorStatus(value)} />,
@@ -132,15 +132,16 @@ export default function TutorsPage() {
     {
       title: "Active revision",
       key: "revision",
-      width: 190,
+      width: 140,
       render: (_, tutor) => tutor.activeRevisionVersionNumber
-        ? <Space size={6}>Revision {tutor.activeRevisionVersionNumber}<StatusTag value={revisionStatus(tutor.activeRevisionStatus)} /></Space>
+        ? <Space size={6}>Rev {tutor.activeRevisionVersionNumber}<StatusTag value={revisionStatus(tutor.activeRevisionStatus)} /></Space>
         : <Typography.Text type="secondary">Not activated</Typography.Text>,
     },
     {
       title: "Active prompt",
       key: "prompt",
-      width: 190,
+      width: 170,
+      ellipsis: true,
       render: (_, tutor) => tutor.activePromptVersionName
         ? `v${tutor.activePromptVersionNumber} · ${tutor.activePromptVersionName}`
         : <Typography.Text type="secondary">Not selected</Typography.Text>,
@@ -148,21 +149,26 @@ export default function TutorsPage() {
     {
       title: "Updated",
       key: "updated",
-      width: 180,
+      width: 140,
       sorter: (a, b) => new Date(a.modifiedUtc || a.createdUtc) - new Date(b.modifiedUtc || b.createdUtc),
       render: (_, tutor) => formatDateTime(tutor.modifiedUtc || tutor.createdUtc),
     },
     {
       title: "",
       key: "action",
-      width: canDelete ? 210 : 130,
-      fixed: "right",
+      width: canDelete ? 90 : 50,
+      align: "right",
       render: (_, tutor) => (
-        <Space size={8}>
-          <Button icon={<SettingOutlined />} onClick={() => navigate(`/tutors/${tutor.id}`)}>{canManage ? "Configure" : "Open"}</Button>
+        <Space size={6}>
+          <Button
+            aria-label={canManage ? "Configure tutor" : "Open tutor"}
+            title={canManage ? "Configure tutor" : "Open tutor"}
+            icon={<SettingOutlined />}
+            onClick={() => navigate(`/tutors/${tutor.id}`)}
+          />
           {canDelete ? (
             <Popconfirm title="Delete this tutor?" description="This permanently removes the tutor and its configuration." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => removeTutor(tutor)}>
-              <Button danger icon={<DeleteOutlined />} loading={deletingId === tutor.id} />
+              <Button danger aria-label="Delete tutor" title="Delete tutor" icon={<DeleteOutlined />} loading={deletingId === tutor.id} />
             </Popconfirm>
           ) : null}
         </Space>
@@ -190,8 +196,8 @@ export default function TutorsPage() {
           columns={columns}
           dataSource={tutors}
           loading={loading}
+          size="middle"
           pagination={{ pageSize: 10, showSizeChanger: true }}
-          scroll={{ x: 950 }}
           locale={{
             emptyText: (
               <Empty description="No tutors yet">

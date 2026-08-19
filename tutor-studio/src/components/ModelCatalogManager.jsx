@@ -157,21 +157,21 @@ export default function ModelCatalogManager({ kind }) {
   };
 
   const columns = [
-    { title: "Name", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name), render: (value, model) => <div className="management-name-cell"><Typography.Text strong>{value}</Typography.Text><Typography.Text type="secondary">{model.providerModelName || "Provider model not specified"}</Typography.Text></div> },
-    { title: "Runtime", dataIndex: "runtimeEngineName", width: 180, render: (value) => value || "—" },
-    ...(isEmbedding ? [{ title: "Dimensions", dataIndex: "embeddingDimensions", width: 130, sorter: (a, b) => a.embeddingDimensions - b.embeddingDimensions, render: (value) => value > 0 ? Number(value).toLocaleString() : "—" }] : []),
-    { title: "Status", dataIndex: "isEnabled", width: 110, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
+    { title: "Name", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name), render: (value, model) => <div className="management-name-cell"><Typography.Text strong>{value}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: model.providerModelName }}>{model.providerModelName || "Provider model not specified"}</Typography.Text></div> },
+    { title: "Runtime", dataIndex: "runtimeEngineName", width: 160, ellipsis: true, render: (value) => value || "—" },
+    ...(isEmbedding ? [{ title: "Dimensions", dataIndex: "embeddingDimensions", width: 120, sorter: (a, b) => a.embeddingDimensions - b.embeddingDimensions, render: (value) => value > 0 ? Number(value).toLocaleString() : "—" }] : []),
+    { title: "Status", dataIndex: "isEnabled", width: 100, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
     ...(canWrite || canDelete ? [{
       title: "",
       key: "action",
-      width: 150,
-      fixed: "right",
+      width: canDelete ? 90 : 50,
+      align: "right",
       render: (_, model) => (
-        <Space>
-          {canWrite ? <Button icon={<EditOutlined />} onClick={() => openEdit(model)}>Edit</Button> : null}
+        <Space size={6}>
+          {canWrite ? <Button aria-label={`Edit ${config.singular}`} title={`Edit ${config.singular}`} icon={<EditOutlined />} onClick={() => openEdit(model)} /> : null}
           {canDelete ? (
             <Popconfirm title={`Delete this ${config.singular}?`} description="Tutors depending on this model may stop working." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => remove(model)}>
-              <Button danger icon={<DeleteOutlined />} loading={deletingId === model.id} />
+              <Button danger aria-label={`Delete ${config.singular}`} title={`Delete ${config.singular}`} icon={<DeleteOutlined />} loading={deletingId === model.id} />
             </Popconfirm>
           ) : null}
         </Space>
@@ -189,7 +189,7 @@ export default function ModelCatalogManager({ kind }) {
         />
         {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
         <Input className="management-search" prefix={<SearchOutlined />} allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search models" />
-        <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredModels} loading={loading} scroll={{ x: 820 }} pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description={`No ${config.title.toLowerCase()} found`} /> }} />
+        <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredModels} loading={loading} size="middle" pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description={`No ${config.title.toLowerCase()} found`} /> }} />
       </div>
 
       <Drawer

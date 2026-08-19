@@ -96,10 +96,10 @@ export default function BenchmarkTemplatesPanel() {
 
   const columns = [
     { title: "Template", key: "name", render: (_, template) => <div className="benchmark-template-name"><Typography.Text strong>{template.name}</Typography.Text><Typography.Text type="secondary">{template.key}</Typography.Text>{template.description ? <Typography.Text>{template.description}</Typography.Text> : null}</div> },
-    { title: "Status", dataIndex: "isEnabled", width: 110, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
-    { title: "Metrics and thresholds", dataIndex: "metricsJson", render: (value) => { const parsed = parseMetrics(value); return parsed.length ? <Flex gap={6} wrap>{parsed.map((metric) => <Tag key={metric.key}>{metricName(metric.key)} · {formatPercent(metric.threshold)}</Tag>)}</Flex> : <Typography.Text type="secondary">Malformed or empty metrics payload</Typography.Text>; } },
-    { title: "Guidance metadata", dataIndex: "guidancePath", width: 220, render: (value) => value ? <div><Typography.Text>{value}</Typography.Text><br /><Typography.Text type="secondary">Metadata only</Typography.Text></div> : "—" },
-    { title: "", key: "action", width: 80, fixed: "right", render: (_, template) => <Button danger type="text" aria-label={`Delete ${template.name}`} icon={<DeleteOutlined />} onClick={() => { setDeleteError(""); setDeleteTarget(template); }} /> },
+    { title: "Status", dataIndex: "isEnabled", width: 100, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
+    { title: "Metrics & thresholds", dataIndex: "metricsJson", render: (value) => { const parsed = parseMetrics(value); return parsed.length ? <Flex gap={6} wrap>{parsed.map((metric) => <Tag key={metric.key}>{metricName(metric.key)} · {formatPercent(metric.threshold)}</Tag>)}</Flex> : <Typography.Text type="secondary">Malformed or empty metrics payload</Typography.Text>; } },
+    { title: "Guidance", dataIndex: "guidancePath", width: 180, ellipsis: true, render: (value) => value ? <Typography.Text ellipsis={{ tooltip: value }}>{value}</Typography.Text> : "—" },
+    { title: "", key: "action", width: 50, align: "right", render: (_, template) => <Button danger type="text" aria-label={`Delete ${template.name}`} title={`Delete ${template.name}`} icon={<DeleteOutlined />} onClick={() => { setDeleteError(""); setDeleteTarget(template); }} /> },
   ];
 
   return (
@@ -115,7 +115,7 @@ export default function BenchmarkTemplatesPanel() {
         </Flex>
       </Flex>
       {error ? <Alert type="error" title={error} showIcon /> : null}
-      <Table className="workspace-table" rowKey="id" columns={columns} dataSource={templates} loading={loading} scroll={{ x: 900 }} pagination={{ pageSize: 10 }} locale={{ emptyText: <Empty description="No benchmark templates" /> }} />
+      <Table className="workspace-table" rowKey="id" columns={columns} dataSource={templates} loading={loading} size="middle" pagination={{ pageSize: 10 }} locale={{ emptyText: <Empty description="No benchmark templates" /> }} />
 
       <Drawer
         title="Create benchmark template"

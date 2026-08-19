@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AiTutorPage from "./aiTutor/AiTutorPage.jsx";
 import BenchmarkingPage from "./BenchmarkingPage.jsx";
 import Dashboard from "./Dashboard.jsx";
+import DocumentUploadPage from "./DocumentUploadPage.jsx";
 import EmbeddingModels from "./EmbeddingModels.jsx";
 import FilesPage from "./FilesPage.jsx";
 import InteractionModelsPage from "./InteractionModels.jsx";
@@ -33,7 +34,7 @@ function AppContent() {
         <Route index element={<Dashboard />} />
         <Route path="chat" element={<AiTutorPage />} />
         <Route path="documents" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><FilesPage /></RoleRoute>} />
-        <Route path="documents/upload" element={<RoleRoute allowedRoles={["Editor", "Admin"]}><FilesPage initialUploadOpen /></RoleRoute>} />
+        <Route path="documents/upload" element={<RoleRoute allowedRoles={["Editor", "Admin"]}><DocumentUploadPage /></RoleRoute>} />
         <Route path="tutors" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorsPage /></RoleRoute>} />
         <Route path="tutors/:tutorId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorDetailsPage /></RoleRoute>} />
         <Route path="benchmarking" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><BenchmarkingPage /></RoleRoute>} />

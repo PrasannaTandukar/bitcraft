@@ -167,20 +167,20 @@ export default function RuntimeEnginesPage() {
 
   const columns = [
     { title: "Runtime", key: "runtime", sorter: (a, b) => a.name.localeCompare(b.name), render: (_, engine) => <div className="management-name-cell"><Typography.Text strong>{engine.name}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: engine.endpoint }}>{engine.endpoint || "Endpoint not specified"}</Typography.Text></div> },
-    { title: "Provider", dataIndex: "providerType", width: 140, filters: PROVIDER_TYPES.map((provider) => ({ text: provider.label, value: provider.value })), onFilter: (value, record) => record.providerType === value, render: (value) => PROVIDER_LABELS[value] ?? value },
-    { title: "Credential", dataIndex: "hasApiKeySecret", width: 130, render: (value) => value ? <Tag color="blue">Secret configured</Tag> : <Typography.Text type="secondary">None</Typography.Text> },
-    { title: "Status", dataIndex: "isEnabled", width: 110, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
+    { title: "Provider", dataIndex: "providerType", width: 150, filters: PROVIDER_TYPES.map((provider) => ({ text: provider.label, value: provider.value })), onFilter: (value, record) => record.providerType === value, render: (value) => PROVIDER_LABELS[value] ?? value },
+    { title: "Credential", dataIndex: "hasApiKeySecret", width: 140, render: (value) => value ? <Tag color="blue">Configured</Tag> : <Typography.Text type="secondary">None</Typography.Text> },
+    { title: "Status", dataIndex: "isEnabled", width: 100, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
     ...(canWrite || canDelete ? [{
       title: "",
       key: "action",
-      width: 150,
-      fixed: "right",
+      width: canDelete ? 90 : 50,
+      align: "right",
       render: (_, engine) => (
-        <Space>
-          {canWrite ? <Button icon={<EditOutlined />} onClick={() => openEdit(engine)}>Edit</Button> : null}
+        <Space size={6}>
+          {canWrite ? <Button aria-label="Edit engine" title="Edit engine" icon={<EditOutlined />} onClick={() => openEdit(engine)} /> : null}
           {canDelete ? (
             <Popconfirm title="Delete this runtime engine?" description="Models depending on this engine may stop working." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => remove(engine)}>
-              <Button danger icon={<DeleteOutlined />} loading={deletingId === engine.id} />
+              <Button danger aria-label="Delete engine" title="Delete engine" icon={<DeleteOutlined />} loading={deletingId === engine.id} />
             </Popconfirm>
           ) : null}
         </Space>
@@ -198,7 +198,7 @@ export default function RuntimeEnginesPage() {
         />
         {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
         <Input className="management-search" prefix={<SearchOutlined />} allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search engines" />
-        <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredEngines} loading={loading} scroll={{ x: 880 }} pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No runtime engines found" /> }} />
+        <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredEngines} loading={loading} size="middle" pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No runtime engines found" /> }} />
       </div>
 
       <Drawer title={editingEngine ? "Edit runtime engine" : "Add runtime engine"} open={open} onClose={close} size={560} destroyOnHidden footer={<Space style={{ width: "100%", justifyContent: "flex-end" }}><Button onClick={close} disabled={saving || testing}>Cancel</Button><Button icon={<ExperimentOutlined />} onClick={testConnection} loading={testing} disabled={saving}>Test connection</Button><Button type="primary" onClick={() => form.submit()} loading={saving} disabled={testing}>Save engine</Button></Space>}>
