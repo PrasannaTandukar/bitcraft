@@ -1,3 +1,17 @@
+/*
+ * Bitcraft z-index scale (documented layering, low -> high).
+ * Keep app-level fixed/sticky chrome below Ant Design's own overlay layers
+ * (Dropdown/Popover/Select ~1050, Modal ~1000, Message/Notification ~1010,
+ * Tooltip ~1070) so portaled overlays never render behind sticky chrome.
+ */
+:root {
+  --bitcraft-z-content: 1;
+  --bitcraft-z-header: 15;
+  --bitcraft-z-sider: 20;
+  --bitcraft-z-app-overlay: 30;
+  /* reserved for any non-portaled in-app overlay */
+}
+
 .bitcraft-shell.ant-layout {
   min-height: 100vh;
   min-width: 0;
@@ -7,7 +21,7 @@
 .bitcraft-sider.ant-layout-sider {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: var(--bitcraft-z-sider);
   height: 100vh;
   overflow: hidden;
   border-right: 1px solid var(--bitcraft-color-border, #dde2e9);
@@ -168,7 +182,7 @@
 .bitcraft-header.ant-layout-header {
   position: sticky;
   top: 0;
-  z-index: 15;
+  z-index: var(--bitcraft-z-header);
   display: flex;
   height: 64px;
   align-items: center;

@@ -1,8 +1,9 @@
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
-import { Alert, Button, Drawer, Empty, Form, Input, Select, Space, Switch, Table, Tag, Typography } from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Drawer, Empty, Form, Input, Popconfirm, Select, Space, Switch, Table, Tag, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, getApiErrorDescription } from "./api/client.js";
 import PageHeader from "./components/PageHeader.jsx";
+import useRolePermissions from "./hooks/useRolePermissions.js";
 
 const API_PATH = "/api/admin/runtime-engines";
 const PROVIDER_TYPES = [
@@ -13,15 +14,19 @@ const PROVIDER_TYPES = [
 const PROVIDER_LABELS = Object.fromEntries(PROVIDER_TYPES.map((provider) => [provider.value, provider.label]));
 
 export default function RuntimeEnginesPage() {
+  const { message } = App.useApp();
+  const { canWrite, canDelete } = useRolePermissions();
   const [form] = Form.useForm();
   const [engines, setEngines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
+  const [editingEngine, setEditingEngine] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState("");
 
   const load = useCallback((refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -48,9 +53,28 @@ export default function RuntimeEnginesPage() {
     return engines.filter((engine) => [engine.name, engine.endpoint, PROVIDER_LABELS[engine.providerType]].some((value) => value?.toLowerCase().includes(query)));
   }, [engines, search]);
 
+  const openCreate = () => {
+    setEditingEngine(null);
+    form.resetFields();
+    setOpen(true);
+  };
+
+  const openEdit = (engine) => {
+    setEditingEngine(engine);
+    form.setFieldsValue({
+      name: engine.name,
+      providerType: engine.providerType,
+      endpoint: engine.endpoint,
+      apiKeySecretRef: engine.apiKeySecretRef ?? undefined,
+      isEnabled: engine.isEnabled,
+    });
+    setOpen(true);
+  };
+
   const close = () => {
     if (saving) return;
     setOpen(false);
+    setEditingEngine(null);
     setFormError("");
     form.resetFields();
   };
@@ -58,24 +82,43 @@ export default function RuntimeEnginesPage() {
   const save = async (values) => {
     setSaving(true);
     setFormError("");
+    const payload = {
+      name: values.name.trim(),
+      providerType: Number(values.providerType),
+      endpoint: values.endpoint.trim(),
+      apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+      isEnabled: values.isEnabled,
+    };
     try {
-      const created = await apiFetch(API_PATH, {
-        method: "POST",
-        json: {
-          name: values.name.trim(),
-          providerType: Number(values.providerType),
-          endpoint: values.endpoint.trim(),
-          apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
-          isEnabled: values.isEnabled,
-        },
-      });
-      setEngines((current) => [created, ...current]);
+      if (editingEngine) {
+        const updated = await apiFetch(`${API_PATH}/${editingEngine.id}`, { method: "PUT", json: payload });
+        setEngines((current) => current.map((engine) => engine.id === editingEngine.id ? (updated ?? { ...engine, ...payload }) : engine));
+        message.success("Runtime engine updated.");
+      } else {
+        const created = await apiFetch(API_PATH, { method: "POST", json: payload });
+        setEngines((current) => [created, ...current]);
+        message.success("Runtime engine created.");
+      }
       setOpen(false);
+      setEditingEngine(null);
       form.resetFields();
     } catch (requestError) {
-      setFormError(getApiErrorDescription(requestError, "Could not create the runtime engine."));
+      setFormError(getApiErrorDescription(requestError, `Could not ${editingEngine ? "update" : "create"} the runtime engine.`));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const remove = async (engine) => {
+    setDeletingId(engine.id);
+    try {
+      await apiFetch(`${API_PATH}/${engine.id}`, { method: "DELETE", parse: "none" });
+      setEngines((current) => current.filter((item) => item.id !== engine.id));
+      message.success("Runtime engine deleted.");
+    } catch (requestError) {
+      message.error(getApiErrorDescription(requestError, "Could not delete the runtime engine."));
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -84,6 +127,22 @@ export default function RuntimeEnginesPage() {
     { title: "Provider", dataIndex: "providerType", width: 140, filters: PROVIDER_TYPES.map((provider) => ({ text: provider.label, value: provider.value })), onFilter: (value, record) => record.providerType === value, render: (value) => PROVIDER_LABELS[value] ?? value },
     { title: "Credential", dataIndex: "hasApiKeySecret", width: 130, render: (value) => value ? <Tag color="blue">Secret configured</Tag> : <Typography.Text type="secondary">None</Typography.Text> },
     { title: "Status", dataIndex: "isEnabled", width: 110, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
+    ...(canWrite || canDelete ? [{
+      title: "",
+      key: "action",
+      width: 150,
+      fixed: "right",
+      render: (_, engine) => (
+        <Space>
+          {canWrite ? <Button icon={<EditOutlined />} onClick={() => openEdit(engine)}>Edit</Button> : null}
+          {canDelete ? (
+            <Popconfirm title="Delete this runtime engine?" description="Models depending on this engine may stop working." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => remove(engine)}>
+              <Button danger icon={<DeleteOutlined />} loading={deletingId === engine.id} />
+            </Popconfirm>
+          ) : null}
+        </Space>
+      ),
+    }] : []),
   ];
 
   return (
@@ -92,14 +151,14 @@ export default function RuntimeEnginesPage() {
         <PageHeader
           title="Runtime engines"
           description="Manage the provider endpoints used by interaction and embedding models."
-          extra={[<Button key="refresh" icon={<ReloadOutlined />} onClick={() => load(true)} loading={refreshing}>Refresh</Button>, <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>Add engine</Button>]}
+          extra={[<Button key="refresh" icon={<ReloadOutlined />} onClick={() => load(true)} loading={refreshing}>Refresh</Button>, canWrite ? <Button key="add" type="primary" icon={<PlusOutlined />} onClick={openCreate}>Add engine</Button> : null].filter(Boolean)}
         />
         {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
         <Input className="management-search" prefix={<SearchOutlined />} allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search engines" />
-        <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredEngines} loading={loading} scroll={{ x: 760 }} pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No runtime engines found" /> }} />
+        <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredEngines} loading={loading} scroll={{ x: 880 }} pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No runtime engines found" /> }} />
       </div>
 
-      <Drawer title="Add runtime engine" open={open} onClose={close} size={560} destroyOnHidden footer={<Space style={{ width: "100%", justifyContent: "flex-end" }}><Button onClick={close} disabled={saving}>Cancel</Button><Button type="primary" onClick={() => form.submit()} loading={saving}>Save engine</Button></Space>}>
+      <Drawer title={editingEngine ? "Edit runtime engine" : "Add runtime engine"} open={open} onClose={close} size={560} destroyOnHidden footer={<Space style={{ width: "100%", justifyContent: "flex-end" }}><Button onClick={close} disabled={saving}>Cancel</Button><Button type="primary" onClick={() => form.submit()} loading={saving}>Save engine</Button></Space>}>
         {formError ? <Alert type="error" title={formError} showIcon style={{ marginBottom: 16 }} /> : null}
         <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ providerType: 0, isEnabled: true }}>
           <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter an engine name." }]}><Input placeholder="Local Ollama" /></Form.Item>

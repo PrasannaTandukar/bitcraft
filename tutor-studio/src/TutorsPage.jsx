@@ -1,12 +1,12 @@
-import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Empty, Form, Input, Modal, Space, Table, Typography } from "antd";
+import { DeleteOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorDescription } from "./api/client.js";
 import PageHeader from "./components/PageHeader.jsx";
 import StatusTag from "./components/StatusTag.jsx";
-import { createTutor, listTutors } from "./tutors/tutorApi.js";
+import useRolePermissions from "./hooks/useRolePermissions.js";
+import { createTutor, deleteTutor, listTutors } from "./tutors/tutorApi.js";
 import { formatDateTime, revisionStatus, tutorStatus } from "./tutors/tutorUtils.js";
 import "./tutors/TutorDetails.css";
 
@@ -64,13 +64,14 @@ function AddTutorModal({ open, onClose, onCreated }) {
 
 export default function TutorsPage() {
   const navigate = useNavigate();
-  const { roles = [] } = useSelector((state) => state.auth);
-  const canManage = roles.includes("Editor") || roles.includes("Admin");
+  const { message } = App.useApp();
+  const { canWrite: canManage, canDelete } = useRolePermissions();
   const [tutors, setTutors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [reload, setReload] = useState(0);
+  const [deletingId, setDeletingId] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -91,6 +92,19 @@ export default function TutorsPage() {
   const refresh = () => {
     setLoading(true);
     setReload((value) => value + 1);
+  };
+
+  const removeTutor = async (tutor) => {
+    setDeletingId(tutor.id);
+    try {
+      await deleteTutor(tutor.id);
+      setTutors((current) => current.filter((item) => item.id !== tutor.id));
+      message.success("Tutor deleted.");
+    } catch (requestError) {
+      message.error(getApiErrorDescription(requestError, "Could not delete the tutor."));
+    } finally {
+      setDeletingId("");
+    }
   };
 
   const columns = [
@@ -141,9 +155,18 @@ export default function TutorsPage() {
     {
       title: "",
       key: "action",
-      width: 100,
+      width: canDelete ? 190 : 100,
       fixed: "right",
-      render: (_, tutor) => <Button type="link" onClick={() => navigate(`/tutors/${tutor.id}`)}>{canManage ? "Configure" : "Open"}</Button>,
+      render: (_, tutor) => (
+        <Space>
+          <Button type="link" onClick={() => navigate(`/tutors/${tutor.id}`)}>{canManage ? "Configure" : "Open"}</Button>
+          {canDelete ? (
+            <Popconfirm title="Delete this tutor?" description="This permanently removes the tutor and its configuration." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => removeTutor(tutor)}>
+              <Button danger icon={<DeleteOutlined />} loading={deletingId === tutor.id} />
+            </Popconfirm>
+          ) : null}
+        </Space>
+      ),
     },
   ];
 

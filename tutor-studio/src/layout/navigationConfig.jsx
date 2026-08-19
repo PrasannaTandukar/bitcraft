@@ -5,24 +5,40 @@ import {
   DeploymentUnitOutlined,
   ExperimentOutlined,
   FileTextOutlined,
+  FolderOpenOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
-  SettingOutlined,
   TeamOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
+
+export const standaloneNavigationItems = [
+  { key: "/", label: "Dashboard", icon: <DashboardOutlined /> },
+  { key: "/chat", label: "Chat", icon: <RobotOutlined /> },
+];
 
 export const navigationGroups = [
   {
-    key: "workspace",
-    label: "Workspace",
+    key: "documents",
+    label: "Documents",
     items: [
-      { key: "/", label: "Dashboard", icon: <DashboardOutlined /> },
-      { key: "/ai-tutor", label: "AI Tutor", icon: <RobotOutlined /> },
+      {
+        key: "/documents",
+        label: "Browse",
+        icon: <FolderOpenOutlined />,
+        roles: ["Auditor", "Editor", "Admin"],
+      },
+      {
+        key: "/documents/upload",
+        label: "Upload",
+        icon: <UploadOutlined />,
+        roles: ["Editor", "Admin"],
+      },
     ],
   },
   {
-    key: "knowledge",
-    label: "Knowledge",
+    key: "tutors",
+    label: "Tutors",
     items: [
       {
         key: "/tutors",
@@ -30,51 +46,35 @@ export const navigationGroups = [
         icon: <TeamOutlined />,
         roles: ["Auditor", "Editor", "Admin"],
       },
-      {
-        key: "/files",
-        label: "Files",
-        icon: <FileTextOutlined />,
-        roles: ["Auditor", "Editor", "Admin"],
-      },
-    ],
-  },
-  {
-    key: "evaluation",
-    label: "Evaluation",
-    items: [
-      {
-        key: "/benchmarking",
-        label: "Benchmarking",
-        icon: <ExperimentOutlined />,
-        roles: ["Auditor", "Editor", "Admin"],
-      },
+      { key: "/benchmarking", label: "Benchmarking", icon: <ExperimentOutlined />, roles: ["Auditor", "Editor", "Admin"] },
+      { key: "/tutor-setup", label: "Tutor Setup", icon: <FileTextOutlined />, roles: ["Editor", "Admin"] },
     ],
   },
   {
     key: "administration",
-    label: "Administration",
+    label: "Admin",
     items: [
       {
-        key: "/role-management",
+        key: "/admin/roles",
         label: "Role Management",
         icon: <SafetyCertificateOutlined />,
         roles: ["Admin"],
       },
       {
-        key: "/model-catalog",
-        label: "Model Catalog",
+        key: "/admin/embedding-models",
+        label: "Embedding Models",
         icon: <DatabaseOutlined />,
         roles: ["Admin"],
       },
       {
-        key: "/interaction-model",
-        label: "Interaction Models",
+        key: "/admin/ai-models",
+        label: "AI Models",
         icon: <ApiOutlined />,
         roles: ["Admin"],
       },
       {
-        key: "/runtime-engines",
-        label: "Runtime Engines",
+        key: "/admin/ai-providers",
+        label: "AI Providers",
         icon: <DeploymentUnitOutlined />,
         roles: ["Admin"],
       },
@@ -82,21 +82,20 @@ export const navigationGroups = [
   },
 ];
 
-export const utilityNavigationItems = [
-  { key: "/settings", label: "Settings", icon: <SettingOutlined /> },
-];
-
 const pageMetadata = [
   { match: (path) => path.startsWith("/tutors/"), title: "Tutor workspace", key: "/tutors" },
   { match: (path) => path === "/", title: "Dashboard", key: "/" },
-  { match: (path) => path === "/ai-tutor", title: "AI Tutor", key: "/ai-tutor" },
+  { match: (path) => path === "/chat", title: "Chat", key: "/chat" },
   { match: (path) => path === "/tutors", title: "Tutors", key: "/tutors" },
-  { match: (path) => path === "/files", title: "Files", key: "/files" },
+  { match: (path) => path === "/documents/upload", title: "Upload document", key: "/documents/upload" },
+  { match: (path) => path.startsWith("/documents"), title: "Documents", key: "/documents" },
   { match: (path) => path === "/benchmarking", title: "Benchmarking", key: "/benchmarking" },
-  { match: (path) => path === "/role-management", title: "Role Management", key: "/role-management" },
-  { match: (path) => path === "/model-catalog", title: "Model Catalog", key: "/model-catalog" },
-  { match: (path) => path === "/interaction-model", title: "Interaction Models", key: "/interaction-model" },
-  { match: (path) => path === "/runtime-engines", title: "Runtime Engines", key: "/runtime-engines" },
+  { match: (path) => path === "/tutor-setup", title: "Tutor setup", key: "/tutor-setup" },
+  { match: (path) => path === "/admin/roles", title: "Role Management", key: "/admin/roles" },
+  { match: (path) => path === "/admin/embedding-models", title: "Embedding Models", key: "/admin/embedding-models" },
+  { match: (path) => path === "/admin/ai-models", title: "AI Models", key: "/admin/ai-models" },
+  { match: (path) => path === "/admin/ai-providers", title: "AI Providers", key: "/admin/ai-providers" },
+  { match: (path) => path === "/profile", title: "Profile", key: "/profile" },
   { match: (path) => path === "/settings", title: "Settings", key: "/settings" },
 ];
 
@@ -104,7 +103,7 @@ const canSeeItem = (item, roles) =>
   !item.roles || item.roles.some((role) => roles.includes(role));
 
 export function buildNavigationItems(roles = []) {
-  return navigationGroups
+  const groups = navigationGroups
     .map((group) => ({
       key: `group-${group.key}`,
       type: "group",
@@ -112,6 +111,8 @@ export function buildNavigationItems(roles = []) {
       children: group.items.filter((item) => canSeeItem(item, roles)),
     }))
     .filter((group) => group.children.length > 0);
+
+  return [...standaloneNavigationItems, ...groups];
 }
 
 export function getPageMetadata(pathname) {

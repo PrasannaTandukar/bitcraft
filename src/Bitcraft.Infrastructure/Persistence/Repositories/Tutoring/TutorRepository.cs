@@ -68,6 +68,12 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DeleteAsync(Tutor tutor, CancellationToken cancellationToken = default)
+    {
+        db.Set<Tutor>().Remove(tutor);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<PromptVersion> AddPromptVersionAsync(PromptVersion promptVersion, CancellationToken cancellationToken = default)
     {
         db.Set<PromptVersion>().Add(promptVersion);

@@ -85,6 +85,60 @@ public class TutorFeaturesTests
         Assert.True(result.IsFailure);
         Assert.Equal("Tutor.NotFound", result.Error.Code);
     }
+
+    [Fact]
+    public async Task DeleteTutorHandler_ForOwner_DeletesAndReturnsSuccess()
+    {
+        // Arrange
+        var repo = new FakeTutorRepository();
+        var owner = Guid.NewGuid();
+        var tutor = Tutor.Create("T", null, owner);
+        repo.Tutors[tutor.Id] = tutor;
+        var handler = new TutorFeatures.DeleteTutorHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
+        var command = new TutorFeatures.DeleteTutorCommand(tutor.Id);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.False(repo.Tutors.ContainsKey(tutor.Id));
+    }
+
+    [Fact]
+    public async Task DeleteTutorHandler_WhenMissing_ReturnsNotFound()
+    {
+        // Arrange
+        var handler = new TutorFeatures.DeleteTutorHandler(new FakeTutorRepository(), new FakeTutorMembershipReader(), new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new TutorFeatures.DeleteTutorCommand(Guid.NewGuid());
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Tutor.NotFound", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task DeleteTutorHandler_ForNonMember_ReturnsForbidden()
+    {
+        // Arrange
+        var repo = new FakeTutorRepository();
+        var owner = Guid.NewGuid();
+        var tutor = Tutor.Create("T", null, owner);
+        repo.Tutors[tutor.Id] = tutor;
+        var handler = new TutorFeatures.DeleteTutorHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(Guid.NewGuid()));
+        var command = new TutorFeatures.DeleteTutorCommand(tutor.Id);
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal("Tutor.Forbidden", result.Error.Code);
+        Assert.True(repo.Tutors.ContainsKey(tutor.Id));
+    }
 }
 
 public class TutorModelConnectionFeaturesTests

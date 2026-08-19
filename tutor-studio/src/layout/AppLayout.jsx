@@ -27,9 +27,7 @@ export default function AppLayout() {
       collapsed={collapsed}
       mobile={isMobile}
       roles={roles}
-      user={user}
       onNavigate={() => setDrawerOpen(false)}
-      onSignOut={signOut}
     />
   );
 

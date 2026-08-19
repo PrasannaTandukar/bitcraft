@@ -191,6 +191,12 @@ internal sealed class FakeTutorRepository : ITutorRepository
         return Task.CompletedTask;
     }
 
+    public Task DeleteAsync(Tutor tutor, CancellationToken ct = default)
+    {
+        Tutors.Remove(tutor.Id);
+        return Task.CompletedTask;
+    }
+
     public Task<PromptVersion> AddPromptVersionAsync(PromptVersion v, CancellationToken ct = default)
     {
         PromptVersions.Add(v);

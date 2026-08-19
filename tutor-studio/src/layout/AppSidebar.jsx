@@ -1,24 +1,19 @@
-import { LogoutOutlined, RobotOutlined } from "@ant-design/icons";
-import { Avatar, Button, Divider, Menu, Tooltip, Typography } from "antd";
+import { RobotOutlined } from "@ant-design/icons";
+import { Button, Menu } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getAccountDisplay } from "./accountDisplay.js";
 import {
   buildNavigationItems,
   getPageMetadata,
-  utilityNavigationItems,
 } from "./navigationConfig.jsx";
 
 export default function AppSidebar({
   collapsed = false,
   mobile = false,
   roles = [],
-  user,
   onNavigate,
-  onSignOut,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const account = getAccountDisplay(user, roles);
   const selectedKey = getPageMetadata(location.pathname).key;
 
   const navigateTo = ({ key }) => {
@@ -57,39 +52,6 @@ export default function AppSidebar({
         />
       </nav>
 
-      <div className="bitcraft-sidebar-footer">
-        <Divider />
-        <Menu
-          mode="inline"
-          selectedKeys={selectedKey === "/settings" ? [selectedKey] : []}
-          items={utilityNavigationItems}
-          onClick={navigateTo}
-        />
-
-        <Tooltip title={collapsed && !mobile ? account.displayName : undefined} placement="right">
-          <div className={`bitcraft-sidebar-account ${collapsed && !mobile ? "is-collapsed" : ""}`}>
-            <Avatar size={36}>{account.initials}</Avatar>
-            {(!collapsed || mobile) && (
-              <span className="bitcraft-account-copy">
-                <Typography.Text ellipsis>{account.displayName}</Typography.Text>
-                <Typography.Text type="secondary">{account.role}</Typography.Text>
-              </span>
-            )}
-          </div>
-        </Tooltip>
-
-        <Menu
-          mode="inline"
-          selectable={false}
-          items={[{
-            key: "sign-out",
-            label: "Sign out",
-            icon: <LogoutOutlined />,
-            danger: true,
-          }]}
-          onClick={onSignOut}
-        />
-      </div>
     </div>
   );
 }

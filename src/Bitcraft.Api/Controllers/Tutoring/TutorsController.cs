@@ -81,4 +81,20 @@ public class TutorsController(ISender sender) : ControllerBase
             ? Ok(result.Value.ToResponse())
             : TutoringMapping.ToActionResult(result.Error);
     }
+
+    /// <summary>Deletes a tutor owned by the authenticated user.</summary>
+    /// <remarks>Requires the EditorOrAdmin policy plus Editor-or-Owner membership on the tutor.</remarks>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new TutorFeatures.DeleteTutorCommand(id), cancellationToken);
+        return result.IsSuccess
+            ? NoContent()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
 }

@@ -205,7 +205,12 @@ public sealed class TutorRuntime(
             </user_question>
 
             Answer the user's actual request directly and naturally.
-            """;
+            """
+            // Raw string literals preserve the source file's literal line terminators, so a
+            // Windows checkout with core.autocrlf=true embeds CRLF here instead of LF. Normalize
+            // to LF so the generated prompt is byte-for-byte reproducible across OSes/checkouts
+            // (benchmarking snapshots and tests rely on a stable, deterministic prompt).
+            .Replace("\r\n", "\n");
     }
 
     private async Task<Result<TutorRevision>> ResolveRevisionAsync(

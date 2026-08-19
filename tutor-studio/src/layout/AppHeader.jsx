@@ -4,6 +4,7 @@ import {
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
+  UserOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Typography } from "antd";
@@ -29,11 +30,13 @@ export default function AppHeader({
 
   const accountMenu = {
     items: [
+      { key: "profile", label: "Profile", icon: <UserOutlined /> },
       { key: "settings", label: "Settings", icon: <SettingOutlined /> },
       { type: "divider" },
       { key: "sign-out", label: "Sign out", icon: <LogoutOutlined />, danger: true },
     ],
     onClick: ({ key }) => {
+      if (key === "profile") navigate("/profile");
       if (key === "settings") navigate("/settings");
       if (key === "sign-out") onSignOut();
     },

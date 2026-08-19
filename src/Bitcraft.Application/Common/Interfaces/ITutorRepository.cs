@@ -9,6 +9,7 @@ public interface ITutorRepository
     Task<Tutor?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Tutor>> ListByOwnerAsync(Guid ownerId, CancellationToken cancellationToken = default);
     Task UpdateAsync(Tutor tutor, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Tutor tutor, CancellationToken cancellationToken = default);
 
     Task<PromptVersion> AddPromptVersionAsync(PromptVersion promptVersion, CancellationToken cancellationToken = default);
     Task<List<PromptVersion>> ListPromptVersionsByTutorAsync(Guid tutorId, CancellationToken cancellationToken = default);
