@@ -7,12 +7,14 @@ from app.schemas import SidecarEnvelope, SidecarLlmBenchmarkRequest, SidecarLlmB
 from app.tool_registry import ToolRegistry
 from app.tools.deepeval_benchmark import DeepEvalBenchmarkTool
 from app.tools.deepeval_llm_benchmarks import run_llm_benchmark
-from app.tools.deepeval_metrics import DeepEvalLlmJudgeBenchmarkTool
 
 app = FastAPI(default_response_class=ORJSONResponse)
 registry = ToolRegistry()
 registry.register(DeepEvalBenchmarkTool())
-registry.register(DeepEvalLlmJudgeBenchmarkTool())
+# NOTE: LLM-as-judge scoring (deepeval.llm_judge_benchmark / DeepEvalLlmJudgeBenchmarkTool
+# in app/tools/deepeval_metrics.py) is intentionally NOT registered for this iteration.
+# Product direction: deterministic scoring only (deepeval.benchmark + the standardized
+# built-in benchmarks below). Re-register when LLM-as-judge is prioritized again.
 
 
 @app.get("/health")
