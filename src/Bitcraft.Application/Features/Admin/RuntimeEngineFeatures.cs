@@ -190,6 +190,88 @@ public static class RuntimeEngineFeatures
         }
     }
 
+    // ----- Test Connection -----
+
+    public sealed record TestRuntimeEngineConnectionResult(
+        bool IsSuccess,
+        double LatencyMs,
+        string Message,
+        IReadOnlyList<string>? AvailableModels = null);
+
+    public sealed record TestRuntimeEngineCommand(
+        RuntimeEngineProviderType ProviderType,
+        string Endpoint,
+        string? ApiKeySecretRef) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
+
+    public sealed class TestRuntimeEngineHandler(
+        ILlmGenerationProvider generationProvider,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<TestRuntimeEngineCommand, Result<TestRuntimeEngineConnectionResult>>
+    {
+        public async Task<Result<TestRuntimeEngineConnectionResult>> Handle(
+            TestRuntimeEngineCommand request,
+            CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<TestRuntimeEngineConnectionResult>(
+                    new Error("RuntimeEngine.Forbidden", "Only administrators can test runtime engines."));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Endpoint) ||
+                !Uri.TryCreate(request.Endpoint, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                return Result.Failure<TestRuntimeEngineConnectionResult>(
+                    new Error("RuntimeEngine.EndpointInvalid", "Endpoint must be a valid http or https URI."));
+            }
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var discoveredModels = await generationProvider.ProbeAvailableModelsAsync(
+                    request.Endpoint.Trim(),
+                    string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
+                    request.ProviderType.ToString(),
+                    cancellationToken);
+
+                stopwatch.Stop();
+                var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
+
+                if (discoveredModels is { Count: > 0 })
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        latency,
+                        $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s).",
+                        discoveredModels));
+                }
+
+                if (discoveredModels is not null)
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        latency,
+                        $"Successfully reached {request.ProviderType} endpoint (no models reported).",
+                        discoveredModels));
+                }
+
+                return Result.Success(new TestRuntimeEngineConnectionResult(
+                    false,
+                    latency,
+                    $"Could not reach {request.ProviderType} endpoint or retrieve model catalog."));
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                return Result.Success(new TestRuntimeEngineConnectionResult(
+                    false,
+                    Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
+                    $"Connection failed: {ex.Message}"));
+            }
+        }
+    }
+
     // ----- Validation -----
 
     private static Error? Validate(string name, RuntimeEngineProviderType providerType, string endpoint, string? apiKeySecretRef)

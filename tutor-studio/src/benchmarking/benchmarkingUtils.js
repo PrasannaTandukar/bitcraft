@@ -85,15 +85,6 @@ export const runStatusLabel = (run) => {
   return run?.status ?? "Unknown";
 };
 
-export const statusVariant = (status) => ({
-  Queued: "secondary",
-  Generating: "info",
-  Evaluating: "primary",
-  Running: "primary",
-  Completed: "success",
-  Failed: "danger",
-}[status] ?? "secondary");
-
 export const scorerDisplayName = (engineName) =>
   engineName === "deepeval-deterministic" ? "Deterministic local scorer" : engineName || "Pending";
 

@@ -3,6 +3,7 @@ import { apiFetch } from "../api/client.js";
 export const listTutors = (signal) => apiFetch("/api/tutors", { signal });
 export const getTutor = (tutorId, signal) => apiFetch(`/api/tutors/${tutorId}`, { signal });
 export const createTutor = (payload) => apiFetch("/api/tutors", { method: "POST", json: payload });
+export const deleteTutor = (tutorId) => apiFetch(`/api/tutors/${tutorId}`, { method: "DELETE", parse: "none" });
 
 export const listPromptVersions = (tutorId, signal) =>
   apiFetch(`/api/tutors/${tutorId}/prompts`, { signal });

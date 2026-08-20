@@ -83,6 +83,35 @@ public static class TutorFeatures
         }
     }
 
+    // ---------- Delete ----------
+    public sealed record DeleteTutorCommand(Guid TutorId) : IRequest<Result>;
+
+    public sealed class DeleteTutorHandler(
+        ITutorRepository tutorRepository,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<DeleteTutorCommand, Result>
+    {
+        public async Task<Result> Handle(DeleteTutorCommand request, CancellationToken cancellationToken)
+        {
+            var tutor = await tutorRepository.GetByIdAsync(request.TutorId, cancellationToken);
+            if (tutor is null)
+            {
+                return Result.Failure(new Error("Tutor.NotFound", $"Tutor '{request.TutorId}' not found."));
+            }
+
+            // D2/D3: Delete is a destructive mutation → Editor or Owner required, matching Update.
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
+            {
+                return Result.Failure(new Error("Tutor.Forbidden", "Tutor membership required."));
+            }
+
+            await tutorRepository.DeleteAsync(tutor, cancellationToken);
+            return Result.Success();
+        }
+    }
+
     // ---------- Get by Id ----------
     public sealed record GetTutorByIdQuery(Guid TutorId)
         : IRequest<Result<Tutor>>;

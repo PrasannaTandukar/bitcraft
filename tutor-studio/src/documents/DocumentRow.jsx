@@ -1,57 +1,51 @@
-import { Badge, Button } from "react-bootstrap";
+import { DeleteOutlined, EditOutlined, EyeOutlined, FolderOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { Button, Flex, Space, Tag, Tooltip, Typography } from "antd";
 
-function mimeIcon(mimeType, name) {
-  if (mimeType === "application/pdf" || name?.toLowerCase().endsWith(".pdf")) return "📕";
-  if (mimeType?.includes("wordprocessingml") || name?.toLowerCase().endsWith(".docx")) return "📝";
-  return "📄";
+function fileIcon(mimeType, name) {
+    if (mimeType === "application/pdf" || name?.toLowerCase().endsWith(".pdf")) return "PDF";
+    if (mimeType?.includes("wordprocessingml") || name?.toLowerCase().endsWith(".docx")) return "DOC";
+    return "TXT";
 }
 
 function formatDate(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Unknown date" : date.toLocaleDateString();
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "Unknown date" : date.toLocaleDateString();
 }
 
 function statusLabel(document, status) {
-  if (!document.hasRawText) return { variant: "warning", text: "No extracted text" };
-  if (status?.unavailable) return { variant: "secondary", text: "Vectorization status unavailable" };
-  if (status?.isStale) return { variant: "warning", text: "Needs re-vectorization" };
-  if (status?.isVectorized) return { variant: "success", text: `Vectorized · ${status.chunkCount} chunks` };
-  if (status === undefined) return { variant: "secondary", text: "Checking vectorization…" };
-  return { variant: "info", text: "Ready for vectorization" };
+    if (!document.hasRawText) return { color: "warning", text: "No extracted text" };
+    if (status?.unavailable) return { color: "default", text: "Status unavailable" };
+    if (status?.isStale) return { color: "warning", text: "Needs re-vectorization" };
+    if (status?.isVectorized) return { color: "success", text: `Vectorized · ${status.chunkCount} chunks` };
+    if (status === undefined) return { color: "processing", text: "Checking vectorization" };
+    return { color: "blue", text: "Ready for vectorization" };
 }
 
-export default function DocumentRow({ document, folderName, status, canManage, onPreview, onReplace, onVectorize, onDelete }) {
-  const state = statusLabel(document, status);
-  return (
-    <div className="document-row">
-      <div className="document-row-main">
-        <span className="document-icon" aria-hidden="true">{mimeIcon(document.mimeType, document.name)}</span>
-        <div className="document-row-copy">
-          <div className="document-name">{document.name || "Unnamed document"}</div>
-          <div className="document-meta">
-            {document.mimeType || "Unknown type"} · {formatDate(document.lastModifiedUtc || document.createdUtc)}
-            {folderName ? ` · ${folderName}` : ""}
-          </div>
+export default function DocumentRow({ document, folderName, status, canManage, canDelete, onPreview, onReplace, onVectorize, onDelete, onMove }) {
+    const state = statusLabel(document, status);
+    const actions = [
+        <Tooltip key="preview" title="Preview extracted text"><Button aria-label="Preview extracted text" icon={<EyeOutlined />} onClick={() => onPreview(document)} /></Tooltip>,
+    ];
+
+    if (canManage && !document.hasRawText) actions.push(<Tooltip key="replace" title="Add file content"><Button aria-label="Add file content" icon={<EditOutlined />} onClick={() => onReplace(document)} /></Tooltip>);
+    if (canManage && document.hasRawText) actions.push(<Tooltip key="vectorize" title={status?.isVectorized ? "Re-vectorize" : "Vectorize"}><Button aria-label={status?.isVectorized ? "Re-vectorize" : "Vectorize"} icon={<ThunderboltOutlined />} onClick={() => onVectorize(document)} /></Tooltip>);
+    if (canManage && onMove) actions.push(<Tooltip key="move" title="Move to folder"><Button aria-label="Move to folder" icon={<FolderOutlined />} onClick={() => onMove(document)} /></Tooltip>);
+    if (canDelete) actions.push(<Tooltip key="delete" title="Delete document"><Button aria-label="Delete document" danger icon={<DeleteOutlined />} onClick={() => onDelete(document)} /></Tooltip>);
+
+    return (
+        <div className="document-list-item">
+            <span className="document-type-icon">{fileIcon(document.mimeType, document.name)}</span>
+            <div className="document-list-copy">
+                <Typography.Text strong>{document.name || "Unnamed document"}</Typography.Text>
+                <Space direction="vertical" size={5}>
+                    <Typography.Text type="secondary">{document.mimeType || "Unknown type"} · {formatDate(document.lastModifiedUtc || document.createdUtc)}{folderName ? ` · ${folderName}` : ""}</Typography.Text>
+                    <Flex gap={6} wrap>
+                        <Tag color={document.hasRawText ? "success" : "warning"}>{document.hasRawText ? `${Number(document.rawTextLength || 0).toLocaleString()} extracted characters` : "No extracted text"}</Tag>
+                        <Tag color={state.color}>{state.text}</Tag>
+                    </Flex>
+                </Space>
+            </div>
+            <Flex className="document-row-actions" gap={8}>{actions}</Flex>
         </div>
-      </div>
-      <div className="document-row-status">
-        <Badge bg={document.hasRawText ? "success" : "warning"} text={document.hasRawText ? undefined : "dark"}>
-          {document.hasRawText ? `${Number(document.rawTextLength || 0).toLocaleString()} extracted characters` : "No extracted text"}
-        </Badge>
-        <Badge bg={state.variant} text={state.variant === "warning" || state.variant === "info" ? "dark" : undefined}>{state.text}</Badge>
-      </div>
-      <div className="document-row-actions">
-        <Button size="sm" variant="outline-secondary" onClick={() => onPreview(document)}>Preview text</Button>
-        {canManage && !document.hasRawText && (
-          <Button size="sm" variant="outline-primary" onClick={() => onReplace(document)}>Add file content</Button>
-        )}
-        {canManage && document.hasRawText && (
-          <Button size="sm" variant="outline-primary" onClick={() => onVectorize(document)}>
-            {status?.isVectorized ? "Re-vectorize" : "Vectorize"}
-          </Button>
-        )}
-        {canManage && <Button size="sm" variant="outline-danger" onClick={() => onDelete(document)}>Delete</Button>}
-      </div>
-    </div>
-  );
+    );
 }

@@ -1,6 +1,5 @@
+import { Card, Tabs } from "antd";
 import { useCallback, useEffect, useState } from "react";
-import Container from "react-bootstrap/Container";
-import Nav from "react-bootstrap/Nav";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getApiErrorDescription } from "./api/client.js";
@@ -8,6 +7,7 @@ import BenchmarkRunHistory from "./benchmarking/BenchmarkRunHistory.jsx";
 import BenchmarkRunWizard from "./benchmarking/BenchmarkRunWizard.jsx";
 import BenchmarkTemplatesPanel from "./benchmarking/BenchmarkTemplatesPanel.jsx";
 import { listTutors } from "./benchmarking/benchmarkingApi.js";
+import PageHeader from "./components/PageHeader.jsx";
 import "./benchmarking/Benchmarking.css";
 
 export default function BenchmarkingPage() {
@@ -30,7 +30,7 @@ export default function BenchmarkingPage() {
     const next = new URLSearchParams(searchParams);
     next.set("tab", validTab);
     setSearchParams(next, { replace: true });
-  }, [requestedTab, validTab, searchParams, setSearchParams]);
+  }, [requestedTab, searchParams, setSearchParams, validTab]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -73,23 +73,28 @@ export default function BenchmarkingPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
+  const items = [
+    canManage ? {
+      key: "new",
+      label: "New run",
+      children: <BenchmarkRunWizard tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} initialTutorId={selectedTutorId} initialRevisionId={selectedRevisionId} onSelectionChange={updateNewRunSelection} onConfigureTutor={(tutorId) => navigate(`/tutors/${tutorId}?tab=revisions`)} onOpenTemplates={() => setTab("templates")} onCreated={updateHistoryLocation} />,
+    } : null,
+    {
+      key: "history",
+      label: "Run history",
+      children: <BenchmarkRunHistory tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} selectedTutorId={selectedTutorId} selectedRunId={selectedRunId} onSelectTutor={(tutorId) => updateHistoryLocation(tutorId)} onOpenRun={(runId) => updateHistoryLocation(selectedTutorId, runId)} onCloseRun={() => updateHistoryLocation(selectedTutorId)} />,
+    },
+    canManage ? { key: "templates", label: "Templates", children: <BenchmarkTemplatesPanel /> } : null,
+  ].filter(Boolean);
+
   return (
-    <main className="benchmarking-page">
-      <Container className="benchmarking-container">
-        <header className="benchmarking-header">
-          <div><span className="benchmarking-eyebrow">Tutor quality workspace</span><h1>Benchmarking</h1><p>Generate tutor answers, evaluate approximate quality indicators, and review auditable results.</p></div>
-        </header>
-        <Nav variant="tabs" activeKey={validTab} onSelect={(key) => key && setTab(key)} className="benchmarking-tabs" aria-label="Benchmarking views">
-          {canManage && <Nav.Item><Nav.Link eventKey="new">New Run</Nav.Link></Nav.Item>}
-          <Nav.Item><Nav.Link eventKey="history">Run History</Nav.Link></Nav.Item>
-          {canManage && <Nav.Item><Nav.Link eventKey="templates">Templates</Nav.Link></Nav.Item>}
-        </Nav>
-        <section className="benchmarking-content">
-          {validTab === "new" && canManage && <BenchmarkRunWizard tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} initialTutorId={selectedTutorId} initialRevisionId={selectedRevisionId} onSelectionChange={updateNewRunSelection} onConfigureTutor={(tutorId) => navigate(`/tutors/${tutorId}?tab=revisions`)} onOpenTemplates={() => setTab("templates")} onCreated={updateHistoryLocation} />}
-          {validTab === "history" && <BenchmarkRunHistory tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} selectedTutorId={selectedTutorId} selectedRunId={selectedRunId} onSelectTutor={(tutorId) => updateHistoryLocation(tutorId)} onOpenRun={(runId) => updateHistoryLocation(selectedTutorId, runId)} onCloseRun={() => updateHistoryLocation(selectedTutorId)} />}
-          {validTab === "templates" && canManage && <BenchmarkTemplatesPanel />}
-        </section>
-      </Container>
+    <main className="workspace-page benchmarking-page">
+      <div className="workspace-page-inner">
+        <PageHeader title="Benchmarking" description="Generate tutor answers, evaluate quality indicators, and review auditable results." />
+        <Card className="benchmark-workspace-card" styles={{ body: { paddingTop: 0 } }}>
+          <Tabs activeKey={validTab} onChange={setTab} items={items} />
+        </Card>
+      </div>
     </main>
   );
 }

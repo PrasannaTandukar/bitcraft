@@ -1,36 +1,29 @@
+import { DeleteOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Empty, Form, Input, Modal, Popconfirm, Space, Table, Typography } from "antd";
 import { useEffect, useState } from "react";
-import Alert from "react-bootstrap/Alert";
-import Badge from "react-bootstrap/Badge";
-import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import Container from "react-bootstrap/Container";
-import Form from "react-bootstrap/Form";
-import Modal from "react-bootstrap/Modal";
-import Spinner from "react-bootstrap/Spinner";
-import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorDescription } from "./api/client.js";
-import { createTutor, listTutors } from "./tutors/tutorApi.js";
-import { formatDateTime, revisionStatus, statusVariant, tutorStatus } from "./tutors/tutorUtils.js";
+import PageHeader from "./components/PageHeader.jsx";
+import StatusTag from "./components/StatusTag.jsx";
+import useRolePermissions from "./hooks/useRolePermissions.js";
+import { createTutor, deleteTutor, listTutors } from "./tutors/tutorApi.js";
+import { formatDateTime, revisionStatus, tutorStatus } from "./tutors/tutorUtils.js";
 import "./tutors/TutorDetails.css";
 
-function AddTutorModal({ show, onClose, onCreated }) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+function AddTutorModal({ open, onClose, onCreated }) {
+  const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!name.trim() || saving) {
-      if (!name.trim()) setError("Tutor name is required.");
-      return;
-    }
-
+  const submit = async (values) => {
     setSaving(true);
     setError("");
     try {
-      const created = await createTutor({ name: name.trim(), description: description.trim() || null });
+      const created = await createTutor({
+        name: values.name.trim(),
+        description: values.description?.trim() || null,
+      });
+      form.resetFields();
       onCreated(created);
     } catch (requestError) {
       setError(getApiErrorDescription(requestError, "Could not create the tutor."));
@@ -39,27 +32,31 @@ function AddTutorModal({ show, onClose, onCreated }) {
     }
   };
 
+  const close = () => {
+    if (saving) return;
+    setError("");
+    form.resetFields();
+    onClose();
+  };
+
   return (
-    <Modal show={show} onHide={saving ? undefined : onClose} centered>
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton={!saving}><Modal.Title>Create tutor</Modal.Title></Modal.Header>
-        <Modal.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
-          <Form.Group className="mb-3" controlId="new-tutor-name">
-            <Form.Label>Name *</Form.Label>
-            <Form.Control value={name} onChange={(event) => setName(event.target.value)} autoFocus maxLength={200} />
-          </Form.Group>
-          <Form.Group controlId="new-tutor-description">
-            <Form.Label>Description</Form.Label>
-            <Form.Control as="textarea" rows={3} value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button type="submit" disabled={saving || !name.trim()}>
-            {saving && <Spinner size="sm" className="me-2" />}Create tutor
-          </Button>
-        </Modal.Footer>
+    <Modal
+      title="Create tutor"
+      open={open}
+      onCancel={close}
+      okText="Create tutor"
+      confirmLoading={saving}
+      onOk={() => form.submit()}
+      destroyOnHidden
+    >
+      {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
+      <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
+        <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a tutor name." }]}>
+          <Input autoFocus maxLength={200} showCount />
+        </Form.Item>
+        <Form.Item label="Description" name="description">
+          <Input.TextArea rows={4} maxLength={2000} showCount placeholder="Explain this tutor's purpose and audience." />
+        </Form.Item>
       </Form>
     </Modal>
   );
@@ -67,13 +64,14 @@ function AddTutorModal({ show, onClose, onCreated }) {
 
 export default function TutorsPage() {
   const navigate = useNavigate();
-  const { roles = [] } = useSelector((state) => state.auth);
-  const canManage = roles.includes("Editor") || roles.includes("Admin");
+  const { message } = App.useApp();
+  const { canWrite: canManage, canDelete } = useRolePermissions();
   const [tutors, setTutors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [reload, setReload] = useState(0);
+  const [deletingId, setDeletingId] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -83,9 +81,7 @@ export default function TutorsPage() {
         setError("");
       })
       .catch((requestError) => {
-        if (requestError.name !== "AbortError") {
-          setError(getApiErrorDescription(requestError, "Could not load tutors."));
-        }
+        if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "Could not load tutors."));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -93,77 +89,129 @@ export default function TutorsPage() {
     return () => controller.abort();
   }, [reload]);
 
-  const openTutor = (tutorId) => navigate(`/tutors/${tutorId}`);
+  const refresh = () => {
+    setLoading(true);
+    setReload((value) => value + 1);
+  };
+
+  const removeTutor = async (tutor) => {
+    setDeletingId(tutor.id);
+    try {
+      await deleteTutor(tutor.id);
+      setTutors((current) => current.filter((item) => item.id !== tutor.id));
+      message.success("Tutor deleted.");
+    } catch (requestError) {
+      message.error(getApiErrorDescription(requestError, "Could not delete the tutor."));
+    } finally {
+      setDeletingId("");
+    }
+  };
+
+  const columns = [
+    {
+      title: "Tutor",
+      key: "tutor",
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (_, tutor) => (
+        <div className="tutor-name-cell">
+          <Typography.Text strong>{tutor.name}</Typography.Text>
+          <Typography.Text type="secondary" ellipsis={{ tooltip: tutor.description || "No description provided." }}>
+            {tutor.description || "No description provided."}
+          </Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      width: 100,
+      filters: ["Draft", "Active", "Inactive", "Disabled"].map((value) => ({ text: value, value })),
+      onFilter: (value, record) => tutorStatus(record.status) === value,
+      render: (value) => <StatusTag value={tutorStatus(value)} />,
+    },
+    {
+      title: "Active revision",
+      key: "revision",
+      width: 140,
+      render: (_, tutor) => tutor.activeRevisionVersionNumber
+        ? <Space size={6}>Rev {tutor.activeRevisionVersionNumber}<StatusTag value={revisionStatus(tutor.activeRevisionStatus)} /></Space>
+        : <Typography.Text type="secondary">Not activated</Typography.Text>,
+    },
+    {
+      title: "Active prompt",
+      key: "prompt",
+      width: 170,
+      ellipsis: true,
+      render: (_, tutor) => tutor.activePromptVersionName
+        ? `v${tutor.activePromptVersionNumber} · ${tutor.activePromptVersionName}`
+        : <Typography.Text type="secondary">Not selected</Typography.Text>,
+    },
+    {
+      title: "Updated",
+      key: "updated",
+      width: 140,
+      sorter: (a, b) => new Date(a.modifiedUtc || a.createdUtc) - new Date(b.modifiedUtc || b.createdUtc),
+      render: (_, tutor) => formatDateTime(tutor.modifiedUtc || tutor.createdUtc),
+    },
+    {
+      title: "",
+      key: "action",
+      width: canDelete ? 90 : 50,
+      align: "right",
+      render: (_, tutor) => (
+        <Space size={6}>
+          <Button
+            aria-label={canManage ? "Configure tutor" : "Open tutor"}
+            title={canManage ? "Configure tutor" : "Open tutor"}
+            icon={<SettingOutlined />}
+            onClick={() => navigate(`/tutors/${tutor.id}`)}
+          />
+          {canDelete ? (
+            <Popconfirm title="Delete this tutor?" description="This permanently removes the tutor and its configuration." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => removeTutor(tutor)}>
+              <Button danger aria-label="Delete tutor" title="Delete tutor" icon={<DeleteOutlined />} loading={deletingId === tutor.id} />
+            </Popconfirm>
+          ) : null}
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <main className="tutor-workspace-page">
-      <Container className="tutor-workspace-container">
-        <header className="tutor-page-header">
-          <div>
-            <span className="tutor-eyebrow">Tutor configuration</span>
-            <h1>Tutors</h1>
-            <p>Build versioned prompts, revisions, runtime model choices, and benchmark-ready configurations.</p>
-          </div>
-          <div className="d-flex gap-2">
-            <Button variant="outline-secondary" onClick={() => { setLoading(true); setReload((value) => value + 1); }} disabled={loading}>Refresh</Button>
-            {canManage && <Button onClick={() => setShowCreate(true)}>Create tutor</Button>}
-          </div>
-        </header>
+    <main className="workspace-page">
+      <div className="workspace-page-inner">
+        <PageHeader
+          title="Tutors"
+          description="Build versioned prompts, runtime configurations, connected knowledge, and benchmark-ready tutor revisions."
+          extra={[
+            <Button key="refresh" icon={<ReloadOutlined />} onClick={refresh} loading={loading}>Refresh</Button>,
+            canManage ? <Button key="create" type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>Create tutor</Button> : null,
+          ].filter(Boolean)}
+        />
 
-        {error && <Alert variant="danger">{error}</Alert>}
-        {loading && <div className="tutor-loading"><Spinner /><span>Loading tutors…</span></div>}
-        {!loading && !error && tutors.length === 0 && (
-          <Card className="tutor-empty-card"><Card.Body><h2>No tutors yet</h2><p>Create a tutor to begin configuring its prompt and runtime revision.</p>{canManage && <Button onClick={() => setShowCreate(true)}>Create first tutor</Button>}</Card.Body></Card>
-        )}
-        {!loading && tutors.length > 0 && (
-          <div className="tutor-list" role="list">
-            {tutors.map((tutor) => {
-              const status = tutorStatus(tutor.status);
-              const activeStatus = revisionStatus(tutor.activeRevisionStatus);
-              return (
-                <Card
-                  key={tutor.id}
-                  className="tutor-list-card"
-                  role="listitem"
-                  tabIndex={0}
-                  onClick={() => openTutor(tutor.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      openTutor(tutor.id);
-                    }
-                  }}
-                >
-                  <Card.Body>
-                    <div className="tutor-list-main">
-                      <div>
-                        <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                          <h2>{tutor.name}</h2>
-                          <Badge bg={statusVariant(status)}>{status}</Badge>
-                        </div>
-                        <p>{tutor.description || "No description provided."}</p>
-                      </div>
-                      <Button variant="outline-primary" onClick={(event) => { event.stopPropagation(); openTutor(tutor.id); }}>
-                        {canManage ? "Configure" : "Open"}
-                      </Button>
-                    </div>
-                    <div className="tutor-list-meta">
-                      <span><strong>Active revision</strong>{tutor.activeRevisionVersionNumber ? `Revision ${tutor.activeRevisionVersionNumber} · ${activeStatus}` : "Not activated"}</span>
-                      <span><strong>Active prompt</strong>{tutor.activePromptVersionName ? `v${tutor.activePromptVersionNumber} · ${tutor.activePromptVersionName}` : "Not selected"}</span>
-                      <span><strong>Updated</strong>{formatDateTime(tutor.modifiedUtc || tutor.createdUtc)}</span>
-                    </div>
-                  </Card.Body>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </Container>
-      <AddTutorModal
-        show={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={(created) => navigate(`/tutors/${created.id}`)}
-      />
+        {error ? <Alert type="error" title="Tutors could not be loaded" description={error} showIcon style={{ marginBottom: 16 }} /> : null}
+
+        <Table
+          className="workspace-table"
+          rowKey="id"
+          columns={columns}
+          dataSource={tutors}
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10, showSizeChanger: true }}
+          locale={{
+            emptyText: (
+              <Empty description="No tutors yet">
+                {canManage ? <Button type="primary" onClick={() => setShowCreate(true)}>Create your first tutor</Button> : null}
+              </Empty>
+            ),
+          }}
+          onRow={(tutor) => ({
+            onDoubleClick: () => navigate(`/tutors/${tutor.id}`),
+          })}
+        />
+      </div>
+
+      <AddTutorModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={(created) => navigate(`/tutors/${created.id}`)} />
     </main>
   );
 }

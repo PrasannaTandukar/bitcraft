@@ -13,15 +13,6 @@ export const formatDateTime = (value) => {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
 };
 
-export const statusVariant = (status) => ({
-  Draft: "secondary",
-  Published: "info",
-  Active: "success",
-  Archived: "dark",
-  Inactive: "warning",
-  Disabled: "danger",
-}[status] ?? "secondary");
-
 export const parseJsonObject = (value) => {
   if (!value) return {};
   const parsed = typeof value === "string" ? JSON.parse(value) : value;

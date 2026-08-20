@@ -13,7 +13,8 @@ SIDECAR_ROOT = REPO_ROOT / "sidecar"
 if str(SIDECAR_ROOT) not in sys.path:
     sys.path.insert(0, str(SIDECAR_ROOT))
 
-app = importlib.import_module("app.main").app
+main_module = importlib.import_module("app.main")
+app = main_module.app
 
 
 client = TestClient(app)
@@ -24,6 +25,49 @@ def test_health_when_called_returns_ok() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Config checks: verify tool registration reflects current product direction
+# (deterministic scoring only; LLM-as-judge deferred) without requiring
+# deepeval, network access, or a live model. These act as a cheap guardrail
+# against silently re-enabling/removing tools during unrelated refactors.
+# ---------------------------------------------------------------------------
+
+
+def test_registry_registers_deterministic_benchmark_tool() -> None:
+    assert main_module.registry.get("deepeval.benchmark") is not None
+
+
+def test_registry_does_not_register_llm_judge_tool() -> None:
+    # LLM-as-judge (deepeval_metrics.py) is intentionally deferred for this
+    # iteration per product direction: deterministic scoring only.
+    assert main_module.registry.get("deepeval.llm_judge_benchmark") is None
+
+
+def test_execute_tool_with_unregistered_llm_judge_key_returns_not_found() -> None:
+    response = client.post(
+        "/internal/tools/execute",
+        json={
+            "tool_key": "deepeval.llm_judge_benchmark",
+            "payload": {
+                "template_key": "single-turn-llm-eval-v1",
+                "consistency_runs": 1,
+                "metrics_json": "[]",
+                "cases": [
+                    {
+                        "case_id": "case-1",
+                        "case_index": 0,
+                        "input_text": "",
+                        "actual_output": "Standalone answer.",
+                    }
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "Sidecar.ToolNotFound"
 
 
 def test_execute_tool_with_unknown_tool_returns_not_found() -> None:
@@ -179,3 +223,71 @@ def test_execute_tool_with_empty_cases_returns_validation_error() -> None:
     )
 
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# /internal/tools/llm-benchmark: standardized built-in benchmarks (MMLU,
+# HellaSwag, etc.). These cases exercise guard-rail paths only (unsupported
+# key, missing opt-in for code execution) so they run without deepeval
+# installed and without reaching a real model, per the safety notes in
+# app/tools/deepeval_llm_benchmarks.py.
+# ---------------------------------------------------------------------------
+
+
+def _judge_model_payload() -> dict:
+    return {"provider": "ollama", "model_name": "llama3.1", "base_url": "http://localhost:11434"}
+
+
+def test_llm_benchmark_with_unsupported_key_returns_structured_error() -> None:
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "not-a-real-benchmark",
+            "judge_model": _judge_model_payload(),
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_score"] is None
+    assert payload["task_count"] == 0
+    assert "Unsupported benchmark_key" in payload["error"]
+
+
+def test_llm_benchmark_human_eval_without_opt_in_returns_safety_error() -> None:
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "human_eval",
+            "judge_model": _judge_model_payload(),
+            "allow_code_execution": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_score"] is None
+    assert "allow_code_execution" in payload["error"]
+
+
+def test_llm_benchmark_with_missing_judge_model_returns_validation_error() -> None:
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={"benchmark_key": "mmlu"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_llm_benchmark_n_shots_out_of_range_returns_validation_error() -> None:
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "mmlu",
+            "judge_model": _judge_model_payload(),
+            "n_shots": 6,
+        },
+    )
+
+    assert response.status_code == 422
+

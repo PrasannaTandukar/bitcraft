@@ -24,8 +24,6 @@ const getBackendErrorMessage = (data, status) => {
     return "Something went wrong. Please try again.";
   }
 
-  console.log("Backend error response:", data);
-
   // Case 1: Backend returns plain array
   // Example: ["Email already exists"]
   if (Array.isArray(data)) {

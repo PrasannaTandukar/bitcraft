@@ -108,4 +108,29 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
             ? NoContent()
             : TutoringMapping.ToActionResult(result.Error);
     }
+
+    /// <summary>Tests connection to a runtime engine.</summary>
+    [HttpPost("test")]
+    [ProducesResponseType(typeof(TestConnectionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<TestConnectionResponse>> TestConnection(
+        [FromBody] TestRuntimeEngineRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+            request.ProviderType,
+            request.Endpoint,
+            request.ApiKeySecretRef);
+
+        var result = await sender.Send(command, cancellationToken);
+        return result.IsSuccess
+            ? Ok(new TestConnectionResponse(
+                result.Value.IsSuccess,
+                result.Value.LatencyMs,
+                result.Value.Message,
+                result.Value.AvailableModels))
+            : TutoringMapping.ToActionResult(result.Error);
+    }
 }

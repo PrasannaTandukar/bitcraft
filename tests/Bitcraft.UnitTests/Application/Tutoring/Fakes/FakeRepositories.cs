@@ -91,6 +91,18 @@ internal sealed class FakeRoleManagementService : IRoleManagementService
         Memberships[userId] = updated;
         return Task.FromResult(Result.Success(updated));
     }
+
+    public Task<Result<UserRoleMembership>> CreateUserAsync(
+        string email,
+        string password,
+        IReadOnlyList<string>? initialRoles = null,
+        CancellationToken cancellationToken = default)
+    {
+        var id = Guid.NewGuid();
+        var membership = new UserRoleMembership(id, email, initialRoles ?? []);
+        Memberships[id] = membership;
+        return Task.FromResult(Result.Success(membership));
+    }
 }
 
 /// <summary>
@@ -188,6 +200,12 @@ internal sealed class FakeTutorRepository : ITutorRepository
     public Task UpdateAsync(Tutor tutor, CancellationToken ct = default)
     {
         Tutors[tutor.Id] = tutor;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(Tutor tutor, CancellationToken ct = default)
+    {
+        Tutors.Remove(tutor.Id);
         return Task.CompletedTask;
     }
 

@@ -1,202 +1,74 @@
-.dashboard-page {
-  flex: 1;
-  background:
-    radial-gradient(circle at 82% 0%, rgba(156, 114, 126, 0.16), transparent 27rem),
-    #f6f4f5;
+.dashboard-alert {
+  margin-bottom: 16px;
 }
 
-.dashboard-container {
-  padding-top: clamp(1.75rem, 4vw, 3rem);
-  padding-bottom: clamp(2rem, 5vw, 4rem);
-}
-
-.dashboard-welcome {
-  margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
-}
-
-.dashboard-badge.badge {
-  margin-bottom: 0.9rem;
-  border-radius: 999px;
-  padding: 0.55rem 0.85rem;
-  color: #8d6571;
-  background: rgba(156, 114, 126, 0.13) !important;
-  font-weight: 600;
-}
-
-.dashboard-welcome h1 {
-  margin-bottom: 0.55rem;
-  color: #231d21;
-  font-size: clamp(2rem, 4vw, 2.7rem);
-  font-weight: 700;
-  letter-spacing: -0.045em;
-}
-
-.dashboard-welcome p {
-  max-width: 44rem;
-  margin-bottom: 0;
-  color: #6d6670;
-  font-size: clamp(1rem, 2vw, 1.1rem);
-}
-
-.dashboard-card.card {
+.dashboard-action-card {
   height: 100%;
-  border: 1px solid rgba(42, 34, 39, 0.06);
-  border-radius: 1.35rem;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 42px rgba(55, 39, 47, 0.08);
 }
 
-.stat-card .card-body {
+.dashboard-action-card .ant-card-body {
   display: flex;
-  min-height: 10rem;
+  min-height: 216px;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 1.35rem;
+  align-items: flex-start;
 }
 
-.stat-card span {
-  color: #6d6670;
-  font-size: 0.9rem;
-  font-weight: 600;
+.dashboard-action-card h5.ant-typography {
+  margin: 18px 0 4px;
 }
 
-.stat-card strong {
-  color: #231d21;
-  font-size: clamp(1.65rem, 3vw, 2.1rem);
-  font-weight: 700;
-  letter-spacing: -0.04em;
+.dashboard-action-card .ant-btn {
+  margin-top: auto;
 }
 
-.stat-card p {
-  margin-bottom: 0;
-  color: #7a737d;
-  font-size: 0.9rem;
-}
-
-.dashboard-section {
-  margin-top: clamp(1.5rem, 3vw, 2.25rem);
-}
-
-.section-heading h2,
-.utility-card h2 {
-  margin-bottom: 1rem;
-  color: #231d21;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.action-card .card-body {
-  display: flex;
-  min-height: 15rem;
-  flex-direction: column;
-  padding: 1.45rem;
-}
-
-.action-card h3 {
-  margin-bottom: 0.8rem;
-  color: #231d21;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.action-card p {
-  flex: 1;
-  margin-bottom: 1.35rem;
-  color: #6d6670;
-  line-height: 1.6;
-}
-
-.dashboard-button.btn {
-  align-self: flex-start;
-  border: 0;
-  border-radius: 999px;
-  padding: 0.7rem 1rem;
-  background: #9c727e;
-  box-shadow: 0 12px 22px rgba(156, 114, 126, 0.2);
-  font-weight: 600;
-}
-
-.dashboard-button.btn:hover,
-.dashboard-button.btn:focus-visible,
-.dashboard-button.btn:active {
-  background: #8d6571 !important;
-}
-
-.utility-card .card-body {
-  min-height: 15rem;
-  padding: 1.45rem;
-}
-
-.empty-state {
-  display: flex;
-  min-height: 10rem;
-  flex-direction: column;
-  justify-content: center;
-  border: 1px dashed rgba(156, 114, 126, 0.28);
-  border-radius: 1rem;
-  padding: 1.25rem;
-  color: #6d6670;
-  background: rgba(156, 114, 126, 0.05);
-}
-
-.empty-state strong {
-  margin-bottom: 0.35rem;
-  color: #40373d;
-}
-
-.empty-state p {
-  margin-bottom: 0;
-}
-
-.status-card ul {
+.dashboard-action-icon,
+.dashboard-list-icon {
   display: grid;
-  gap: 0.85rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 18px;
 }
 
-.status-card li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid rgba(42, 34, 39, 0.07);
-  padding-bottom: 0.85rem;
+.dashboard-tutor-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #eaecf0;
 }
 
-.status-card li:last-child {
-  border-bottom: 0;
+.dashboard-tutor-row:first-child {
+  padding-top: 0;
+}
+
+.dashboard-tutor-row:last-child {
   padding-bottom: 0;
+  border-bottom: 0;
 }
 
-.status-card span {
-  color: #6d6670;
+.dashboard-tutor-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
 }
 
-.status-card strong {
-  color: #49705a;
-  font-size: 0.92rem;
-  text-align: right;
+.dashboard-list-icon {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
 }
 
 @media (max-width: 575px) {
-  .dashboard-container {
-    padding-inline: 1rem;
-  }
-
-  .action-card .card-body,
-  .utility-card .card-body {
-    min-height: auto;
-  }
-
-  .status-card li {
+  .dashboard-tutor-row {
     align-items: flex-start;
-    flex-direction: column;
-    gap: 0.25rem;
+    flex-wrap: wrap;
   }
 
-  .status-card strong {
-    text-align: left;
+  .dashboard-tutor-copy {
+    width: calc(100% - 52px);
+    flex: none;
   }
 }
