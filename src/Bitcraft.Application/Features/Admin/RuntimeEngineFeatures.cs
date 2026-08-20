@@ -235,52 +235,31 @@ public static class RuntimeEngineFeatures
                     request.ProviderType.ToString(),
                     cancellationToken);
 
-                var testModel = request.ProviderType switch
-                {
-                    RuntimeEngineProviderType.Anthropic => "claude-3-5-sonnet-20241022",
-                    RuntimeEngineProviderType.OpenAI => discoveredModels?.FirstOrDefault() ?? "gpt-4o-mini",
-                    _ => discoveredModels?.FirstOrDefault() ?? "default"
-                };
-
-                var genResult = await generationProvider.GenerateAsync(
-                    new LlmGenerationRequest(
-                        "Ping",
-                        testModel,
-                        MaxTokens: 5,
-                        RuntimeEndpoint: request.Endpoint.Trim(),
-                        ApiKeySecretRef: string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
-                        ProviderType: request.ProviderType.ToString()),
-                    cancellationToken);
-
                 stopwatch.Stop();
-
                 var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
-                var modelCount = discoveredModels?.Count ?? 0;
-                var modelSuffix = modelCount > 0 ? $" Detected {modelCount} model(s)." : string.Empty;
-
-                if (genResult.IsSuccess)
-                {
-                    return Result.Success(new TestRuntimeEngineConnectionResult(
-                        true,
-                        latency,
-                        $"Successfully connected to {request.ProviderType} endpoint.{modelSuffix}",
-                        discoveredModels));
-                }
 
                 if (discoveredModels is { Count: > 0 })
                 {
                     return Result.Success(new TestRuntimeEngineConnectionResult(
                         true,
                         latency,
-                        $"Connected to {request.ProviderType} server.{modelSuffix}",
+                        $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s).",
+                        discoveredModels));
+                }
+
+                if (discoveredModels is not null)
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        latency,
+                        $"Successfully reached {request.ProviderType} endpoint (no models reported).",
                         discoveredModels));
                 }
 
                 return Result.Success(new TestRuntimeEngineConnectionResult(
                     false,
                     latency,
-                    genResult.Error.Description,
-                    discoveredModels));
+                    $"Could not reach {request.ProviderType} endpoint or retrieve model catalog."));
             }
             catch (Exception ex)
             {
