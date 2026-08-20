@@ -1,5 +1,5 @@
 import { CheckCircleOutlined, CloseCircleOutlined, DeleteOutlined, EditOutlined, ExperimentOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Drawer, Empty, Form, Input, Popconfirm, Select, Space, Switch, Table, Tag, Typography } from "antd";
+import { Alert, App, Button, Drawer, Empty, Flex, Form, Input, Popconfirm, Select, Space, Switch, Table, Tag, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, getApiErrorDescription } from "./api/client.js";
 import PageHeader from "./components/PageHeader.jsx";
@@ -200,7 +200,20 @@ export default function RuntimeEnginesPage() {
         <Table className="workspace-table" rowKey="id" columns={columns} dataSource={filteredEngines} loading={loading} size="middle" pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: <Empty description="No runtime engines found" /> }} />
       </div>
 
-      <Drawer title={editingEngine ? "Edit runtime engine" : "Add runtime engine"} open={open} onClose={close} size={560} destroyOnHidden footer={<Space style={{ width: "100%", justifyContent: "flex-end" }}><Button onClick={close} disabled={saving || testing}>Cancel</Button><Button icon={<ExperimentOutlined />} onClick={testConnection} loading={testing} disabled={saving}>Test connection</Button><Button type="primary" onClick={() => form.submit()} loading={saving} disabled={testing}>Save engine</Button></Space>}>
+      <Drawer
+        title={editingEngine ? "Edit runtime engine" : "Add runtime engine"}
+        open={open}
+        onClose={close}
+        size={560}
+        destroyOnHidden
+        footer={
+          <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+            <Button onClick={close} disabled={saving || testing}>Cancel</Button>
+            <Button type="default" htmlType="button" icon={<ExperimentOutlined />} onClick={testConnection} loading={testing} disabled={saving}>Test connection</Button>
+            <Button type="primary" htmlType="button" onClick={() => form.submit()} loading={saving} disabled={testing}>Save engine</Button>
+          </Space>
+        }
+      >
         {formError ? <Alert type="error" title={formError} showIcon style={{ marginBottom: 16 }} /> : null}
         {testResult ? (
           <Alert

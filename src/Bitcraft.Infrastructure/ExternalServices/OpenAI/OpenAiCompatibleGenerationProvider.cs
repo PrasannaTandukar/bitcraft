@@ -207,12 +207,17 @@ public class OpenAiCompatibleGenerationProvider(
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-                    if (json.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Array)
+                    if (json.ValueKind == JsonValueKind.Array)
                     {
                         var list = new List<string>();
-                        foreach (var item in dataElem.EnumerateArray())
+                        foreach (var item in json.EnumerateArray())
                         {
-                            if (item.TryGetProperty("id", out var idProp))
+                            if (item.ValueKind == JsonValueKind.String)
+                            {
+                                var str = item.GetString();
+                                if (!string.IsNullOrWhiteSpace(str)) list.Add(str);
+                            }
+                            else if (item.TryGetProperty("id", out var idProp) || item.TryGetProperty("name", out idProp))
                             {
                                 var id = idProp.GetString();
                                 if (!string.IsNullOrWhiteSpace(id)) list.Add(id);
@@ -220,6 +225,34 @@ public class OpenAiCompatibleGenerationProvider(
                         }
                         if (list.Count > 0) return list;
                     }
+                    else if (json.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Array)
+                    {
+                        var list = new List<string>();
+                        foreach (var item in dataElem.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("id", out var idProp) || item.TryGetProperty("name", out idProp))
+                            {
+                                var id = idProp.GetString();
+                                if (!string.IsNullOrWhiteSpace(id)) list.Add(id);
+                            }
+                        }
+                        if (list.Count > 0) return list;
+                    }
+                    else if (json.TryGetProperty("models", out var modelsElem) && modelsElem.ValueKind == JsonValueKind.Array)
+                    {
+                        var list = new List<string>();
+                        foreach (var item in modelsElem.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("name", out var nameProp) || item.TryGetProperty("id", out nameProp))
+                            {
+                                var name = nameProp.GetString();
+                                if (!string.IsNullOrWhiteSpace(name)) list.Add(name);
+                            }
+                        }
+                        if (list.Count > 0) return list;
+                    }
+
+                    return Array.Empty<string>();
                 }
             }
             catch
