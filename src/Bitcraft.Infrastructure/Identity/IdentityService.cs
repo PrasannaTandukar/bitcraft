@@ -138,6 +138,15 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
             return Result.Failure<UserRoleMembership>(new Error("User.NotFound", $"User '{userId}' not found."));
         }
 
+        var bootstrapAdminEmail = Environment.GetEnvironmentVariable("BITCRAFT_ADMIN_EMAIL");
+        if (!string.IsNullOrWhiteSpace(bootstrapAdminEmail) &&
+            string.Equals(user.Email, bootstrapAdminEmail.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Failure<UserRoleMembership>(new Error(
+                "User.ProtectedAdmin",
+                "The bootstrap default administrator account cannot be modified or have roles revoked."));
+        }
+
         if (!await userManager.IsInRoleAsync(user, normalizedRole))
         {
             return Result.Failure<UserRoleMembership>(new Error("Role.NotAssigned", $"User does not have role '{normalizedRole}'."));
@@ -147,6 +156,50 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
         return result.Succeeded
             ? Result.Success(await BuildMembershipAsync(user))
             : Result.Failure<UserRoleMembership>(new Error("Role.RevokeFailed", string.Join(" ", result.Errors.Select(error => error.Description))));
+    }
+
+    public async Task<Result<UserRoleMembership>> CreateUserAsync(
+        string email,
+        string password,
+        IReadOnlyList<string>? initialRoles = null,
+        CancellationToken cancellationToken = default)
+    {
+        var existing = await userManager.FindByEmailAsync(email);
+        if (existing is not null)
+        {
+            return Result.Failure<UserRoleMembership>(new Error(
+                "User.DuplicateEmail",
+                $"A user with email '{email}' already exists."));
+        }
+
+        var user = new AppUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true
+        };
+
+        var createResult = await userManager.CreateAsync(user, password);
+        if (!createResult.Succeeded)
+        {
+            return Result.Failure<UserRoleMembership>(new Error(
+                "User.CreateFailed",
+                string.Join(" ", createResult.Errors.Select(e => e.Description))));
+        }
+
+        if (initialRoles is { Count: > 0 })
+        {
+            foreach (var r in initialRoles)
+            {
+                var normalized = AppRoles.Normalize(r);
+                if (normalized is not null && await roleManager.RoleExistsAsync(normalized))
+                {
+                    await userManager.AddToRoleAsync(user, normalized);
+                }
+            }
+        }
+
+        return Result.Success(await BuildMembershipAsync(user));
     }
 
     private async Task<UserRoleMembership> BuildMembershipAsync(AppUser user)

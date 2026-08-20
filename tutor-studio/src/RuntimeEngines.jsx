@@ -8,7 +8,6 @@ import useRolePermissions from "./hooks/useRolePermissions.js";
 const API_PATH = "/api/admin/runtime-engines";
 const PROVIDER_TYPES = [
   { value: 0, label: "Ollama", defaultEndpoint: "http://localhost:11434" },
-  { value: 2, label: "OpenAI Compatible", defaultEndpoint: "http://localhost:8080/v1" },
   { value: 1, label: "OpenAI", defaultEndpoint: "https://api.openai.com/v1" },
   { value: 101, label: "Anthropic", defaultEndpoint: "https://api.anthropic.com" },
 ];
@@ -208,7 +207,21 @@ export default function RuntimeEnginesPage() {
             type={testResult.isSuccess ? "success" : "warning"}
             icon={testResult.isSuccess ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
             title={testResult.isSuccess ? `Connection verified (${testResult.latencyMs}ms)` : "Connection test failed"}
-            description={testResult.message}
+            description={
+              <div>
+                <div>{testResult.message}</div>
+                {testResult.availableModels && testResult.availableModels.length > 0 ? (
+                  <div style={{ marginTop: 8 }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>Available models ({testResult.availableModels.length}):</Typography.Text>
+                    <Flex gap={4} wrap style={{ marginTop: 4 }}>
+                      {testResult.availableModels.map((m) => (
+                        <Tag key={m}>{m}</Tag>
+                      ))}
+                    </Flex>
+                  </div>
+                ) : null}
+              </div>
+            }
             showIcon
             closable
             onClose={() => setTestResult(null)}

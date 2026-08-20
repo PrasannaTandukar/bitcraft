@@ -44,6 +44,28 @@ public class CompositeLlmGenerationProvider(
 
         return ollamaProvider.GenerateAsync(request, cancellationToken);
     }
+
+    public Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
+        string endpoint,
+        string? apiKeySecretRef,
+        string? providerType,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAI), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAICompatible), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(providerType, nameof(RuntimeEngineProviderType.vLLM), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(providerType, nameof(RuntimeEngineProviderType.LlamaCpp), StringComparison.OrdinalIgnoreCase))
+        {
+            return openAiProvider.ProbeAvailableModelsAsync(endpoint, apiKeySecretRef, cancellationToken);
+        }
+
+        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.Ollama), StringComparison.OrdinalIgnoreCase))
+        {
+            return ollamaProvider.ProbeAvailableModelsAsync(endpoint, cancellationToken);
+        }
+
+        return Task.FromResult<IReadOnlyList<string>?>(null);
+    }
 }
 
 public class CompositeEmbeddingProvider(

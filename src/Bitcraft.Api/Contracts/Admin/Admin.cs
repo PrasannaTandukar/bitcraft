@@ -15,3 +15,9 @@ public class UserResponse
         Roles = membership.Roles;
     }
 }
+
+/// <summary>Request to create a new user in the admin workspace.</summary>
+public sealed record CreateUserRequest(
+    string Email,
+    string Password,
+    IReadOnlyList<string>? Roles = null);

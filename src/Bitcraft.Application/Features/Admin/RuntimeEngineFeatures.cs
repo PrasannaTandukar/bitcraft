@@ -229,11 +229,17 @@ public static class RuntimeEngineFeatures
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
+                var discoveredModels = await generationProvider.ProbeAvailableModelsAsync(
+                    request.Endpoint.Trim(),
+                    string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
+                    request.ProviderType.ToString(),
+                    cancellationToken);
+
                 var testModel = request.ProviderType switch
                 {
                     RuntimeEngineProviderType.Anthropic => "claude-3-5-sonnet-20241022",
-                    RuntimeEngineProviderType.OpenAI => "gpt-4o-mini",
-                    _ => "default"
+                    RuntimeEngineProviderType.OpenAI => discoveredModels?.FirstOrDefault() ?? "gpt-4o-mini",
+                    _ => discoveredModels?.FirstOrDefault() ?? "default"
                 };
 
                 var genResult = await generationProvider.GenerateAsync(
@@ -248,18 +254,33 @@ public static class RuntimeEngineFeatures
 
                 stopwatch.Stop();
 
+                var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
+                var modelCount = discoveredModels?.Count ?? 0;
+                var modelSuffix = modelCount > 0 ? $" Detected {modelCount} model(s)." : string.Empty;
+
                 if (genResult.IsSuccess)
                 {
                     return Result.Success(new TestRuntimeEngineConnectionResult(
                         true,
-                        Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
-                        $"Successfully connected to {request.ProviderType} endpoint."));
+                        latency,
+                        $"Successfully connected to {request.ProviderType} endpoint.{modelSuffix}",
+                        discoveredModels));
+                }
+
+                if (discoveredModels is { Count: > 0 })
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        latency,
+                        $"Connected to {request.ProviderType} server.{modelSuffix}",
+                        discoveredModels));
                 }
 
                 return Result.Success(new TestRuntimeEngineConnectionResult(
                     false,
-                    Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
-                    genResult.Error.Description));
+                    latency,
+                    genResult.Error.Description,
+                    discoveredModels));
             }
             catch (Exception ex)
             {

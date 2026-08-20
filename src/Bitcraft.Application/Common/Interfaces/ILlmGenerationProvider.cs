@@ -13,4 +13,11 @@ public interface ILlmGenerationProvider
         LlmGenerationRequest request,
         CancellationToken cancellationToken = default) =>
         GenerateAsync(request.Prompt, request.Model, cancellationToken);
+
+    Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
+        string endpoint,
+        string? apiKeySecretRef,
+        string? providerType,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<string>?>(null);
 }

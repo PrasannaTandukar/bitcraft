@@ -66,7 +66,7 @@ public class OpenAiCompatibleGenerationProvider(
         }
 
         var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleGenerationProvider));
-        
+
         var apiKey = generationRequest.ApiKeySecretRef
             ?? configuration["ModelProviders:OpenAI:ApiKey"]
             ?? configuration["OPENAI_API_KEY"];
@@ -168,6 +168,67 @@ public class OpenAiCompatibleGenerationProvider(
                 "OpenAI.InvalidResponse",
                 "OpenAI compatible endpoint returned invalid JSON."));
         }
+    }
+
+    public async Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
+        string endpoint,
+        string? apiKeySecretRef,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleGenerationProvider));
+        client.Timeout = TimeSpan.FromSeconds(5);
+
+        var apiKey = apiKeySecretRef
+            ?? configuration["ModelProviders:OpenAI:ApiKey"]
+            ?? configuration["OPENAI_API_KEY"];
+
+        var endpointsToTry = new[]
+        {
+            baseUri.ToString().TrimEnd('/') + "/models",
+            baseUri.ToString().TrimEnd('/') + "/v1/models"
+        };
+
+        foreach (var rawUrl in endpointsToTry.Distinct())
+        {
+            try
+            {
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Get, rawUrl);
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                {
+                    requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+                }
+
+                using var response = await client.SendAsync(requestMessage, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
+                    if (json.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Array)
+                    {
+                        var list = new List<string>();
+                        foreach (var item in dataElem.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("id", out var idProp))
+                            {
+                                var id = idProp.GetString();
+                                if (!string.IsNullOrWhiteSpace(id)) list.Add(id);
+                            }
+                        }
+                        if (list.Count > 0) return list;
+                    }
+                }
+            }
+            catch
+            {
+                // Try next endpoint format
+            }
+        }
+
+        return null;
     }
 
     private static Uri BuildChatCompletionsUri(Uri baseUri)

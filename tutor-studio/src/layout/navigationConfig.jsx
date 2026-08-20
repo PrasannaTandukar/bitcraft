@@ -55,7 +55,7 @@ export const navigationGroups = [
     items: [
       {
         key: "/admin/roles",
-        label: "Role Management",
+        label: "User Management",
         icon: <SafetyCertificateOutlined />,
         roles: ["Admin"],
       },

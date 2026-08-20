@@ -157,6 +157,48 @@ public class OllamaGenerationProvider(
         }
     }
 
+    public async Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
+        string endpoint,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var baseUri))
+        {
+            return null;
+        }
+
+        var client = httpClientFactory.CreateClient(nameof(OllamaGenerationProvider));
+        client.Timeout = TimeSpan.FromSeconds(5);
+
+        try
+        {
+            var tagUri = new Uri(baseUri, "/api/tags");
+            using var response = await client.GetAsync(tagUri, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
+                if (json.TryGetProperty("models", out var modelsElem) && modelsElem.ValueKind == JsonValueKind.Array)
+                {
+                    var list = new List<string>();
+                    foreach (var item in modelsElem.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("name", out var nameProp))
+                        {
+                            var name = nameProp.GetString();
+                            if (!string.IsNullOrWhiteSpace(name)) list.Add(name);
+                        }
+                    }
+                    return list;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore probe errors
+        }
+
+        return null;
+    }
+
     private sealed record GenerateRequest(string Model, string Prompt, bool Stream, GenerateOptions Options);
     private sealed record GenerateOptions(
         double? Temperature,
