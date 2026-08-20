@@ -158,8 +158,9 @@ export default function UsersPage() {
         <PageHeader
           title="User Management"
           description="Create workspace users and assign or revoke their access roles."
-          action={
+          extra={[
             <Button
+              key="create-user"
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => {
@@ -170,7 +171,7 @@ export default function UsersPage() {
             >
               Create User
             </Button>
-          }
+          ]}
         />
         {error ? <Alert type="error" title="Users and roles could not be loaded" description={error} showIcon style={{ marginBottom: 16 }} /> : null}
         <Input className="management-search" prefix={<SearchOutlined />} allowClear value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email or role" />
