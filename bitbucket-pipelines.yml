@@ -4,19 +4,27 @@ pipelines:
   branches:
     'deploy/orin':
       - step:
-          name: Verify Jetson Runner
+          name: Verify Jetson Docker Access
 
           runs-on:
             - self.hosted
             - linux.arm64
             - bitcraft.jetson
 
+          runtime:
+            self-hosted:
+              volumes:
+                - "/var/run/docker.sock:/var/run/docker.sock"
+
           script:
-            - echo "================================"
-            - echo "Bitcraft Jetson runner is working"
-            - echo "================================"
+            - echo "Architecture:"
             - uname -m
-            - hostname
-            - pwd
-            - git rev-parse --short HEAD
-            - 'echo "Branch: $BITBUCKET_BRANCH"'
+
+            - echo "Docker:"
+            - docker version
+
+            - echo "Docker Compose:"
+            - docker compose version
+
+            - echo "Current Jetson containers:"
+            - docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
