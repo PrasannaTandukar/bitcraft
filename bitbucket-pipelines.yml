@@ -19,4 +19,4 @@ pipelines:
             - hostname
             - pwd
             - git rev-parse --short HEAD
-            - echo "Branch: $BITBUCKET_BRANCH"
+            - 'echo "Branch: $BITBUCKET_BRANCH"'
