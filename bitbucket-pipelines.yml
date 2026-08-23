@@ -1,0 +1,22 @@
+image: atlassian/default-image:5
+
+pipelines:
+  branches:
+    'deploy/orin':
+      - step:
+          name: Verify Jetson Runner
+
+          runs-on:
+            - self.hosted
+            - linux.arm64
+            - bitcraft.jetson
+
+          script:
+            - echo "================================"
+            - echo "Bitcraft Jetson runner is working"
+            - echo "================================"
+            - uname -m
+            - hostname
+            - pwd
+            - git rev-parse --short HEAD
+            - echo "Branch: $BITBUCKET_BRANCH"
