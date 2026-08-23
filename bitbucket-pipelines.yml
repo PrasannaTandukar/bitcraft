@@ -16,7 +16,12 @@ pipelines:
             - chmod 700 ~/.ssh
             - 'printf "%s\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts'
             - chmod 600 ~/.ssh/known_hosts
-
             - echo "Testing Docker access on Jetson"
 
-            - 'ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST" "echo DOCKER_TEST_START && docker version && docker compose version && docker ps --format '\''table {{.Names}}\t{{.Image}}\t{{.Status}}'\'' && echo DOCKER_TEST_SUCCESS"'
+            - >
+              ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST"
+              "echo DOCKER_TEST_START &&
+              docker version &&
+              docker compose version &&
+              docker ps &&
+              echo DOCKER_TEST_SUCCESS"
