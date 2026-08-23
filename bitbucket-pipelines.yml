@@ -4,44 +4,19 @@ pipelines:
   branches:
     'deploy/orin':
       - step:
-          name: Deploy Bitcraft to Jetson
+          name: Verify Jetson Runner
 
           runs-on:
             - self.hosted
             - linux.arm64
             - bitcraft.jetson
 
-          runtime:
-            self-hosted:
-              volumes:
-                - "/var/run/docker.sock:/var/run/docker.sock"
-
           script:
-            - set -e
-
-            - echo "===================================="
-            - echo "Deploying Bitcraft"
-            - echo "Commit: $BITBUCKET_COMMIT"
-            - echo "Branch: $BITBUCKET_BRANCH"
-            - echo "===================================="
-
-            - docker version
-            - docker compose version
-
-            - docker compose \
-              -p bitcraft \
-              -f docker-compose.yml \
-              -f docker-compose.prod.yml \
-              up -d --build --remove-orphans
-
-            - echo "===================================="
-            - echo "Deployment containers"
-            - echo "===================================="
-
-            - docker compose \
-              -p bitcraft \
-              -f docker-compose.yml \
-              -f docker-compose.prod.yml \
-              ps
-
-            - echo "Deployment completed."
+            - echo "================================"
+            - echo "Bitcraft Jetson runner is working"
+            - echo "================================"
+            - uname -m
+            - hostname
+            - pwd
+            - git rev-parse --short HEAD
+            - 'echo "Branch: $BITBUCKET_BRANCH"'
