@@ -4,7 +4,7 @@ pipelines:
   branches:
     'deploy/orin':
       - step:
-          name: Test Docker on Jetson
+          name: Deploy Bitcraft to Jetson
 
           runs-on:
             - self.hosted
@@ -16,12 +16,24 @@ pipelines:
             - chmod 700 ~/.ssh
             - 'printf "%s\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts'
             - chmod 600 ~/.ssh/known_hosts
-            - echo "Testing Docker access on Jetson"
 
-            - >
-              ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST"
-              "echo DOCKER_TEST_START &&
-              docker version &&
-              docker compose version &&
-              docker ps &&
-              echo DOCKER_TEST_SUCCESS"
+            - |
+              ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST" 'bash -se' <<'REMOTE'
+              set -euo pipefail
+
+              cd /home/cmpe6012/AgenticTutor/bitcraft-deploy
+
+              echo "Fetching deploy/orin..."
+              git fetch origin deploy/orin
+
+              echo "Updating deployment checkout..."
+              git reset --hard origin/deploy/orin
+
+              echo "Now deploying commit:"
+              git log -1 --oneline
+
+              echo "Starting Docker deployment..."
+              sudo -n /usr/local/sbin/bitcraft-deploy
+
+              echo "BITCRAFT_DEPLOYMENT_SUCCESS"
+              REMOTE
