@@ -4,24 +4,20 @@ pipelines:
   branches:
     'deploy/orin':
       - step:
-          name: Verify Jetson Docker Access
+          name: Test SSH to Jetson
 
           runs-on:
             - self.hosted
             - linux.arm64
             - bitcraft.jetson
 
-          runtime:
-            self-hosted:
-              volumes:
-                - "/var/run/docker.sock:/var/run/docker.sock"
-
           script:
-            - echo "Architecture"
-            - uname -m
-            - echo "Docker version"
-            - docker version
-            - echo "Docker Compose version"
-            - docker compose version
-            - echo "Containers currently running on Jetson"
-            - docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+            - echo "Preparing SSH"
+            - mkdir -p ~/.ssh
+            - chmod 700 ~/.ssh
+            - 'printf "%s\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts'
+            - chmod 600 ~/.ssh/known_hosts
+
+            - echo "Connecting to Jetson"
+
+            - 'ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST" "echo SSH_CONNECTION_SUCCESS && hostname && uname -m"'
