@@ -4,7 +4,7 @@ pipelines:
   branches:
     'deploy/orin':
       - step:
-          name: Verify Jetson Docker Access
+          name: Deploy Bitcraft to Jetson
 
           runs-on:
             - self.hosted
@@ -17,14 +17,31 @@ pipelines:
                 - "/var/run/docker.sock:/var/run/docker.sock"
 
           script:
-            - echo "Architecture:"
-            - uname -m
+            - set -e
 
-            - echo "Docker:"
+            - echo "===================================="
+            - echo "Deploying Bitcraft"
+            - echo "Commit: $BITBUCKET_COMMIT"
+            - echo "Branch: $BITBUCKET_BRANCH"
+            - echo "===================================="
+
             - docker version
-
-            - echo "Docker Compose:"
             - docker compose version
 
-            - echo "Current Jetson containers:"
-            - docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+            - docker compose \
+              -p bitcraft \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              up -d --build --remove-orphans
+
+            - echo "===================================="
+            - echo "Deployment containers"
+            - echo "===================================="
+
+            - docker compose \
+              -p bitcraft \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              ps
+
+            - echo "Deployment completed."
