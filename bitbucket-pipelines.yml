@@ -4,7 +4,7 @@ pipelines:
   branches:
     'deploy/orin':
       - step:
-          name: Test SSH to Jetson
+          name: Test Docker on Jetson
 
           runs-on:
             - self.hosted
@@ -12,12 +12,11 @@ pipelines:
             - bitcraft.jetson
 
           script:
-            - echo "Preparing SSH"
             - mkdir -p ~/.ssh
             - chmod 700 ~/.ssh
             - 'printf "%s\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts'
             - chmod 600 ~/.ssh/known_hosts
 
-            - echo "Connecting to Jetson"
+            - echo "Testing Docker access on Jetson"
 
-            - 'ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST" "echo SSH_CONNECTION_SUCCESS && hostname && uname -m"'
+            - 'ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST" "echo DOCKER_TEST_START && docker version && docker compose version && docker ps --format '\''table {{.Names}}\t{{.Image}}\t{{.Status}}'\'' && echo DOCKER_TEST_SUCCESS"'
