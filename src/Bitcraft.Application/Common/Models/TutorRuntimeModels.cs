@@ -6,7 +6,7 @@ public enum TutorRuntimeExecutionMode
     Benchmark = 1,
 }
 
-public sealed record TutorRuntimeConversationMessage(string Role, string Content);
+public sealed record TutorRuntimeConversationMessage(string Role, string Content, IReadOnlyList<Guid>? AttachmentIds = null);
 
 public sealed record TutorRuntimeRequest(
     Guid TutorId,
@@ -17,14 +17,16 @@ public sealed record TutorRuntimeRequest(
     bool UseKnowledge = true,
     int TopK = 5,
     TutorRuntimeExecutionMode ExecutionMode = TutorRuntimeExecutionMode.Interactive,
-    IReadOnlyList<TutorRuntimeConversationMessage>? History = null);
+    IReadOnlyList<TutorRuntimeConversationMessage>? History = null,
+    IReadOnlyList<Guid>? AttachmentIds = null);
 
 public sealed record TutorRuntimeModelMetadata(
     Guid Id,
     string Name,
     string ProviderModelName,
     Guid RuntimeEngineId,
-    string RuntimeEngineName);
+    string RuntimeEngineName,
+    bool SupportsImageInput = false);
 
 public sealed record TutorRuntimeEmbeddingModelMetadata(
     Guid Id,
@@ -70,6 +72,8 @@ public sealed record TutorRuntimeDescriptor(
     TutorRuntimeEmbeddingModelMetadata? EmbeddingModel,
     int KnowledgeDocumentCount);
 
+public sealed record LlmImageInput(string MimeType, ReadOnlyMemory<byte> Data);
+
 public sealed record LlmGenerationRequest(
     string Prompt,
     string? Model,
@@ -78,7 +82,8 @@ public sealed record LlmGenerationRequest(
     int? MaxTokens = null,
     string? RuntimeEndpoint = null,
     string? ApiKeySecretRef = null,
-    string? ProviderType = null);
+    string? ProviderType = null,
+    IReadOnlyList<LlmImageInput>? Images = null);
 
 public sealed record EmbeddingGenerationRequest(
     string Text,

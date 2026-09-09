@@ -70,16 +70,27 @@ public class OllamaGenerationProvider(
             selectedModel.Trim(),
             generationRequest.Prompt.Trim(),
             Stream: false,
+            Think: false,
             new GenerateOptions(
                 generationRequest.Temperature,
                 generationRequest.TopP,
-                generationRequest.MaxTokens));
+                generationRequest.MaxTokens),
+            Images: generationRequest.Images is { Count: > 0 }
+                ? generationRequest.Images
+                    .Select(image => Convert.ToBase64String(image.Data.Span))
+                    .ToList()
+                : null);
 
         try
         {
             using var response = await client.PostAsJsonAsync(endpoint, request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                if (generationRequest.Images is { Count: > 0 } && (int)response.StatusCode is 400 or 415 or 422)
+                {
+                    logger?.LogWarning("Provider rejected image input. Model={Model}, ImageCount={ImageCount}, StatusCode={StatusCode}", selectedModel, generationRequest.Images.Count, (int)response.StatusCode);
+                    return Result.Failure<LlmGenerationResult>(new Error("Ollama.ImageRejected", "The configured provider rejected the image request."));
+                }
                 logger?.LogWarning(
                     "Ollama generation failed. Operation={Operation}, Model={Model}, StatusCode={StatusCode}",
                     "generate",
@@ -97,13 +108,30 @@ public class OllamaGenerationProvider(
             }
 
             var payload = await response.Content.ReadFromJsonAsync<GenerateResponse>(cancellationToken: cancellationToken);
-            if (payload is null ||
-                string.IsNullOrWhiteSpace(payload.Model) ||
-                string.IsNullOrWhiteSpace(payload.Response))
+            if (payload is null || string.IsNullOrWhiteSpace(payload.Model))
             {
+                logger?.LogWarning(
+                    "Ollama returned an invalid payload. Model={Model}",
+                    selectedModel);
+
                 return Result.Failure<LlmGenerationResult>(new Error(
                     "Ollama.InvalidResponse",
-                    "Ollama generation response did not contain generated text."));
+                    "Ollama returned an invalid generation response."));
+            }
+
+            if (string.IsNullOrWhiteSpace(payload.Response))
+            {
+                logger?.LogWarning(
+                    "Ollama returned no final response. Model={Model}, Done={Done}, DoneReason={DoneReason}, EvalCount={EvalCount}, HasThinking={HasThinking}",
+                    selectedModel,
+                    payload.Done,
+                    payload.DoneReason,
+                    payload.EvalCount,
+                    !string.IsNullOrWhiteSpace(payload.Thinking));
+
+                return Result.Failure<LlmGenerationResult>(new Error(
+                    "Ollama.InvalidResponse",
+                    "Ollama completed generation but returned no final answer."));
             }
 
             return Result.Success(new LlmGenerationResult(
@@ -199,10 +227,25 @@ public class OllamaGenerationProvider(
         return null;
     }
 
-    private sealed record GenerateRequest(string Model, string Prompt, bool Stream, GenerateOptions Options);
+    private sealed record GenerateRequest(
+        string Model,
+        string Prompt,
+        bool Stream,
+        bool Think,
+        GenerateOptions Options,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        IReadOnlyList<string>? Images = null);
     private sealed record GenerateOptions(
         double? Temperature,
         [property: JsonPropertyName("top_p")] double? TopP,
         [property: JsonPropertyName("num_predict")] int? MaxTokens);
-    private sealed record GenerateResponse(string? Model, string? Response, bool Done);
+    private sealed record GenerateResponse(
+        string? Model,
+        string? Response,
+        string? Thinking,
+        bool Done,
+        [property: JsonPropertyName("done_reason")]
+        string? DoneReason,
+        [property: JsonPropertyName("eval_count")]
+        int? EvalCount);
 }

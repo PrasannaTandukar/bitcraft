@@ -20,4 +20,5 @@ public sealed record TutorConfigurationSnapshotResponse(
     Guid? TutorRevisionId,
     int? RevisionVersionNumber,
     string? PromptVersionName,
-    string? InteractionModelName);
+    string? InteractionModelName,
+    bool SupportsImageInput = false);

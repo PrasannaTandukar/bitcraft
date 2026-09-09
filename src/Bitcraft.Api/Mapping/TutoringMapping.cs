@@ -28,20 +28,24 @@ internal static class TutoringMapping
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status403Forbidden },
         "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
-        "Ollama.ModelNotFound" or "Ollama.InvalidResponse" or "TutorRuntime.GenerationFailed" or
+        "InteractionModel.ImageTestFailed" or "TutorRuntime.ImageRejected" or "Ollama.ModelNotFound" or "Ollama.InvalidResponse" or "TutorRuntime.GenerationFailed" or
         "TutorRuntime.EmbeddingUnavailable" or "TutorRuntime.KnowledgeSearchFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
-        "TutorRuntime.NoActiveRevision" or "TutorRuntime.InvalidRevision" or
+        "TutorRuntime.ImageInputNotSupported" or "TutorRuntime.NoActiveRevision" or "TutorRuntime.InvalidRevision" or
         "TutorRuntime.PromptNotConfigured" or "TutorRuntime.InteractionModelNotConfigured" or
         "TutorRuntime.InteractionModelDisabled" or "TutorRuntime.EmbeddingModelDisabled" or
         "TutorRuntime.SnapshotMissing" or "TutorRuntime.KnowledgeConfigurationInvalid" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status409Conflict },
         "Knowledge.EmbeddingServiceUnavailable" or "Knowledge.EmbeddingRequestFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
-        "Document.FileTooLarge" =>
+        "ChatAttachment.FileTooLarge" or "Document.FileTooLarge" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status413PayloadTooLarge },
-        "Document.UnsupportedFileType" =>
+        "ChatAttachment.UnsupportedType" or "Document.UnsupportedFileType" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status415UnsupportedMediaType },
+        "ChatAttachment.Expired" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status410Gone },
+        "ChatAttachment.StorageUnavailable" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status503ServiceUnavailable },
         "Rag.SearchFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status500InternalServerError },
         _ => new BadRequestObjectResult(new ApiError(error.Code, error.Description)),
@@ -169,7 +173,8 @@ internal static class TutoringMapping
         model.Id,
         model.Name,
         model.ProviderModelName,
-        model.RuntimeEngineName);
+        model.RuntimeEngineName,
+        model.SupportsImageInput);
 
     private static TutorRuntimeEmbeddingModelResponse ToResponse(this TutorRuntimeEmbeddingModelMetadata model) => new(
         model.Id,
@@ -188,7 +193,8 @@ internal static class TutoringMapping
         model.CreatedUtc,
         model.CreatedById,
         model.ModifiedUtc,
-        model.ModifiedById);
+        model.ModifiedById,
+        model.Capabilities.HasFlag(ModelCapabilities.ImageInput));
 
     public static EmbeddingModelResponse ToResponse(this EmbeddingModel model) => new(
         model.Id,
@@ -292,7 +298,8 @@ internal static class TutoringMapping
         s.TutorModelConnectionId, s.InteractionModelId, s.ModelName, s.ModelSettingsJson,
         s.ToolsJson, s.KnowledgeSourcesJson, s.DeploymentProfileJson, s.CapturedUtc, s.CapturedById,
         s.TutorRevisionId, s.TutorRevision?.VersionNumber, s.TutorRevision?.PromptVersion?.Name,
-        s.TutorRevision?.InteractionModel?.Name);
+        s.TutorRevision?.InteractionModel?.Name,
+        s.ModelCapabilities.HasFlag(ModelCapabilities.ImageInput));
 
     public static TutorRevisionResponse ToResponse(this TutorRevision r) => new(
         r.Id,

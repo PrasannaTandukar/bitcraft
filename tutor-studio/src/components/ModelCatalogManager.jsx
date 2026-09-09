@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, getApiErrorDescription } from "../api/client.js";
 import useRolePermissions from "../hooks/useRolePermissions.js";
 import PageHeader from "./PageHeader.jsx";
+import ModelImageInputTest from "./ModelImageInputTest.jsx";
 
 const ENGINES_PATH = "/api/admin/runtime-engines";
 
@@ -223,6 +224,7 @@ export default function ModelCatalogManager({ kind }) {
       providerModelName: model.providerModelName ?? undefined,
       settingsJson: model.settingsJson ?? undefined,
       isEnabled: model.isEnabled,
+      supportsImageInput: model.supportsImageInput ?? false,
       embeddingDimensions: model.embeddingDimensions,
     });
     setOpen(true);
@@ -248,6 +250,7 @@ export default function ModelCatalogManager({ kind }) {
         settingsJson: values.settingsJson?.trim() || null,
         isEnabled: values.isEnabled,
       };
+      if (!isEmbedding) payload.supportsImageInput = Boolean(values.supportsImageInput);
       if (isEmbedding && !editingModel) payload.embeddingDimensions = Number(values.embeddingDimensions);
       if (editingModel) {
         const updated = await apiFetch(`${config.apiPath}/${editingModel.id}`, { method: "PUT", json: payload });
@@ -282,7 +285,7 @@ export default function ModelCatalogManager({ kind }) {
   };
 
   const columns = [
-    { title: "Name", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name), render: (value, model) => <div className="management-name-cell"><Typography.Text strong>{value}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: model.providerModelName }}>{model.providerModelName || "Provider model not specified"}</Typography.Text></div> },
+    { title: "Name", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name), render: (value, model) => <div className="management-name-cell"><Typography.Text strong>{value} {!isEmbedding && model.supportsImageInput ? <Tag color="purple">Vision</Tag> : null}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: model.providerModelName }}>{model.providerModelName || "Provider model not specified"}</Typography.Text></div> },
     { title: "Runtime", dataIndex: "runtimeEngineName", width: 160, ellipsis: true, render: (value) => value || "—" },
     ...(isEmbedding ? [{ title: "Dimensions", dataIndex: "embeddingDimensions", width: 120, sorter: (a, b) => a.embeddingDimensions - b.embeddingDimensions, render: (value) => value > 0 ? Number(value).toLocaleString() : "—" }] : []),
     { title: "Status", dataIndex: "isEnabled", width: 100, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
@@ -328,7 +331,7 @@ export default function ModelCatalogManager({ kind }) {
         {formError ? <Alert type="error" title={formError} showIcon style={{ marginBottom: 16 }} /> : null}
         {engineError ? <Alert type="error" title={engineError} showIcon style={{ marginBottom: 16 }} /> : null}
         {!editingModel && !engines.length && !engineError ? <Alert type="warning" title="No enabled runtime engines are available. Add or enable a runtime engine first." showIcon style={{ marginBottom: 16 }} /> : null}
-        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, embeddingDimensions: 0 }}>
+        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, supportsImageInput: false, embeddingDimensions: 0 }}>
           <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a model name." }]}><Input placeholder={`My ${isEmbedding ? "Embedding" : "Interaction"} Model`} /></Form.Item>
           <Form.Item label="Runtime engine" name="runtimeEngineId" rules={[{ required: true, message: "Select a runtime engine." }]}>
             <Select
@@ -409,6 +412,15 @@ export default function ModelCatalogManager({ kind }) {
             <Form.Item label="Embedding dimensions" name="embeddingDimensions" extra={editingModel ? "Dimensions cannot be changed after a model is created." : undefined}>
               <InputNumber min={0} precision={0} style={{ width: "100%" }} disabled={Boolean(editingModel)} />
             </Form.Item>
+          ) : null}
+          {!isEmbedding ? (
+            <section aria-label="Capabilities">
+              <Typography.Title level={5}>Capabilities</Typography.Title>
+              <Form.Item label="Image input / Vision" name="supportsImageInput" valuePropName="checked" extra="Allows tutors using this model to receive images. Activate a new tutor revision to apply capability changes.">
+                <Switch />
+              </Form.Item>
+              {editingModel ? <ModelImageInputTest key={editingModel.id} modelId={editingModel.id} disabled={saving} /> : null}
+            </section>
           ) : null}
           <Form.Item label="Settings JSON" name="settingsJson"><Input.TextArea className="workspace-code" autoSize={{ minRows: 4, maxRows: 12 }} placeholder='{"temperature": 0.7}' /></Form.Item>
           <Form.Item label="Enabled" name="isEnabled" valuePropName="checked"><Switch /></Form.Item>
