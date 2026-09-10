@@ -299,6 +299,65 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.ToTable("BenchmarkTemplates", (string)null);
                 });
 
+            modelBuilder.Entity("Bitcraft.Domain.Chat.ChatAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ByteLength")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresUtc");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedById", "Id");
+
+                    b.ToTable("ChatAttachments", (string)null);
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Documents.Document", b =>
                 {
                     b.Property<Guid>("Id")
@@ -960,6 +1019,11 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<string>("KnowledgeSourcesJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<int>("ModelCapabilities")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("ModelName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -1422,6 +1486,11 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                 {
                     b.HasBaseType("Bitcraft.Domain.Modeling.Model");
 
+                    b.Property<int>("Capabilities")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.HasDiscriminator().HasValue("Interaction");
                 });
 
@@ -1530,6 +1599,24 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("ModifiedBy");
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Chat.ChatAttachment", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Documents.Document", b =>

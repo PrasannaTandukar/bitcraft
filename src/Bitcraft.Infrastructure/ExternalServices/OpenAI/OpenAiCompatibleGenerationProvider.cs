@@ -71,16 +71,24 @@ public class OpenAiCompatibleGenerationProvider(
             ?? configuration["ModelProviders:OpenAI:ApiKey"]
             ?? configuration["OPENAI_API_KEY"];
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildChatCompletionsUri(baseUri));
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildChatCompletionsUri(baseUri));
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
         }
 
-        var messages = new List<ChatMessagePayload>
+        object content = generationRequest.Prompt.Trim();
+        if (generationRequest.Images is { Count: > 0 })
         {
-            new("user", generationRequest.Prompt.Trim())
-        };
+            var parts = new List<object> { new { type = "text", text = generationRequest.Prompt.Trim() } };
+            parts.AddRange(generationRequest.Images.Select(image => (object)new
+            {
+                type = "image_url",
+                image_url = new { url = $"data:{image.MimeType};base64,{Convert.ToBase64String(image.Data.Span)}" }
+            }));
+            content = parts;
+        }
+        var messages = new List<ChatMessagePayload> { new("user", content) };
 
         var requestBody = new ChatCompletionsRequest(
             selectedModel.Trim(),
@@ -97,6 +105,11 @@ public class OpenAiCompatibleGenerationProvider(
             using var response = await client.SendAsync(requestMessage, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                if (generationRequest.Images is { Count: > 0 } && (int)response.StatusCode is 400 or 415 or 422)
+                {
+                    logger?.LogWarning("Provider rejected image input. Model={Model}, ImageCount={ImageCount}, StatusCode={StatusCode}", selectedModel, generationRequest.Images.Count, (int)response.StatusCode);
+                    return Result.Failure<LlmGenerationResult>(new Error("OpenAI.ImageRejected", "The configured provider rejected the image request."));
+                }
                 logger?.LogWarning(
                     "OpenAI compatible generation failed. Model={Model}, StatusCode={StatusCode}",
                     selectedModel,
@@ -123,9 +136,9 @@ public class OpenAiCompatibleGenerationProvider(
             }
 
             var payload = await response.Content.ReadFromJsonAsync<ChatCompletionsResponse>(cancellationToken: cancellationToken);
-            var content = payload?.Choices?.FirstOrDefault()?.Message?.Content;
+            var answer = payload?.Choices?.FirstOrDefault()?.Message?.Content;
 
-            if (payload is null || string.IsNullOrWhiteSpace(content))
+            if (payload is null || string.IsNullOrWhiteSpace(answer))
             {
                 return Result.Failure<LlmGenerationResult>(new Error(
                     "OpenAI.InvalidResponse",
@@ -134,7 +147,7 @@ public class OpenAiCompatibleGenerationProvider(
 
             return Result.Success(new LlmGenerationResult(
                 payload.Model ?? selectedModel,
-                content.Trim(),
+                answer.Trim(),
                 Done: true));
         }
         catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -280,7 +293,7 @@ public class OpenAiCompatibleGenerationProvider(
 
     private sealed record ChatMessagePayload(
         [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("content")] string Content);
+        [property: JsonPropertyName("content")] object Content);
 
     private sealed record ChatCompletionsRequest(
         [property: JsonPropertyName("model")] string Model,
@@ -295,8 +308,10 @@ public class OpenAiCompatibleGenerationProvider(
         [property: JsonPropertyName("model")] string? Model,
         [property: JsonPropertyName("choices")] IReadOnlyList<ChoicePayload>? Choices);
 
+    private sealed record ChatResponseMessagePayload([property: JsonPropertyName("content")] string? Content);
+
     private sealed record ChoicePayload(
         [property: JsonPropertyName("index")] int Index,
-        [property: JsonPropertyName("message")] ChatMessagePayload? Message,
+        [property: JsonPropertyName("message")] ChatResponseMessagePayload? Message,
         [property: JsonPropertyName("finish_reason")] string? FinishReason);
 }

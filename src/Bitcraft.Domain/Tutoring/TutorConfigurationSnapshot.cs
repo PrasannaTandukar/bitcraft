@@ -26,6 +26,7 @@ public class TutorConfigurationSnapshot : BaseModel
     public Guid? TutorModelConnectionId { get; private set; }
     public Guid? InteractionModelId { get; private set; }
     public string? ModelName { get; private set; }
+    public ModelCapabilities ModelCapabilities { get; private set; }
     public string? ModelSettingsJson { get; private set; }
     public string? ToolsJson { get; private set; }
     public string? KnowledgeSourcesJson { get; private set; }
@@ -81,6 +82,7 @@ public class TutorConfigurationSnapshot : BaseModel
             TutorModelConnectionId = tutorRevision is null ? tutorModelConnection?.Id : null,
             InteractionModelId = interactionModel?.Id,
             ModelName = interactionModel?.ProviderModelName,
+            ModelCapabilities = interactionModel?.Capabilities ?? ModelCapabilities.None,
             ModelSettingsJson = tutorRevision is not null
                 ? tutorRevision.InteractionParametersJson ?? interactionModel?.SettingsJson
                 : tutorModelConnection?.OverrideSettingsJson ?? interactionModel?.SettingsJson,

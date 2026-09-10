@@ -16,7 +16,8 @@ public static class InteractionModelFeatures
         Guid RuntimeEngineId,
         string ProviderModelName,
         string? SettingsJson,
-        bool IsEnabled) : IRequest<Result<InteractionModel>>;
+        bool IsEnabled,
+        bool SupportsImageInput = false) : IRequest<Result<InteractionModel>>;
 
     public sealed class CreateInteractionModelHandler(
         IModelRepository models,
@@ -60,6 +61,7 @@ public static class InteractionModelFeatures
                 RuntimeEngineId = request.RuntimeEngineId,
                 ProviderModelName = request.ProviderModelName.Trim(),
                 SettingsJson = string.IsNullOrWhiteSpace(request.SettingsJson) ? null : request.SettingsJson,
+                Capabilities = request.SupportsImageInput ? ModelCapabilities.ImageInput : ModelCapabilities.None,
                 IsEnabled = request.IsEnabled
             };
 
@@ -117,7 +119,8 @@ public static class InteractionModelFeatures
         Guid RuntimeEngineId,
         string ProviderModelName,
         string? SettingsJson,
-        bool IsEnabled) : IRequest<Result<InteractionModel>>;
+        bool IsEnabled,
+        bool SupportsImageInput = false) : IRequest<Result<InteractionModel>>;
 
     public sealed class UpdateInteractionModelHandler(
         IModelRepository models,
@@ -166,6 +169,9 @@ public static class InteractionModelFeatures
             existing.ProviderModelName = request.ProviderModelName.Trim();
             existing.SettingsJson = string.IsNullOrWhiteSpace(request.SettingsJson) ? null : request.SettingsJson;
             existing.IsEnabled = request.IsEnabled;
+            existing.Capabilities = request.SupportsImageInput
+                ? existing.Capabilities | ModelCapabilities.ImageInput
+                : existing.Capabilities & ~ModelCapabilities.ImageInput;
 
             await models.UpdateAsync(existing, cancellationToken);
             return Result.Success(existing);
@@ -194,6 +200,41 @@ public static class InteractionModelFeatures
 
             await models.DeleteAsync(existing, cancellationToken);
             return Result.Success();
+        }
+    }
+
+    public sealed record TestImageInputCommand(Guid ModelId, Guid AttachmentId) : IRequest<Result<ImageInputTestResponse>>;
+    public sealed record ImageInputTestResponse(string Answer);
+
+    public sealed class TestImageInputHandler(
+        IModelRepository models,
+        IRuntimeEngineRepository engines,
+        IChatAttachmentService attachments,
+        ILlmGenerationProvider generation,
+        ICurrentUserContext currentUser) : IRequestHandler<TestImageInputCommand, Result<ImageInputTestResponse>>
+    {
+        public async Task<Result<ImageInputTestResponse>> Handle(TestImageInputCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+                return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.Forbidden", "Only administrators can test interaction models."));
+            var model = await models.GetInteractionModelByIdAsync(request.ModelId, cancellationToken);
+            if (model is null)
+                return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.NotFound", "Interaction model was not found."));
+            var engine = model.RuntimeEngine ?? await engines.GetByIdAsync(model.RuntimeEngineId, cancellationToken);
+            if (!model.IsEnabled || engine?.IsEnabled != true)
+                return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.Disabled", "Enable the model and runtime engine before testing."));
+            if (engine.ProviderType is not (RuntimeEngineProviderType.Ollama or RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or RuntimeEngineProviderType.vLLM or RuntimeEngineProviderType.LlamaCpp or RuntimeEngineProviderType.Anthropic))
+                return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.ProviderUnsupported", "This runtime provider is not supported for generation."));
+            var image = await attachments.ReadAsync(request.AttachmentId, currentUser.UserId, cancellationToken);
+            if (image.IsFailure) return Result.Failure<ImageInputTestResponse>(image.Error);
+            // A diagnostic of the saved runtime/model. It never infers or updates capabilities.
+            var result = await generation.GenerateAsync(new LlmGenerationRequest(
+                "Briefly describe the attached image in one sentence.", model.ProviderModelName,
+                MaxTokens: 128, RuntimeEndpoint: engine.Endpoint, ApiKeySecretRef: engine.ApiKeySecretRef,
+                ProviderType: engine.ProviderType.ToString(), Images: [new(image.Value.Metadata.MimeType, image.Value.Data)]), cancellationToken);
+            if (result.IsFailure || string.IsNullOrWhiteSpace(result.Value.Response))
+                return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.ImageTestFailed", "The model could not process the image. Check its image support and runtime configuration."));
+            return Result.Success(new ImageInputTestResponse(result.Value.Response.Trim()));
         }
     }
 

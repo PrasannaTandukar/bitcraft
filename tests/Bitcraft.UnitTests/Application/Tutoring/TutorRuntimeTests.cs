@@ -1,3 +1,7 @@
+using Bitcraft.UnitTests.Application.Chat;
+using Bitcraft.Application.Features.Chat;
+using Bitcraft.Domain.Chat;
+using Bitcraft.Infrastructure.Chat;
 using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
@@ -377,6 +381,152 @@ public class TutorRuntimeTests
         Assert.Empty(descriptors);
     }
 
+    [Theory]
+    [InlineData(ModelCapabilities.None)]
+    [InlineData(ModelCapabilities.ImageInput)]
+    public async Task TextOnlyWorksWithEitherCapability(ModelCapabilities capabilities)
+    {
+        var setup = CreateSetup(capabilities: capabilities);
+        var result = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, "Explain circuits"));
+        Assert.True(result.IsSuccess);
+        Assert.Equal(capabilities == ModelCapabilities.ImageInput, result.Value.Model.SupportsImageInput);
+        Assert.Null(Assert.Single(setup.Generation.Requests).Images);
+    }
+
+    [Fact]
+    public async Task VisionUsesSnapshotCapabilityAndTextRagWithImage()
+    {
+        var document = new Document { Name = "Circuits" };
+        var setup = CreateSetup(snapshotDocuments: [document], capabilities: ModelCapabilities.ImageInput);
+        setup.InteractionModel.Capabilities = ModelCapabilities.None;
+        setup.Retriever.Results.Add(CreateChunk(document.Id, setup.EmbeddingModel.Id, "Circuit reference material"));
+        var id = AddImage(setup, 1);
+        var result = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, "Explain this circuit") with { AttachmentIds = [id] });
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Model.SupportsImageInput);
+        Assert.True(result.Value.KnowledgeUsed);
+        Assert.Equal(1, setup.Embeddings.Calls);
+        Assert.Equal("Explain this circuit", setup.Embeddings.Request!.Text);
+        Assert.Equal(1, setup.Retriever.Calls);
+        var sent = Assert.Single(setup.Generation.Requests);
+        Assert.Equal(new byte[] { 1 }, Assert.Single(sent.Images!).Data.ToArray());
+        Assert.Contains("attachments: [Image 1]", sent.Prompt);
+        Assert.Contains("Circuit reference material", sent.Prompt);
+        Assert.DoesNotContain(id.ToString(), sent.Prompt);
+    }
+
+    [Fact]
+    public async Task TextSnapshotRejectsCurrentAndHistoryImagesBeforeOpeningStorage()
+    {
+        var setup = CreateSetup();
+        setup.InteractionModel.Capabilities = ModelCapabilities.ImageInput;
+        var id = AddImage(setup, 1);
+        foreach (var request in new[] {
+            InteractiveRequest(setup, "Explain") with { AttachmentIds = new[] { id } },
+            InteractiveRequest(setup, "Continue", history: [new("user", "Image", [id])]) })
+        {
+            var result = await setup.Runtime.ExecuteAsync(request);
+            Assert.Equal("TutorRuntime.ImageInputNotSupported", result.Error.Code);
+        }
+        Assert.Equal(0, setup.AttachmentStore.ReadCount);
+        Assert.Empty(setup.Generation.Requests);
+    }
+
+    [Fact]
+    public async Task ImageOnlySkipsEmbeddingEvenWhenKnowledgeIsConfigured()
+    {
+        var setup = CreateSetup(snapshotDocuments: [new Document { Name = "Circuits" }], capabilities: ModelCapabilities.ImageInput);
+        var result = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, "  ") with { AttachmentIds = [AddImage(setup, 1)] });
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, setup.Embeddings.Calls);
+        Assert.Equal(0, setup.Retriever.Calls);
+        Assert.Contains("Please analyze the attached image(s).", Assert.Single(setup.Generation.Requests).Prompt);
+    }
+
+    [Fact]
+    public async Task EmptyInputAndExcessImageCountAreRejected()
+    {
+        var setup = CreateSetup(capabilities: ModelCapabilities.ImageInput);
+        var empty = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, ""));
+        Assert.Equal("TutorRuntime.QuestionRequired", empty.Error.Code);
+        var many = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid()).ToList();
+        var result = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, "Explain") with { AttachmentIds = many });
+        Assert.Equal("ChatAttachment.TooManyImages", result.Error.Code);
+        result = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, "Explain", history: [new("user", "Explain", many)]));
+        Assert.Equal("ChatAttachment.TooManyImages", result.Error.Code);
+        var history = Enumerable.Range(0, 6).Select(_ => new TutorRuntimeConversationMessage("user", "Explain", Enumerable.Range(0, 4).Select(_ => Guid.NewGuid()).ToList())).ToList();
+        result = await setup.Runtime.ExecuteAsync(InteractiveRequest(setup, "Explain", history: history));
+        Assert.Equal("ChatAttachment.TooManyImages", result.Error.Code);
+        Assert.Equal(0, setup.AttachmentStore.ReadCount);
+    }
+
+    [Theory]
+    [InlineData("missing", "ChatAttachment.NotFound")]
+    [InlineData("expired", "ChatAttachment.Expired")]
+    [InlineData("other-user", "ChatAttachment.NotFound")]
+    [InlineData("missing-file", "ChatAttachment.NotFound")]
+    public async Task InvalidAttachmentsAreRejectedForCurrentAndHistory(string scenario, string code)
+    {
+        var setup = CreateSetup(capabilities: ModelCapabilities.ImageInput);
+        var id = AddImage(setup, 1, scenario == "other-user" ? Guid.NewGuid() : null, expired: scenario == "expired");
+        if (scenario == "missing") setup.Attachments.Items.Clear();
+        if (scenario == "missing-file") setup.AttachmentStore.Data.Clear();
+        foreach (var request in new[] {
+            InteractiveRequest(setup, "Explain") with { AttachmentIds = new[] { id } },
+            InteractiveRequest(setup, "Continue", history: [new("user", "", [id])]) })
+        {
+            var result = await setup.Runtime.ExecuteAsync(request);
+            Assert.Equal(code, result.Error.Code);
+        }
+        Assert.Empty(setup.Generation.Requests);
+    }
+
+    [Fact]
+    public async Task HistoryImagesAndRetryHaveStableDeduplicatedOrder()
+    {
+        var setup = CreateSetup(capabilities: ModelCapabilities.ImageInput);
+        var first = AddImage(setup, 1);
+        var second = AddImage(setup, 2);
+        var third = AddImage(setup, 3);
+        var request = InteractiveRequest(setup, "What if Q3 fails?", history: [
+            new("user", "", [second, first]), new("assistant", "Explanation"), new("user", "This one", [second])
+        ]) with { AttachmentIds = [third, first] };
+        Assert.True((await setup.Runtime.ExecuteAsync(request)).IsSuccess);
+        Assert.True((await setup.Runtime.ExecuteAsync(request)).IsSuccess);
+        var sent = setup.Generation.Requests[0];
+        Assert.Equal(new byte[] { 2, 1, 3 }, sent.Images!.Select(image => image.Data.Span[0]).ToArray());
+        Assert.Contains("<user>\nattachments: [Image 1, Image 2]\n</user>", sent.Prompt);
+        Assert.Contains("attachments: [Image 3, Image 2]\nWhat if Q3 fails?", sent.Prompt);
+        Assert.Equal(sent.Prompt, setup.Generation.Requests[1].Prompt);
+        Assert.Equal(sent.Images!.Select(image => image.Data.ToArray()), setup.Generation.Requests[1].Images!.Select(image => image.Data.ToArray()));
+        Assert.DoesNotContain(first.ToString(), sent.Prompt);
+    }
+
+    [Theory]
+    [InlineData(RuntimeEngineProviderType.Ollama)]
+    [InlineData(RuntimeEngineProviderType.OpenAI)]
+    [InlineData(RuntimeEngineProviderType.OpenAICompatible)]
+    [InlineData(RuntimeEngineProviderType.vLLM)]
+    [InlineData(RuntimeEngineProviderType.LlamaCpp)]
+    [InlineData(RuntimeEngineProviderType.Anthropic)]
+    public async Task RuntimeCatalogUsesSnapshotCapabilityForAllGenerationProviders(RuntimeEngineProviderType provider)
+    {
+        var setup = CreateSetup(capabilities: ModelCapabilities.ImageInput);
+        setup.InteractionModel.Capabilities = ModelCapabilities.None;
+        setup.InteractionModel.RuntimeEngine!.ProviderType = provider;
+        var handler = new TutorRuntimeFeatures.ListRuntimeTutorsHandler(setup.Tutors, new FakeCurrentUserContext(setup.UserId));
+        var result = await handler.Handle(new(), default);
+        Assert.True(Assert.Single(result).Model.SupportsImageInput);
+    }
+
+    private static Guid AddImage(Setup setup, byte value, Guid? owner = null, bool expired = false)
+    {
+        var attachment = ChatAttachment.Create(owner ?? setup.UserId, "circuit.png", "image/png", 1, 1, 1, DateTime.UtcNow.AddHours(expired ? -1 : 1));
+        setup.Attachments.Items.Add(attachment);
+        setup.AttachmentStore.Data.Add(attachment.StorageKey, [value]);
+        return attachment.Id;
+    }
+
     private static TutorRuntimeRequest InteractiveRequest(
         Setup setup,
         string question,
@@ -398,7 +548,8 @@ public class TutorRuntimeTests
         IReadOnlyList<Document>? snapshotDocuments = null,
         string? interactionParametersJson = null,
         Guid? userId = null,
-        string tutorName = "Robotics Tutor")
+        string tutorName = "Robotics Tutor",
+        ModelCapabilities capabilities = ModelCapabilities.None)
     {
         snapshotDocuments ??= [];
         var resolvedUserId = userId ?? Guid.NewGuid();
@@ -433,6 +584,7 @@ public class TutorRuntimeTests
         var interactionModel = new InteractionModel
         {
             Name = "Llama 3.2",
+            Capabilities = capabilities,
             ProviderModelName = "live-model-name",
             RuntimeEngineId = interactionEngine.Id,
             RuntimeEngine = interactionEngine,
@@ -511,6 +663,11 @@ public class TutorRuntimeTests
         var embeddingProvider = new RecordingEmbeddingProvider();
         var retriever = new RecordingKnowledgeRetriever();
         var generation = new RecordingGenerationProvider();
+        var attachmentRepository = new FakeChatAttachmentRepository();
+        var attachmentStore = new FakeChatAttachmentStore();
+        var limits = new ChatAttachmentLimits();
+        var attachmentService = new ChatAttachmentService(attachmentRepository, attachmentStore,
+            new ChatImageNormalizer(limits), limits, TimeProvider.System, NullLogger<ChatAttachmentService>.Instance);
         var runtime = new TutorRuntime(
             tutors,
             new FakeTutorMembershipReader(tutors),
@@ -520,7 +677,7 @@ public class TutorRuntimeTests
             embeddingProvider,
             retriever,
             generation,
-            NullLogger<TutorRuntime>.Instance);
+            NullLogger<TutorRuntime>.Instance, attachmentService, limits);
 
         return new Setup(
             resolvedUserId,
@@ -534,7 +691,7 @@ public class TutorRuntimeTests
             embeddingProvider,
             retriever,
             generation,
-            runtime);
+            runtime, attachmentRepository, attachmentStore);
     }
 
     private static KnowledgeChunk CreateChunk(Guid documentId, Guid embeddingModelId, string content) => new()
@@ -559,7 +716,7 @@ public class TutorRuntimeTests
         RecordingEmbeddingProvider Embeddings,
         RecordingKnowledgeRetriever Retriever,
         RecordingGenerationProvider Generation,
-        TutorRuntime Runtime);
+        TutorRuntime Runtime, FakeChatAttachmentRepository Attachments, FakeChatAttachmentStore AttachmentStore);
 
     private sealed class RecordingEmbeddingProvider : IEmbeddingProvider
     {

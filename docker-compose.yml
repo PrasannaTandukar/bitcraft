@@ -53,6 +53,11 @@ services:
     ports:
       - "8000:8000"
     environment:
+      ChatAttachments__RootPath: /var/lib/bitcraft/chat-attachments
+      ChatAttachments__MaxFileBytes: ${CHAT_ATTACHMENTS_MAX_FILE_BYTES:-5242880}
+      ChatAttachments__MaxImagesPerMessage: ${CHAT_ATTACHMENTS_MAX_IMAGES:-4}
+      ChatAttachments__MaxDimension: ${CHAT_ATTACHMENTS_MAX_DIMENSION:-2048}
+      ChatAttachments__RetentionHours: ${CHAT_ATTACHMENTS_RETENTION_HOURS:-24}
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
@@ -64,6 +69,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
+      - chat_attachments:/var/lib/bitcraft/chat-attachments
       - benchmark_sidecar_socket:/var/run/bitcraft
     depends_on:
       db:
@@ -106,6 +112,7 @@ services:
         condition: service_healthy
 
 volumes:
+  chat_attachments: {}
   postgres_data: {}
   nuget-packages: {}
   benchmark_sidecar_socket: {}

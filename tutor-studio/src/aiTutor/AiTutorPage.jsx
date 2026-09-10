@@ -31,6 +31,7 @@ export default function AiTutorPage() {
   const [selectedTutorId, setSelectedTutorId] = useState("");
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
+  const [conversationKey, setConversationKey] = useState(0);
   const [topK, setTopK] = useState(5);
   const [showSources, setShowSources] = useState(true);
   const [loadingTutors, setLoadingTutors] = useState(true);
@@ -38,6 +39,8 @@ export default function AiTutorPage() {
   const [loadError, setLoadError] = useState("");
   const [requestedTutorUnavailable, setRequestedTutorUnavailable] = useState("");
   const endRef = useRef(null);
+  const requestRef = useRef(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   const selectedTutor = useMemo(() => tutors.find((tutor) => tutor.tutorId === selectedTutorId) || null, [selectedTutorId, tutors]);
 
@@ -73,6 +76,7 @@ export default function AiTutorPage() {
   const resetConversation = (tutor = selectedTutor) => {
     setMessages(welcomeMessage(tutor));
     setDraft("");
+    setConversationKey((key) => key + 1);
   };
 
   const applyTutor = (tutorId) => {
@@ -98,22 +102,28 @@ export default function AiTutorPage() {
     });
   };
 
-  const sendQuestion = async (questionOverride, historyOverride) => {
+  const sendQuestion = ({ question: questionOverride, history: historyOverride, attachments = [], limits, retryTopK } = {}) => {
     const question = (questionOverride ?? draft).trim();
-    if (!question || !selectedTutor || sending) return;
-    const history = historyOverride ?? buildBoundedHistory(messages);
-    const userMessage = { id: crypto.randomUUID(), role: "user", content: question, local: false };
+    if ((!question && !attachments.length) || !selectedTutor || requestRef.current) return false;
+    const attachmentIds = attachments.map((attachment) => attachment.id);
+    const history = historyOverride ?? buildBoundedHistory(messages, attachmentIds, limits?.maxImagesPerRequest);
+    const retrievalTopK = retryTopK ?? topK;
+    const userMessage = { id: crypto.randomUUID(), role: "user", content: question, attachmentIds, attachments, local: false };
+    const controller = new AbortController();
+    requestRef.current = controller;
     setMessages((current) => [...current.filter((message) => !message.error), userMessage]);
     setDraft("");
     setSending(true);
-    try {
-      const response = await askRuntimeTutor(selectedTutor.activationSlug, { question, topK, history });
-      setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: response.answer, local: false, sources: response.sources }]);
-    } catch (error) {
-      setMessages((current) => [...current.filter((message) => message.id !== userMessage.id), { ...userMessage, error: getTutorRuntimeError(error), retryHistory: history }]);
-    } finally {
-      setSending(false);
-    }
+    askRuntimeTutor(selectedTutor.activationSlug, { question, attachmentIds, topK: retrievalTopK, history }, controller.signal)
+      .then((response) => {
+        if (!controller.signal.aborted) setMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", content: response.answer, local: false, sources: response.sources }]);
+      }).catch((error) => {
+        if (!controller.signal.aborted) setMessages((current) => [...current.filter((message) => message.id !== userMessage.id), { ...userMessage, error: getTutorRuntimeError(error), retryHistory: history, retryTopK: retrievalTopK }]);
+      }).finally(() => {
+        if (requestRef.current === controller) requestRef.current = null;
+        if (!controller.signal.aborted) setSending(false);
+      });
+    return true;
   };
 
   return (
@@ -152,13 +162,13 @@ export default function AiTutorPage() {
                     showSources={showSources}
                     retryDisabled={sending}
                     onRetry={(failed) =>
-                        sendQuestion(failed.content, failed.retryHistory)
+                        sendQuestion({ question: failed.content, history: failed.retryHistory, attachments: failed.attachments, retryTopK: failed.retryTopK })
                     }
                 />)}
                 {sending ? <div className="runtime-thinking"><Spin size="small" /> <span>{selectedTutor.tutorName} is thinking…</span></div> : null}
                 <div ref={endRef} />
               </div>
-              <ChatComposer value={draft} tutorName={selectedTutor?.tutorName} disabled={!selectedTutor || sending} onChange={setDraft} onSend={() => sendQuestion()} />
+              <ChatComposer key={`${selectedTutorId}-${conversationKey}`} supportsImageInput={selectedTutor?.model?.supportsImageInput === true} value={draft} tutorName={selectedTutor?.tutorName} disabled={!selectedTutor || sending} onChange={setDraft} onSend={(attachments, limits) => sendQuestion({ attachments, limits })} />
             </section>
           </div>
         ) : null}

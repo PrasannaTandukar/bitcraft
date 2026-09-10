@@ -32,6 +32,25 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
+        var chatLimits = new ChatAttachmentLimits(
+            configuration.GetValue<long?>("ChatAttachments:MaxFileBytes") ?? 5 * 1024 * 1024,
+            configuration.GetValue<int?>("ChatAttachments:MaxImagesPerMessage") ?? 4,
+            configuration.GetValue<int?>("ChatAttachments:MaxDimension") ?? 2048,
+            configuration.GetValue<int?>("ChatAttachments:RetentionHours") ?? 24,
+            configuration.GetValue<int?>("ChatAttachments:MaxImagesPerRequest") ?? 20,
+            configuration.GetValue<long?>("ChatAttachments:MaxDecodedPixels") ?? 40_000_000);
+        if (chatLimits.MaxFileBytes is < 1 or > 20 * 1024 * 1024 ||
+            chatLimits.MaxImagesPerMessage is < 1 or > 20 ||
+            chatLimits.MaxImagesPerRequest < chatLimits.MaxImagesPerMessage || chatLimits.MaxImagesPerRequest > 80 ||
+            chatLimits.MaxDimension is < 1 or > 4096 || chatLimits.RetentionHours is < 1 or > 168 ||
+            chatLimits.MaxDecodedPixels is < 1 or > 40_000_000)
+            throw new InvalidOperationException("ChatAttachments limits are outside their supported ranges.");
+        services.AddSingleton(chatLimits);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IChatAttachmentStore, Bitcraft.Infrastructure.Chat.FileSystemChatAttachmentStore>();
+        services.AddSingleton<IChatImageNormalizer, Bitcraft.Infrastructure.Chat.ChatImageNormalizer>();
+        services.AddScoped<IChatAttachmentRepository, Bitcraft.Infrastructure.Chat.ChatAttachmentRepository>();
+        services.AddHostedService<Bitcraft.Infrastructure.Chat.ChatAttachmentCleanupWorker>();
         services.AddScoped<ICurrentUserContext, HttpContextCurrentUserContext>();
         services.AddScoped<EntitySaveChangesInterceptor>();
 

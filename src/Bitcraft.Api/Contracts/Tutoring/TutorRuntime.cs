@@ -1,10 +1,11 @@
 namespace Bitcraft.Api.Contracts.Tutoring;
 
 public sealed record AskTutorRuntimeRequest(
-    string Question,
+    string Question = "",
     int? TopK = 5,
     IReadOnlyList<TutorConversationMessageRequest>? History = null,
-    Guid? ConversationId = null);
+    Guid? ConversationId = null,
+    IReadOnlyList<Guid>? AttachmentIds = null);
 
 public sealed record TutorRuntimeTutorResponse(Guid Id, string Name);
 
@@ -14,7 +15,8 @@ public sealed record TutorRuntimeModelResponse(
     Guid Id,
     string Name,
     string ProviderModelName,
-    string RuntimeEngineName);
+    string RuntimeEngineName,
+    bool SupportsImageInput = false);
 
 public sealed record TutorRuntimeEmbeddingModelResponse(
     Guid Id,
