@@ -68,6 +68,25 @@ public class InteractionModelFeaturesTests
         Assert.Equal("RuntimeEngine.Disabled", result.Error.Code);
     }
 
+    [Fact]
+    public async Task CapabilityCanBeCreatedEnabledAndUpdatedWithoutChangingOtherFlags()
+    {
+        var models = new FakeModelRepository();
+        var engines = new FakeRuntimeEngineRepository();
+        var engine = EnabledEngine(engines);
+        var creator = new InteractionModelFeatures.CreateInteractionModelHandler(models, engines, Admin());
+        var created = await creator.Handle(new("Custom", engine.Id, "arbitrary-name", null, true, SupportsImageInput: true), default);
+        Assert.True(created.IsSuccess);
+        Assert.Equal(ModelCapabilities.ImageInput, created.Value.Capabilities);
+        created.Value.Capabilities |= (ModelCapabilities)2;
+        var updater = new InteractionModelFeatures.UpdateInteractionModelHandler(models, engines, Admin());
+        var updated = await updater.Handle(new(created.Value.Id, "Custom", engine.Id, "arbitrary-name", null, true, SupportsImageInput: false), default);
+        Assert.True(updated.IsSuccess);
+        Assert.Equal((ModelCapabilities)2, updated.Value.Capabilities);
+        updated = await updater.Handle(new(created.Value.Id, "Custom", engine.Id, "arbitrary-name", null, true, SupportsImageInput: true), default);
+        Assert.Equal((ModelCapabilities)3, updated.Value.Capabilities);
+    }
+
     // ----- List / Get -----
 
     [Fact]

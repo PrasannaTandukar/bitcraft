@@ -23,7 +23,9 @@ public sealed class TutorRuntime(
     IEmbeddingProvider embeddings,
     IKnowledgeRetriever knowledge,
     ILlmGenerationProvider generation,
-    ILogger<TutorRuntime> logger) : ITutorRuntime
+    ILogger<TutorRuntime> logger,
+    IChatAttachmentService attachments,
+    ChatAttachmentLimits attachmentLimits) : ITutorRuntime
 {
     internal const int DefaultTopK = 5;
     internal const int MaximumTopK = 10;
@@ -71,6 +73,30 @@ public sealed class TutorRuntime(
         }
         var snapshot = snapshotResult.Value;
 
+        var imageIds = (request.History ?? []).SelectMany(message => message.AttachmentIds ?? [])
+            .Concat(request.AttachmentIds ?? []).Distinct().ToList();
+        if (imageIds.Count > 0 && !snapshot.ModelCapabilities.HasFlag(ModelCapabilities.ImageInput))
+            return Failure("TutorRuntime.ImageInputNotSupported", "This tutor's current model does not support image input.");
+        if (imageIds.Count > attachmentLimits.MaxImagesPerRequest)
+            return Failure("ChatAttachment.TooManyImages", $"Conversation history and this message may include at most {attachmentLimits.MaxImagesPerRequest} distinct images. Start a new chat or remove images.");
+
+        var images = new List<LlmImageInput>();
+        foreach (var id in imageIds)
+        {
+            var attachment = await attachments.ReadAsync(id, request.UserId, cancellationToken);
+            if (attachment.IsFailure) return Result.Failure<TutorRuntimeResult>(attachment.Error);
+            images.Add(new LlmImageInput(attachment.Value.Metadata.MimeType, attachment.Value.Data));
+        }
+        var labels = imageIds.Select((id, index) => (id, label: $"Image {index + 1}"))
+            .ToDictionary(value => value.id, value => value.label);
+        var labelledHistory = (request.History ?? []).Select(message => message with
+        {
+            Content = LabelAttachments(message.Content, message.AttachmentIds, labels)
+        }).ToList();
+        var question = string.IsNullOrWhiteSpace(request.UserQuestion)
+            ? "Please analyze the attached image(s)."
+            : request.UserQuestion.Trim();
+
         var promptResult = await ResolvePromptAsync(tutor.Id, revision, snapshot, cancellationToken);
         if (promptResult.IsFailure)
         {
@@ -111,20 +137,24 @@ public sealed class TutorRuntime(
         var prompt = BuildPrompt(
             promptResult.Value,
             retrieval.ReferenceMaterial,
-            request.History ?? [],
-            request.UserQuestion.Trim());
+            labelledHistory,
+            LabelAttachments(question, request.AttachmentIds, labels));
 
+        if (images.Count > 0)
+            logger.LogInformation("Generating tutor response with images. TutorId={TutorId}, RevisionId={RevisionId}, Model={Model}, ImageCount={ImageCount}, ImageByteCount={ImageByteCount}",
+                tutor.Id, revision.Id, interaction.ProviderModelName, images.Count, images.Sum(image => (long)image.Data.Length));
         var stopwatch = Stopwatch.StartNew();
         var generated = await generation.GenerateAsync(
             new LlmGenerationRequest(
                 prompt,
                 interaction.ProviderModelName,
-                parameters.Temperature,
-                parameters.TopP,
-                parameters.MaxTokens,
-                interaction.Engine.Endpoint,
-                interaction.Engine.ApiKeySecretRef,
-                interaction.Engine.ProviderType.ToString()),
+                Temperature: parameters.Temperature,
+                TopP: parameters.TopP,
+                MaxTokens: parameters.MaxTokens,
+                RuntimeEndpoint: interaction.Engine.Endpoint,
+                ApiKeySecretRef: interaction.Engine.ApiKeySecretRef,
+                ProviderType: interaction.Engine.ProviderType.ToString(),
+                Images: images.Count > 0 ? images : null),
             cancellationToken);
         stopwatch.Stop();
 
@@ -156,7 +186,8 @@ public sealed class TutorRuntime(
                 interaction.Model.Name,
                 interaction.ProviderModelName,
                 interaction.Engine.Id,
-                interaction.Engine.Name),
+                interaction.Engine.Name,
+                snapshot.ModelCapabilities.HasFlag(ModelCapabilities.ImageInput)),
             retrieval.EmbeddingModel,
             retrieval.Sources.Count > 0,
             retrieval.Sources,
@@ -391,7 +422,7 @@ public sealed class TutorRuntime(
         IReadOnlyList<Guid> documentIds,
         CancellationToken cancellationToken)
     {
-        if (!request.UseKnowledge || documentIds.Count == 0 || IsCasualGreeting(request.UserQuestion))
+        if (!request.UseKnowledge || string.IsNullOrWhiteSpace(request.UserQuestion) || documentIds.Count == 0 || IsCasualGreeting(request.UserQuestion))
         {
             return Result.Success(new RetrievalResult(null, [], null));
         }
@@ -563,17 +594,17 @@ public sealed class TutorRuntime(
         return Result.Success(new RetrievalResult(metadata, boundedSources, referenceMaterial));
     }
 
-    private static Result ValidateRequest(TutorRuntimeRequest request)
+    private Result ValidateRequest(TutorRuntimeRequest request)
     {
         if (request.UserId == Guid.Empty)
         {
             return Result.Failure(new Error("TutorRuntime.TutorNotFound", "Tutor was not found."));
         }
-        if (string.IsNullOrWhiteSpace(request.UserQuestion))
+        if (string.IsNullOrWhiteSpace(request.UserQuestion) && (request.AttachmentIds?.Count ?? 0) == 0)
         {
-            return Result.Failure(new Error("TutorRuntime.QuestionRequired", "Question is required."));
+            return Result.Failure(new Error("TutorRuntime.QuestionRequired", "Enter a question or attach an image."));
         }
-        if (request.UserQuestion.Trim().Length > MaximumQuestionCharacters)
+        if ((request.UserQuestion?.Trim().Length ?? 0) > MaximumQuestionCharacters)
         {
             return Result.Failure(new Error("TutorRuntime.QuestionTooLong", $"Question cannot exceed {MaximumQuestionCharacters} characters."));
         }
@@ -596,20 +627,34 @@ public sealed class TutorRuntime(
         if (history.Any(message =>
                 message is null ||
                 (message.Role != "user" && message.Role != "assistant") ||
-                string.IsNullOrWhiteSpace(message.Content)))
+                (message.Role == "assistant" && (message.AttachmentIds?.Count ?? 0) > 0) ||
+                (string.IsNullOrWhiteSpace(message.Content) && (message.AttachmentIds?.Count ?? 0) == 0)))
         {
             return Result.Failure(new Error(
                 "TutorRuntime.HistoryInvalid",
                 "Conversation history may contain only non-empty user and assistant messages."));
         }
-        if (history.Sum(message => (long)message.Content.Length) > MaximumHistoryCharacters)
+        if (history.Sum(message => (long)(message.Content?.Length ?? 0)) > MaximumHistoryCharacters)
         {
             return Result.Failure(new Error(
                 "TutorRuntime.HistoryTooLarge",
                 $"Conversation history cannot exceed {MaximumHistoryCharacters} characters."));
         }
 
+        if ((request.AttachmentIds?.Count ?? 0) > attachmentLimits.MaxImagesPerMessage ||
+            history.Any(message => (message.AttachmentIds?.Count ?? 0) > attachmentLimits.MaxImagesPerMessage))
+            return Result.Failure(new Error("ChatAttachment.TooManyImages", $"Each message may include at most {attachmentLimits.MaxImagesPerMessage} images."));
+        if ((request.AttachmentIds ?? []).Concat(history.SelectMany(message => message.AttachmentIds ?? [])).Any(id => id == Guid.Empty))
+            return Result.Failure(new Error("ChatAttachment.NotFound", "This image is unavailable. Please attach it again."));
         return Result.Success();
+    }
+
+    private static string LabelAttachments(string? content, IReadOnlyList<Guid>? ids, IReadOnlyDictionary<Guid, string> labels)
+    {
+        var text = content?.Trim() ?? string.Empty;
+        return ids is not { Count: > 0 }
+            ? text
+            : $"attachments: [{string.Join(", ", ids.Distinct().Select(id => labels[id]))}]\n{text}";
     }
 
     private static bool TryParseDocumentIds(string? json, out IReadOnlyList<Guid> documentIds)
@@ -723,6 +768,8 @@ public sealed class TutorRuntime(
 
     private static Error ToSafeGenerationError(Error error) => error.Code switch
     {
+        "Ollama.ImageRejected" or "OpenAI.ImageRejected" or "Anthropic.ImageRejected" =>
+            new Error("TutorRuntime.ImageRejected", "The tutor's provider rejected the image request. Try fewer or smaller images, or ask an administrator to check the model's image support."),
         "Ollama.Unavailable" => new Error("Ollama.Unavailable", "The configured Ollama runtime is unavailable."),
         "Ollama.ModelNotFound" => new Error("Ollama.ModelNotFound", "The tutor's configured model is not installed."),
         "Ollama.InvalidResponse" => new Error("Ollama.InvalidResponse", "The configured Ollama runtime returned an invalid response."),

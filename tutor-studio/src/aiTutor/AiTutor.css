@@ -108,7 +108,7 @@
 
 .runtime-composer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   gap: 8px;
   align-items: end;
   padding: 14px;
@@ -273,3 +273,10 @@
     max-width: 94%;
   }
 }
+
+.runtime-attachments { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; }
+.runtime-composer-attachments, .runtime-composer-error { grid-column: 1 / -1; }
+.runtime-image { object-fit: contain; border-radius: 6px; background: #f8fafc; }
+.runtime-image-error { max-width: 240px; font-size: 12px; }
+.runtime-pending-image { display: flex; align-items: flex-start; gap: 2px; }
+.runtime-composer .runtime-pending-image .ant-btn { width: 24px; height: 24px; }

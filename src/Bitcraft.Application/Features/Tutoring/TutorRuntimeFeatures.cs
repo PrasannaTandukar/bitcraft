@@ -13,7 +13,8 @@ public static class TutorRuntimeFeatures
         string ActivationSlug,
         string Question,
         int? TopK,
-        IReadOnlyList<TutorRuntimeConversationMessage>? History)
+        IReadOnlyList<TutorRuntimeConversationMessage>? History,
+        IReadOnlyList<Guid>? AttachmentIds = null)
         : IRequest<Result<TutorRuntimeResult>>;
 
     public sealed class AskTutorRuntimeHandler(
@@ -53,7 +54,8 @@ public static class TutorRuntimeFeatures
                     true,
                     request.TopK ?? TutorRuntime.DefaultTopK,
                     TutorRuntimeExecutionMode.Interactive,
-                    request.History),
+                    request.History,
+                    request.AttachmentIds),
                 cancellationToken);
         }
     }
@@ -90,7 +92,7 @@ public static class TutorRuntimeFeatures
                 revision.InteractionModel is null ||
                 !revision.InteractionModel.IsEnabled ||
                 revision.InteractionModel.RuntimeEngine?.IsEnabled != true ||
-                revision.InteractionModel.RuntimeEngine.ProviderType != RuntimeEngineProviderType.Ollama ||
+                revision.InteractionModel.RuntimeEngine.ProviderType is not (RuntimeEngineProviderType.Ollama or RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or RuntimeEngineProviderType.vLLM or RuntimeEngineProviderType.LlamaCpp or RuntimeEngineProviderType.Anthropic) ||
                 string.IsNullOrWhiteSpace(revision.InteractionModel.ProviderModelName))
             {
                 return null;
@@ -117,7 +119,7 @@ public static class TutorRuntimeFeatures
                  !embedding.IsEnabled ||
                  embedding.EmbeddingDimensions <= 0 ||
                  embedding.RuntimeEngine?.IsEnabled != true ||
-                 embedding.RuntimeEngine.ProviderType != RuntimeEngineProviderType.Ollama ||
+                 embedding.RuntimeEngine.ProviderType is not (RuntimeEngineProviderType.Ollama or RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or RuntimeEngineProviderType.LlamaCpp) ||
                  string.IsNullOrWhiteSpace(embedding.ProviderModelName) ||
                  !TryReadKnowledgeBindings(snapshot.EffectiveKnowledgeBindingJson, out var bindings) ||
                  documentIds.Any(documentId => !bindings.Any(binding =>
@@ -142,7 +144,8 @@ public static class TutorRuntimeFeatures
                     revision.InteractionModel.Name,
                     snapshot.ModelName,
                     interactionEngine.Id,
-                    interactionEngine.Name),
+                    interactionEngine.Name,
+                    snapshot.ModelCapabilities.HasFlag(ModelCapabilities.ImageInput)),
                 embedding?.RuntimeEngine is null
                     ? null
                     : new TutorRuntimeEmbeddingModelMetadata(
