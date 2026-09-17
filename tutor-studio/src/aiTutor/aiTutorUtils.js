@@ -1,6 +1,11 @@
 import { ApiError, getApiErrorDescription } from "../api/client.js";
 
 const messagesByCode = {
+  "TutorRuntime.ImageInputNotSupported": "This tutor's current model does not support image input.",
+  "ChatAttachment.NotFound": "An image is unavailable. Please attach it again or start a new chat if it was in earlier messages.",
+  "ChatAttachment.Expired": "An image has expired. Please attach it again or start a new chat if it was in earlier messages.",
+  "ChatAttachment.UnsupportedType": "Choose a JPEG, PNG, or WebP image.",
+  "ChatAttachment.InvalidImage": "This image is empty, corrupted, animated, or too large to decode. Please choose another image.",
   "TutorRuntime.NoActiveRevision": "This tutor is not ready for chat yet. Activate a configured revision first.",
   "TutorRuntime.PromptNotConfigured": "This tutor does not have a prompt configured.",
   "TutorRuntime.InteractionModelNotConfigured": "This tutor does not have an interaction model configured.",
@@ -22,14 +27,18 @@ export function getTutorRuntimeError(error) {
   return getApiErrorDescription(error, "The tutor could not answer right now. Please try again.");
 }
 
-export function buildBoundedHistory(messages) {
+export function buildBoundedHistory(messages, attachmentIds = [], maxImagesPerRequest = 20) {
   const history = messages
     .filter((message) => !message.local && !message.error && ["user", "assistant"].includes(message.role))
     .slice(-20)
-    .map((message) => ({ role: message.role, content: message.content }));
+    .map((message) => ({
+      role: message.role, content: message.content,
+      ...(message.attachmentIds?.length ? { attachmentIds: message.attachmentIds } : {}),
+    }));
 
   let total = history.reduce((sum, message) => sum + message.content.length, 0);
-  while (history.length && total > 30000) {
+  const imageCount = () => new Set([...attachmentIds, ...history.flatMap((message) => message.attachmentIds ?? [])]).size;
+  while (history.length && (total > 30000 || imageCount() > maxImagesPerRequest)) {
     total -= history[0].content.length;
     history.shift();
   }

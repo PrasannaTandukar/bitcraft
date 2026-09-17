@@ -48,13 +48,14 @@ public sealed class TutorRuntimeController(ISender sender) : ControllerBase
         var history = request.History?.Select(message =>
             message is null
                 ? null!
-                : new TutorRuntimeConversationMessage(message.Role, message.Content)).ToList();
+                : new TutorRuntimeConversationMessage(message.Role, message.Content, message.AttachmentIds)).ToList();
         var result = await sender.Send(
             new TutorRuntimeFeatures.AskTutorRuntimeCommand(
                 activationSlug,
                 request.Question,
                 request.TopK,
-                history),
+                history,
+                request.AttachmentIds),
             cancellationToken);
 
         return result.IsSuccess

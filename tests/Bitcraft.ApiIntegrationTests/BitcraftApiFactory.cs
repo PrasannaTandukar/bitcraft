@@ -21,10 +21,17 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
 {
     private readonly string databaseName = $"bitcraft-api-integration-{Guid.NewGuid()}";
     private readonly InMemoryDatabaseRoot databaseRoot = new();
+    private readonly string attachmentRoot = Path.Combine(Path.GetTempPath(), $"bitcraft-api-images-{Guid.NewGuid():N}");
 
     public BitcraftApiFactory()
     {
         ClientOptions.BaseAddress = new Uri("https://localhost");
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing && Directory.Exists(attachmentRoot)) Directory.Delete(attachmentRoot, recursive: true);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -35,7 +42,8 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=bitcraft_tests"
+                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=bitcraft_tests",
+                ["ChatAttachments:RootPath"] = attachmentRoot
             });
         });
 

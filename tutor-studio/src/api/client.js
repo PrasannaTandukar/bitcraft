@@ -102,7 +102,7 @@ export function getApiErrorDescription(error, fallback = "The request could not 
  * @param {AbortSignal} [options.signal]
  * @param {boolean} [options.auth=true] When false, no Bearer header is attached and
  *                                       401 does NOT trigger logout (for login/register).
- * @param {"json"|"text"|"none"} [options.parse="json"] Response parse strategy.
+ * @param {"json"|"text"|"blob"|"none"} [options.parse="json"] Response parse strategy.
  * @returns {Promise<*>} Parsed body, or null for 204/empty.
  * @throws {ApiError} On non-2xx responses.
  */
@@ -162,6 +162,7 @@ export async function apiFetch(path, options = {}) {
   if (parse === "none" || response.status === 204) {
     return null;
   }
+  if (parse === "blob") return response.blob();
   if (parse === "text") {
     return response.text();
   }

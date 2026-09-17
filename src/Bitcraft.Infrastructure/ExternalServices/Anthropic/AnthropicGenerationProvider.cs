@@ -57,17 +57,25 @@ public class AnthropicGenerationProvider(
             ?? configuration["ModelProviders:Anthropic:ApiKey"]
             ?? configuration["ANTHROPIC_API_KEY"];
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, "/v1/messages"));
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, "/v1/messages"));
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             requestMessage.Headers.Add("x-api-key", apiKey.Trim());
         }
         requestMessage.Headers.Add("anthropic-version", AnthropicVersion);
 
-        var messages = new List<AnthropicMessagePayload>
+        object content = generationRequest.Prompt.Trim();
+        if (generationRequest.Images is { Count: > 0 })
         {
-            new("user", generationRequest.Prompt.Trim())
-        };
+            var blocks = generationRequest.Images.Select(image => (object)new
+            {
+                type = "image",
+                source = new { type = "base64", media_type = image.MimeType, data = Convert.ToBase64String(image.Data.Span) }
+            }).ToList();
+            blocks.Add(new { type = "text", text = generationRequest.Prompt.Trim() });
+            content = blocks;
+        }
+        var messages = new List<AnthropicMessagePayload> { new("user", content) };
 
         var maxTokens = generationRequest.MaxTokens ?? 4096;
         var requestBody = new AnthropicMessagesRequest(
@@ -84,6 +92,11 @@ public class AnthropicGenerationProvider(
             using var response = await client.SendAsync(requestMessage, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                if (generationRequest.Images is { Count: > 0 } && (int)response.StatusCode is 400 or 415 or 422)
+                {
+                    logger?.LogWarning("Provider rejected image input. Model={Model}, ImageCount={ImageCount}, StatusCode={StatusCode}", selectedModel, generationRequest.Images.Count, (int)response.StatusCode);
+                    return Result.Failure<LlmGenerationResult>(new Error("Anthropic.ImageRejected", "The configured provider rejected the image request."));
+                }
                 logger?.LogWarning(
                     "Anthropic generation failed. Model={Model}, StatusCode={StatusCode}",
                     selectedModel,
@@ -152,7 +165,7 @@ public class AnthropicGenerationProvider(
 
     private sealed record AnthropicMessagePayload(
         [property: JsonPropertyName("role")] string Role,
-        [property: JsonPropertyName("content")] string Content);
+        [property: JsonPropertyName("content")] object Content);
 
     private sealed record AnthropicMessagesRequest(
         [property: JsonPropertyName("model")] string Model,

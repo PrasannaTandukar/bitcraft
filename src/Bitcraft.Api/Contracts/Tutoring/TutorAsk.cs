@@ -9,7 +9,7 @@ public sealed record AskTutorQuestionRequest(
     Guid? TutorId = null,
     IReadOnlyList<TutorConversationMessageRequest>? History = null);
 
-public sealed record TutorConversationMessageRequest(string Role, string Content);
+public sealed record TutorConversationMessageRequest(string Role, string Content, IReadOnlyList<Guid>? AttachmentIds = null);
 
 public sealed record AskTutorQuestionResponse(
     string Answer,

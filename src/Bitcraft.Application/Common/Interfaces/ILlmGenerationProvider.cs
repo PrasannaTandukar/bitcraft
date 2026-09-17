@@ -12,7 +12,9 @@ public interface ILlmGenerationProvider
     Task<Result<LlmGenerationResult>> GenerateAsync(
         LlmGenerationRequest request,
         CancellationToken cancellationToken = default) =>
-        GenerateAsync(request.Prompt, request.Model, cancellationToken);
+        request.Images is { Count: > 0 }
+            ? Task.FromResult(Result.Failure<LlmGenerationResult>(new Error("Llm.ImageInputNotSupported", "This generation provider does not support image input.")))
+            : GenerateAsync(request.Prompt, request.Model, cancellationToken);
 
     Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
         string endpoint,

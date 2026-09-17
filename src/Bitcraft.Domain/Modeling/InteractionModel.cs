@@ -6,5 +6,7 @@ namespace Bitcraft.Domain.Modeling;
 /// </summary>
 public class InteractionModel : Model
 {
+    public ModelCapabilities Capabilities { get; set; } = ModelCapabilities.None;
+
     public override ModelKind Kind => ModelKind.Interaction;
 }
