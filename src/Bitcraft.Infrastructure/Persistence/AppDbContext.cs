@@ -12,6 +12,7 @@ namespace Bitcraft.Infrastructure.Persistence;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<AppUser, AppRole, Guid>(options), IApplicationDbContext
 {
+    public DbSet<Bitcraft.Domain.Chat.ChatAttachment> ChatAttachments => Set<Bitcraft.Domain.Chat.ChatAttachment>();
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();

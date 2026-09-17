@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
         services.AddScoped<ITutorRuntime, TutorRuntime>();
+        services.AddScoped<IChatAttachmentService, Bitcraft.Application.Features.Chat.ChatAttachmentService>();
 
         return services;
     }
