@@ -40,7 +40,7 @@ Five agents cover the plan → develop → review workflow. Capabilities without
 - Lead Dev owns development execution. Secretary handles upstream triage; Lead Dev handles downstream implementation.
 - Secretary owns overview, inbox hygiene, and documentation output, not product authority.
 - AI Ops owns the agentic stack and absorbs prompt-engineering, MCP, and model-routing work.
-- Use `.github/inboxes/<agent-slug>/inbox.md` as the prioritized backlog per agent. Remove completed items.
+- Use `.github/inboxes/<agent-slug>/inbox.md` as an optional local backlog per agent. Git ignores this folder. Remove completed items and move durable outcomes to tracked static documents.
 - Use `send: false` on agent `handoffs:` blocks when a UI handoff should preserve human review before sending.
 - Do not duplicate long procedures that belong in `.github/skills` or `.github/governance`.
 

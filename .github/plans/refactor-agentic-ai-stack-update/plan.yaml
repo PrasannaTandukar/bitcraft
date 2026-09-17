@@ -28,4 +28,5 @@ notes: >
   Progress 2026-09-17: WS1 drift fixes done. Agent consolidation 10 to 5 done
   (Secretary, Planner, Lead Dev, Sec Ops, AI Ops). bitcraft-ste skill added and set
   as the default writing style. markdownlint clean on 45 touched files.
-  Next: WS2 prompt-to-skill migration, awaiting human checkpoint approval.
+  WS2 prompt-to-skill migration, WS3 skill consolidation, and WS4 MCP spec split are done.
+  Next: human review of WS5 and WS6.

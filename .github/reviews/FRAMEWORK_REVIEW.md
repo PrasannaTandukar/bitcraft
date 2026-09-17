@@ -46,6 +46,13 @@ User requested a planning and implementation iteration for the agentic AI stack 
 
 - Sec Ops: review `fetch` (prompt-injection on returned web content) and `git` (must remain read-only).
 - Typewriter: refresh `README.md`, `docs/agentic-ai.md`, `docs/agentic-setup-guide.md` to reflect new MCP servers, static linting commands, provenance convention, and CONTENT_EXCLUSION policy.
+
+## 2026-09-18 Tracking Boundary
+
+- Keep `.github/inboxes/` local-only and ignored by Git.
+- Track durable plans, governance, audits, research, reviews, skills, instructions, and agent definitions.
+- Move durable decisions and outcomes from local inboxes into tracked static documents.
+- Treat missing inboxes as valid after clone or workspace reset.
 - AI Ops: refresh `/memories/repo/` entries to reflect the new file layout (`PROVENANCE.md`, `CONTENT_EXCLUSION.md`, `.github/vale/styles/`, `verify_architecture_readonly` tool).
 - AI Ops: run the next Agentic Audit once these changes have been exercised in at least one workflow.
 
@@ -58,7 +65,7 @@ The previous stack had become role-heavy and did not yet have persistent inboxes
 ### Research Checks
 
 - VS Code customization docs support project custom agents in `.github/agents`, prompt files in `.github/prompts`, skills in `.github/skills`, and file-based instructions with `applyTo`.
-- VS Code custom agents support UI handoffs, but the persistent inbox system is a Bitcraft repository convention rather than a native Copilot primitive.
+- VS Code custom agents support UI handoffs, but the then-persistent inbox system was a Bitcraft repository convention rather than a native Copilot primitive.
 - GitHub repository instructions support `.github/copilot-instructions.md`, `*.instructions.md`, and `AGENTS.md` style agent guidance.
 - OpenTelemetry GenAI semantic conventions are a useful future alignment point for model, operation, token, error, and MCP span metrics, but local manual capture is enough now.
 - DORA delivery metrics are useful for delivery health, but should be used for local improvement rather than targets or cross-project comparison.
@@ -75,7 +82,7 @@ The previous stack had become role-heavy and did not yet have persistent inboxes
 
 ### Best-Practice Deviations Or Caveats
 
-- Persistent inboxes are not a VS Code-native primitive. They are intentionally simple markdown queues to reduce coordination overhead and premium model calls.
+- The former persistent inboxes were not a VS Code-native primitive. They were simple Markdown queues used to reduce coordination overhead and premium model calls.
 - Some read-heavy agents have edit access so they can maintain their own inboxes and owned reports. Their prompts restrict source edits unless explicitly requested.
 - Metrics are guidance until the human approves thresholds and capture location. Hard gates without human agreement would create false precision.
 

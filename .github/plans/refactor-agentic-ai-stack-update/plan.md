@@ -117,7 +117,7 @@ Executed target set (14 skills — version-upgrade kept standalone instead of fo
 
 ## Impacted Files
 
-- Modified: `copilot-instructions.md`, `governance/README.md`, `governance/MODEL_ROUTING.md`, `governance/PROMPT_STACK_MAINTENANCE.md`, `governance/TOOLING_MATRIX.md`, `agents/ai-ops.agent.md`, `mcp/bitcraft-mcp-spec.md`, `inboxes/ai-ops/inbox.md`
+- Modified: `copilot-instructions.md`, `governance/README.md`, `governance/MODEL_ROUTING.md`, `governance/PROMPT_STACK_MAINTENANCE.md`, `governance/TOOLING_MATRIX.md`, `agents/ai-ops.agent.md`, `mcp/bitcraft-mcp-spec.md`, local inbox content during execution
 - Deleted (WS2, after approval): `.github/prompts/*.prompt.md`
 - Created (WS2/WS3): consolidated `skills/*/SKILL.md` set
 - Untouched: `src/`, `tests/`, `tutor-studio/`, `docs/`
@@ -135,7 +135,7 @@ Executed target set (14 skills — version-upgrade kept standalone instead of fo
 - After WS4: confirm spec matches `mcp-server/server.py` tool list.
 - No backend build/test impact; intentionally not run: `dotnet build`, unit tests.
 
-## Inbox Updates Queued
+## Local Inbox Updates Queued
 
-- ai-ops: close F-3 sweep item, repo-memory refresh item, and MCP smoke-test item where superseded by this plan (WS1).
-- ai-ops: one item per remaining open decision after plan review.
+- Use local inboxes only for short-lived coordination.
+- Record durable outcomes in this tracked plan or another tracked static document.

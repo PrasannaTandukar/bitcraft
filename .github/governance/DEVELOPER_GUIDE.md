@@ -20,11 +20,11 @@ ai_gen: true
 
 ## Inbox Use
 
-- Inboxes live under `.github/inboxes/<agent-slug>/inbox.md`.
-- Use inboxes for future action, not current chat narration.
+- Inboxes live under `.github/inboxes/<agent-slug>/inbox.md` when local coordination needs them. Git ignores these files.
+- Use inboxes for short-lived future action, not current chat narration or durable decisions.
 - Keep each item small enough that the target agent can act without rereading the whole conversation.
 - Remove completed items. Mark blocked items with the next human or agent action.
-- Put summaries, decisions, metrics definitions, and audit reports in `.github/governance/` or `docs/`, not inboxes.
+- Put summaries, decisions, metrics definitions, and audit reports in tracked plans, `.github/governance/`, `.github/audits/`, `.github/research/`, `.github/reviews/`, or `docs/`, not inboxes.
 - Keep inbox items concise. Do not use inboxes as activity logs; noisy inbox churn creates version-control noise without improving coordination.
 
 ## Markdown Metadata
@@ -57,7 +57,7 @@ Deep research is expected to run steps 1 through 3 when available and report loc
 
 - Lead Dev owns development execution end to end: backend .NET, EF Core, Application/Domain/Infrastructure/API, backend tests, and `tutor-studio/` frontend work.
 - Sec Ops owns security, privacy, authorization, prompt-injection, model/tool approval, data governance risk, plus CI/CD, Docker, deployment, migrations, release mechanics, and branch policy proposals.
-- AI Ops owns `.github`, MCP specs, prompts, agents, skills, model-routing docs, and agentic metrics.
+- AI Ops owns `.github`, MCP specs, agents, skills, model-routing docs, and agentic metrics.
 - Secretary owns coordination, documentation, and reports.
 - Domain-specific how-to lives in skills, not agents: `bitcraft-backend-feature`, `bitcraft-frontend-feature`, `bitcraft-devops-release`, `bitcraft-security-review`, `bitcraft-doc-maintenance`.
 
@@ -115,7 +115,7 @@ Minimum capture per AI-assisted change:
 
 - If a workflow fails repeatedly, update the owning prompt, skill, or agent instead of adding duplicate warnings everywhere.
 - If a metric produces bad incentives, revise the metric before using it for routing.
-- If an inbox becomes a log, have Secretary or AI Ops prune it back to active items.
+- If an inbox becomes a log, have Secretary or AI Ops prune it. Move durable results to a tracked static document.
 
 ## Companion Documents
 

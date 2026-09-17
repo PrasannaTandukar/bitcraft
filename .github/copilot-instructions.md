@@ -14,7 +14,8 @@ Bitcraft is an Agentic AI Tutor management platform. Treat this repository as a 
 
 - Humans and agents cooperate. Humans own product decisions, credentials, branch creation, commits, pushes, merges, releases, and final accountability.
 - Use the departmental agent roster in `.github/agents/ROSTER.md`: Secretary, Planner, Lead Dev, Sec Ops, and AI Ops. Research, documentation, backend/frontend specialization, and release work live as skills invoked inside these agents.
-- Use `.github/inboxes/<agent-slug>/inbox.md` as the prioritized backlog per agent. Read your own inbox at the start of role-specific work, act on highest-priority items, and clean items you complete.
+- Use `.github/inboxes/<agent-slug>/inbox.md` as an optional local backlog per agent. Read it at the start of role-specific work when present. Do not treat it as tracked project state.
+- Store durable plans, decisions, audits, research, reviews, and workflow rules in tracked files under `.github/plans/`, `.github/governance/`, `.github/audits/`, `.github/research/`, `.github/reviews/`, or `docs/`.
 - Use `.github/governance/METRICS.md` for CSS, DIS, and Change Impact Level (internal routing signals only — no external tracking).
 - Use the per-level protocol files in `.github/config/cil-<level>.yaml` to choose agents, research depth, allowed tools, validation, review, and human-escalation rules for any change.
 - Persist active task plans under `.github/plans/<branch-slug>/` with `plan.yaml` and optional `plan.md`/`context.md`. Completed plans move to `.github/plans/archive/`. Audits, research, and reviews follow the same pattern under `.github/audits/`, `.github/research/`, and `.github/reviews/`. MCP excludes `archive/` from default context.

@@ -26,5 +26,5 @@ Semi-locked doctrine, decision logs, and operational reports. Markdown files her
 
 - `.github/config/` — YAML configuration (allow-lists, CIL protocols).
 - `.github/agents/ROSTER.md` — department roster.
-- `.github/inboxes/` — per-agent prioritized backlog.
+- `.github/inboxes/` — optional local per-agent backlog. Git ignores this folder.
 - `.github/plans/` — active task plan folders.

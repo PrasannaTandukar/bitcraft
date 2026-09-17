@@ -45,7 +45,7 @@ Specialist capabilities (research, documentation, backend/frontend implementatio
 ## Current Priorities
 
 1. Keep the agentic stack lean, cohesive, and measurable.
-2. Establish inbox-backed cross-agent coordination.
+2. Use optional local inboxes for short-lived cross-agent coordination. Store durable outcomes in tracked static documents.
 3. Establish metrics for change risk, delivery effectiveness, agent execution, model routing, and incident leakage.
 4. Create a Bitbucket/Jira-compatible branching convention after this stack migration, with Git write operations remaining human-owned.
 5. Use recurring Security, Integrity, and Agentic audits to create actionable iterative work rather than one-off reports.

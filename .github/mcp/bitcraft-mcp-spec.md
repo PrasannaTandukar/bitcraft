@@ -13,7 +13,7 @@ This file documents the implemented read-only MCP server under `mcp-server/` plu
 
 Status: **live**. Every tool listed in this section exists in `mcp-server/server.py` (verified 2026-09-17). Everything below the Roadmap heading is **not implemented**.
 
-- `list_inboxes`, `read_inbox(agent_slug)`, `read_inbox_structured(agent_slug)`
+- `list_inboxes`, `read_inbox(agent_slug)`, `read_inbox_structured(agent_slug)` — optional local inboxes. Missing or empty inboxes are valid.
 - `list_governance_docs`, `read_governance(name)` — stable governance docs under `.github/governance/`.
 - `list_configs`, `read_config(name)` — human-managed YAML configuration under `.github/config/` (e.g. `approved-external-sources.yaml`, `cil-{low,medium,high,critical}.yaml`).
 - `list_active_plans(include_archived=False)`, `read_plan(branch_slug)` — active task plans under `.github/plans/<branch>/`. Archive and templates folders are excluded by default.
@@ -21,7 +21,7 @@ Status: **live**. Every tool listed in this section exists in `mcp-server/server
 - `list_agents`, `read_roster`
 - `verify_architecture_readonly` — reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, and external package references in Application that are not in the in-server allow-list, currently `MediatR` and `Microsoft.Extensions.DependencyInjection.Abstractions`). Read-only spot check; enforcement still belongs to tests and CI.
 
-The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/governance/`, `.github/config/`, `.github/agents/`, `.github/inboxes/`, `.github/plans/` (active folders only), ignored `docs/dev/` stack manifests, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
+The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/governance/`, `.github/config/`, `.github/agents/`, optional local `.github/inboxes/`, `.github/plans/` (active folders only), ignored `docs/dev/` stack manifests, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
 
 ## Third-Party MCP Servers Wired In `.vscode/mcp.json`
 
@@ -134,7 +134,7 @@ Output:
 
 ### `read_inbox_structured`
 
-Implemented additive helper. Parses the existing Markdown inbox source of truth into structured item fields without changing `read_inbox` behavior.
+Implemented additive helper. Parses the existing local Markdown inbox into structured item fields without changing `read_inbox` behavior.
 
 Inputs:
 
