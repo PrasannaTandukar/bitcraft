@@ -1,46 +1,49 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-17
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 name: bitcraft-devops-release
-description: 'Plan Bitcraft deployment, CI/CD, Docker, environment, migration, release operations, branch conventions, and Integrity Audits. Use for build/test pipelines, compose files, database updates, Bitbucket/Jira workflow, rollout checks, and production readiness.'
-argument-hint: '[deployment, CI/CD, migration, branch policy, integrity audit, or release concern]'
+description: "Plan and review Bitcraft deployment, CI/CD, Docker, environment, EF migration, release operations, and branch conventions. Use for build/test pipelines, compose files, database updates, Bitbucket/Jira workflow, rollout checks, production readiness, and Integrity Audits."
+argument-hint: "[pipeline, Docker, migration, deployment, branch policy, release, or integrity audit]"
 ---
 
 # Bitcraft DevOps Release
 
-Use this skill for operational readiness and deployment workflows.
-
-## When to Use This Skill
-
-- The user asks about CI/CD, Docker, deployments, migrations, build tasks, branch conventions, integrity audits, or release validation.
-- A backend change affects environment variables, appsettings, database migrations, or external services.
-- The agentic AI setup needs validation or rollout guidance.
+Use this skill for infrastructure, release, and operational integrity work. Runs inside the Sec Ops agent (the single integrity owner).
 
 ## Procedure
 
-1. Inventory affected services and configuration.
-2. Identify secrets, environment variables, ports, volumes, and database dependencies.
-3. Keep generated operational changes scoped to the authorized files.
-4. Plan migrations separately from code deployment when risk warrants it.
-5. Validate with the narrowest build/test/container command available.
-6. For branch policy, keep Git write operations human-owned and evaluate short-lived Bitbucket/Jira-compatible branches.
-7. For Integrity Audits, use `.github/audits/templates/audit.template.md` and create inbox items for remediation.
-8. Document rollback and manual operator steps.
+1. Read `.github/governance/METRICS.md` and classify the change with the `bitcraft-change-risk` skill.
+2. Scope the surface: build, tests, Docker, compose, CI/CD, migrations, environments, release, rollback, branch workflow.
+3. Verify current state in repository files before proposing changes — do not plan from stale memory.
+4. Keep changes minimal and validate with the narrowest relevant command (`docker compose config --quiet`, build, focused tests).
+5. Escalate high-risk deployment, migration, rollback, branch, or environment issues to the human.
 
-## Checks
+## Migration Rules
 
-- `dotnet build` for backend compile changes.
-- Focused `dotnet test` for behavior changes.
-- Docker Compose changes validated by config/render checks when available.
-- EF migration changes reviewed for data loss.
-- Copilot customization changes validated by diagnostics/frontmatter scans.
+- Agents never run migrations against shared environments. Humans apply them.
+- Document the command, the prerequisite migrations, the post-apply verification query, and the rollback risk for every migration item.
+- Note lossy `Down()` paths explicitly.
 
-## Gotchas
+## Integrity Audit Procedure
 
-- Do not run database updates against production by default.
-- Do not add CI/CD secrets or credentials to repository files.
-- Do not perform Git writes.
-- Do not approve branch conventions or release gates without human confirmation.
+1. Read `.github/audits/templates/audit.template.md` and the Sec Ops inbox.
+2. Scope build, tests, Docker, compose, CI/CD, migrations, environments, release, rollback, and branch workflow.
+3. Produce findings with severity, CSS, DIS, CIL, evidence, owner, and remediation.
+4. Create inbox items for remediation owners.
+
+## Constraints
+
+- Do not perform Git write operations.
+- Do not create active MCP, CI, credential, or deployment configs containing secrets.
+- Do not run destructive database or deployment commands without explicit human approval.
+
+## Output
+
+- Operational finding or change.
+- Commands validated or intentionally not run.
+- Branch/release implications.
+- CIL and review route.
+- Inbox updates.

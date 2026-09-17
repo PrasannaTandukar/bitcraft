@@ -7,7 +7,7 @@ ai_gen: true
 ---
 # Bitcraft Model Routing
 
-Bitcraft uses multiple model families through GitHub Copilot Pro plus a local Ollama setup on 2x RTX 3090. This page is the quick-reference table. Detailed reasoning lives in `.github/skills/bitcraft-model-routing/SKILL.md`.
+Bitcraft uses multiple model families through GitHub Copilot Pro plus a local Ollama setup on 2x RTX 3090. This page is the complete quick-reference. There is no separate model-routing skill — routing guidance lives here only.
 
 Model identifiers are intentionally not hard-coded in agent frontmatter. Pick by family, then choose the current best-available model inside that family in the Copilot client.
 
@@ -45,7 +45,7 @@ Bitcraft does not run a separate orchestrator service. Two roles share the orche
 - **Secretary = triage.** Lightweight, fast, cheap. Reads inboxes, summarizes state, routes the user to the right specialist. Suited to fast / general-purpose models. Should not produce multi-page reasoning.
 - **Lead Dev = orchestrator.** Takes development responsibility after a plan is approved, delegates implementation slices, and chooses review routing. Suited to general-purpose or deep-reasoning models depending on Change Impact Level.
 
-A specialist agent (NET Dev, Web Dev, Dev Ops, Sec Ops, AI Ops, Typewriter) should not absorb either role.
+A specialist agent (Sec Ops, AI Ops) should not absorb either role.
 
 ## Hybrid Cascade Default
 
@@ -67,7 +67,7 @@ Skip the cascade for trivial edits (one model is enough) and for security-sensit
 
 - 2x RTX 3090 supports ~30-70B class models in 4-bit quant comfortably; pick the model size that fits sustained context.
 - Ollama runs as a local service; integration with Copilot Pro is via the Bring Your Own Key (BYOK) feature when available in the active Copilot client, or via a dedicated MCP/HTTP bridge.
-- Local model use is opt-in per agent and should be documented in `.github/skills/bitcraft-model-routing/SKILL.md`.
+- Local model use is opt-in per task; pick the family per the tables above.
 
 ## Reflection
 
@@ -76,8 +76,7 @@ Update this table when:
 - A model family graduates or regresses in the Copilot Pro picker.
 - A local Ollama model proves materially better for a bounded task than cloud equivalents.
 - A new privacy requirement forces work onto local inference.
-- Audit metrics (CSR, ILR) show a routing choice causing recurring rework.
+- CIL-routed reviews repeatedly find rework caused by a routing choice.
 - Copilot's task-category list (model-comparison page) changes shape.
 
 Reflection ownership: AI Ops.
-

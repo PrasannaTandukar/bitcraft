@@ -23,7 +23,7 @@ Dedicated folder for audit reports. Active reports live at the root; completed/h
 ## Kinds
 
 - `SECURITY` — owned by Sec Ops.
-- `INTEGRITY` — owned by Dev Ops.
+- `INTEGRITY` — owned by Sec Ops.
 - `AGENTIC` — owned by AI Ops.
 
 ## Lifecycle

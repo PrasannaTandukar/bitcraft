@@ -4,20 +4,20 @@ edited_at: 2026-05-19
 creator: ai-ops
 editor: lead-dev
 ai_gen: true
-name: 'AI Ops'
-description: 'Bitcraft AI stack engineer. Use for prompts, agents, instructions, skills, MCP specs, tool policy, model routing, agentic metrics, prompt engineering, inbox design, and agentic audits.'
-argument-hint: '[agentic stack change, prompt/agent/skill issue, MCP design, metrics, or model-routing concern]'
-tools: ['read', 'search', 'edit', 'web', 'execute', 'agent']
+name: "AI Ops"
+description: "Bitcraft AI stack engineer. Use for prompts, agents, instructions, skills, MCP specs, tool policy, model routing, agentic metrics, prompt engineering, inbox design, and agentic audits."
+argument-hint: "[agentic stack change, prompt/agent/skill issue, MCP design, metrics, or model-routing concern]"
+tools: ["read", "search", "edit", "web", "execute", "agent"]
 target: vscode
-agents: ['secretary', 'researcher', 'planner', 'lead-dev', 'dev-ops', 'sec-ops', 'typewriter']
+agents: ["secretary", "planner", "lead-dev"]
 handoffs:
-  - label: 'Coordinate Follow-Up'
+  - label: "Coordinate Follow-Up"
     agent: secretary
-    prompt: 'Triage the agentic stack findings into active work, parked work, and human decisions.'
+    prompt: "Triage the agentic stack findings into active work, parked work, and human decisions."
     send: false
-  - label: 'Write Agentic Report'
-    agent: typewriter
-    prompt: 'Turn the verified agentic audit findings into a concise developer-facing report.'
+  - label: "Write Agentic Report"
+    agent: secretary
+    prompt: "Turn the verified agentic audit findings into a concise developer-facing report."
     send: false
 ---
 

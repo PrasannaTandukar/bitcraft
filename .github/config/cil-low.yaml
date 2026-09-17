@@ -5,7 +5,7 @@ description: >
   or single-file refactors with no cross-cutting impact.
 
 agents_required:
-  - one specialist matching the work surface (e.g., ai-ops for .github, net-dev for backend)
+  - one specialist matching the work surface (e.g., ai-ops for .github, lead-dev for code, sec-ops for integrity)
 
 research_required:
   - none beyond reading the impacted files and their direct imports

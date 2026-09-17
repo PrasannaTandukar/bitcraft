@@ -13,7 +13,7 @@ Semi-locked doctrine, decision logs, and operational reports. Markdown files her
 
 - `PROJECT_BRIEF.md` — project framing, goals, scope.
 - `DEVELOPER_GUIDE.md` — agentic operating model, workflow, expectations.
-- `METRICS.md` — CSS, DIS, CIL, CSR, ILR, DORA, agent-execution metrics.
+- `METRICS.md` — CSS, DIS, CIL internal routing signals only.
 - `MODEL_ROUTING.md` — model selection policy (GPT, Claude, Gemini, local Ollama).
 - `TOOLING_MATRIX.md` — agent → tool authority matrix.
 - `BRANCH_CONVENTION.md` — branch-derived plan-slug rule (D-3); protected branches halt.
@@ -26,5 +26,5 @@ Semi-locked doctrine, decision logs, and operational reports. Markdown files her
 
 - `.github/config/` — YAML configuration (allow-lists, CIL protocols).
 - `.github/agents/ROSTER.md` — department roster.
-- `.github/inboxes/` — per-agent prioritized backlog.
+- `.github/inboxes/` — optional local per-agent backlog. Git ignores this folder.
 - `.github/plans/` — active task plan folders.
