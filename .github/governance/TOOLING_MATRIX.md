@@ -11,18 +11,13 @@ ai_gen: true
 
 Use the least powerful toolset that lets the role complete its work. Edit-capable agents may update their own inboxes and owned docs. Read-heavy agents must not edit source code unless their role and user request explicitly allow it.
 
-| Department | Agent | Main work | Default tools | Delegates to |
-| --- | --- | --- | --- | --- |
-| Admin | Secretary | Work overview, inbox triage, timelines, Jira/Bitbucket status, coordination | read, search, edit, todo, agent | Researcher, Planner, Lead Dev, Dev Ops, Sec Ops, AI Ops, Typewriter |
-| Admin | Typewriter | Reports, guides, README/docs, audit writeups | read, search, edit, web | Secretary, AI Ops |
-| Planning | Researcher | Repository and external evidence, academic/technical research | read, search, web, edit | Planner, Typewriter |
-| Planning | Planner | Technical plans, risks, impacted files, validation strategy | read, search, edit, todo, agent | Lead Dev, Dev Ops, Sec Ops, AI Ops |
-| Development | Lead Dev | Full-stack development orchestration, expert delegation, fallback implementation | read, search, edit, execute, todo, agent | NET Dev, Web Dev, Dev Ops, Sec Ops, AI Ops |
-| Development | NET Dev | .NET backend, Clean Architecture, EF Core, tests | read, search, edit, execute, todo | Lead Dev |
-| Development | Web Dev | React/Vite Tutor Studio frontend | read, search, edit, execute, todo | Lead Dev |
-| Integrity | Dev Ops | CI/CD, Docker, deployment, migrations, branch policy, integrity audit | read, search, edit, execute, web | Lead Dev, Sec Ops, Typewriter |
-| Integrity | Sec Ops | Security, privacy, authorization, data governance, security audit | read, search, edit, web | Lead Dev, Dev Ops, Typewriter |
-| Integrity | AI Ops | Agentic stack, prompts, agents, skills, MCP, metrics, model routing, agentic audit | read, search, edit, web, execute, agent | Secretary, Typewriter, Planner |
+| Agent | Main work | Default tools | Delegates to |
+| --- | --- | --- | --- |
+| Secretary | Work overview, inbox triage, coordination, documentation and reports | read, search, edit, todo, agent, web | Planner, Lead Dev, Sec Ops, AI Ops |
+| Planner | Technical plans, risks, impacted files, validation strategy | read, search, edit, todo, agent | Lead Dev, Sec Ops, AI Ops |
+| Lead Dev | Full-stack implementation and validation (backend .NET + frontend React/Vite) | read, search, edit, execute, todo, agent | Sec Ops, AI Ops |
+| Sec Ops | Security, privacy, authorization, data governance, CI/CD, Docker, deployment, migrations, release, audits | read, search, edit, web, execute | Lead Dev, AI Ops |
+| AI Ops | Agentic stack, prompts, agents, skills, MCP, metrics, model routing, agentic audit | read, search, edit, web, execute, agent | Secretary, Planner, Lead Dev |
 
 ## Model Routing Guidance
 

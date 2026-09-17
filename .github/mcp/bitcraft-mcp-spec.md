@@ -7,11 +7,11 @@ ai_gen: true
 ---
 # Bitcraft MCP Specification
 
-This file is the long-form MCP design surface. A minimal read-only MCP server is now implemented under `mcp-server/`; this spec covers both the implemented baseline and the deferred extensions.
+This file documents the implemented read-only MCP server under `mcp-server/` plus a clearly marked roadmap of deferred design ideas. Treat anything under a Roadmap heading as **not implemented**.
 
 ## Implemented Baseline
 
-`mcp-server/server.py` exposes a small set of read-only tools using the official Python MCP SDK:
+Status: **live**. Every tool listed in this section exists in `mcp-server/server.py` (verified 2026-09-17). Everything below the Roadmap heading is **not implemented**.
 
 - `list_inboxes`, `read_inbox(agent_slug)`, `read_inbox_structured(agent_slug)`
 - `list_governance_docs`, `read_governance(name)` — stable governance docs under `.github/governance/`.
@@ -66,6 +66,7 @@ Legacy baseline. Use `.github/copilot-instructions.md`, scoped instructions, pro
 Implemented at minimal scope under `mcp-server/`. Exposes inboxes, roster, and governance docs as read-only tools.
 
 Use when:
+
 - Agents repeatedly need the same bounded-context summaries, route maps, contract lookups, test inventory, or customization catalog.
 - Context window pressure is high.
 - The team wants deterministic, reusable repository context without granting write tools.
@@ -75,24 +76,27 @@ Use when:
 Future expansion. The MCP server can expose read-only dev database summaries, Knowledge traceability, and local Ollama model metadata. It can optionally route summarization through local 2x RTX 3090 inference for private bulk processing.
 
 Use when:
+
 - Agents need safe dev-data diagnostics.
 - Knowledge/Documents traceability is central to the task.
 - Local model cost/privacy advantages outweigh operational complexity.
 
-## Server Boundary
+## Roadmap — Server Boundary (Not Implemented)
 
 Recommended runtime: local stdio server launched by VS Code MCP configuration when implementation is approved.
 
 Recommended implementation options:
+
 - .NET console server for strongest alignment with the backend stack.
 - TypeScript server if VS Code MCP ecosystem integration becomes simpler for tool packaging.
 - Python server only for local AI/embedding experimentation, not as the primary repo-context server.
 
 Recommended future location when code is approved:
+
 - `tools/Bitcraft.Mcp/` for a standalone local server, or
 - `src/Bitcraft.Mcp/` only if it becomes a first-class solution project.
 
-## Resources
+## Roadmap — Resources (Not Implemented)
 
 Resources should be stable, small, and cacheable.
 
@@ -100,14 +104,14 @@ Resources should be stable, small, and cacheable.
 | --- | --- | --- |
 | `bitcraft://repo/overview` | High-level project architecture and active stack | README, solution, appsettings, `.github` |
 | `bitcraft://repo/domain-glossary` | Documents, Knowledge, Tutor, ModelCatalogEntry, snapshots, BaseModel | Domain files and repo memory |
-| `bitcraft://repo/customizations` | Prompt, instruction, agent, skill, MCP catalog | `.github` |
+| `bitcraft://repo/customizations` | Instruction, agent, skill, MCP catalog | `.github` |
 | `bitcraft://bounded-context/{context}` | Bounded context summary for Auth, Admin, Documents, Knowledge, Ollama, Tutoring | `src/Bitcraft.*` |
 | `bitcraft://tests/inventory` | Test projects, major suites, and command hints | `tests/` |
 | `bitcraft://api/contracts/{context}` | API contract inventory and route hints | `src/Bitcraft.Api/Contracts`, controllers |
 | `bitcraft://docs/agentic-ai` | Human-facing AI setup overview | `docs/agentic-ai.md` |
 | `bitcraft://docs/dev/{stack}` | Developer-local documentation stack manifest and source inventory | ignored `docs/dev/<stack>/STACK.md` |
 
-## Tools
+## Roadmap — Tools (Not Implemented)
 
 All default tools are read-only and should return concise JSON with source paths and confidence notes.
 
@@ -116,10 +120,12 @@ All default tools are read-only and should return concise JSON with source paths
 Returns repository structure, project references, bounded contexts, and primary validation commands.
 
 Inputs:
+
 - `focus`: optional string.
 - `includeTests`: optional boolean.
 
 Output:
+
 - `summary`.
 - `projects`.
 - `boundedContexts`.
@@ -131,9 +137,11 @@ Output:
 Implemented additive helper. Parses the existing Markdown inbox source of truth into structured item fields without changing `read_inbox` behavior.
 
 Inputs:
+
 - `agent_slug`: lowercase agent slug.
 
 Output:
+
 - `agentSlug`.
 - `sourcePath`.
 - `itemCount`.
@@ -144,9 +152,11 @@ Output:
 Implemented additive helpers for developer-local documentation under ignored `docs/dev/`.
 
 Inputs:
+
 - `stack_slug` for `read_doc_stack`: folder name under `docs/dev/`.
 
 Output:
+
 - Stack slug and source path.
 - Parsed frontmatter metadata.
 - Local source-path inventory with existence flags.
@@ -154,6 +164,7 @@ Output:
 - Raw `STACK.md` content for the selected stack.
 
 Rules:
+
 - Missing or empty `docs/dev/` is valid and returns no stacks.
 - Tools are read-only and accept only slugs, never free-form paths.
 - Product Documents/Knowledge ingestion is not used for agentic development docs.
@@ -163,10 +174,12 @@ Rules:
 Summarizes one bounded context without dumping full files.
 
 Inputs:
+
 - `context`: `Auth`, `Admin`, `Documents`, `Knowledge`, `Ollama`, or `Tutoring`.
 - `depth`: `shallow`, `normal`, or `deep`.
 
 Output:
+
 - `domainTypes`.
 - `applicationFeatures`.
 - `apiControllers`.
@@ -180,10 +193,12 @@ Output:
 Finds API contracts and controllers for a resource operation.
 
 Inputs:
+
 - `resource`: string.
 - `operation`: optional string.
 
 Output:
+
 - `contracts`.
 - `controllers`.
 - `routes`.
@@ -195,10 +210,12 @@ Output:
 Returns test coverage map and likely validation commands.
 
 Inputs:
+
 - `area`: optional string.
 - `changedFiles`: optional string array.
 
 Output:
+
 - `candidateTests`.
 - `commands`.
 - `coverageGaps`.
@@ -209,9 +226,11 @@ Output:
 Returns available instructions, prompts, agents, skills, and MCP specs.
 
 Inputs:
+
 - `type`: optional `instructions`, `prompts`, `agents`, `skills`, `mcp`, or `all`.
 
 Output:
+
 - `items` with name, path, description, tool policy, and loadability notes.
 - `driftWarnings`.
 
@@ -220,9 +239,11 @@ Output:
 Reports local migration files and DbContext mapping status without connecting to production.
 
 Inputs:
+
 - `includeModelSnapshot`: optional boolean.
 
 Output:
+
 - `migrations`.
 - `dbContexts`.
 - `pendingRiskNotes`.
@@ -245,9 +266,9 @@ These require a separate user-approved implementation plan and explicit runtime 
 - `deploy_environment`.
 - `git_commit`, `git_push`, `git_branch`, `git_merge`, `git_rebase`.
 
-## Prompts Exposed By MCP
+## Roadmap — Prompts Exposed By MCP (Not Implemented)
 
-MCP prompts should wrap existing project workflows instead of replacing `.github/prompts`.
+MCP prompts should wrap existing project workflows instead of replacing `.github/skills`.
 
 - `plan_bitcraft_feature`: produces a plan using repo map, bounded context summary, and test inventory.
 - `review_bitcraft_change`: produces review findings using changed files, contracts, tests, and security checks.

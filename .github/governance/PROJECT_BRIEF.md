@@ -31,14 +31,16 @@ The agentic AI layer exists to improve development coordination, quality, repeat
 - Local MCP server: `mcp-server/` (read-only, exposes inboxes, roster, and governance docs).
 - Human-facing docs: `docs/`.
 
-## Agent Departments
+## Agent Roster
 
-- Admin: Secretary and Typewriter.
-- Planning: Researcher and Planner.
-- Development: Lead Dev, NET Dev, and Web Dev.
-- Integrity: Dev Ops, Sec Ops, and AI Ops.
+Five agents cover the plan → develop → review workflow (consolidated 2026-09-17):
 
-Lead Dev is the development orchestrator. AI Ops owns the agentic AI stack. Secretary owns work overview and inbox hygiene. Typewriter owns presentable docs and reports.
+- Coordination and docs: Secretary.
+- Planning: Planner.
+- Development: Lead Dev (backend .NET + frontend React/Vite).
+- Integrity: Sec Ops (security + CI/CD/Docker/release) and AI Ops (agentic stack).
+
+Specialist capabilities (research, documentation, backend/frontend implementation, releases) live as skills invoked inside these agents. See `.github/agents/ROSTER.md`.
 
 ## Current Priorities
 

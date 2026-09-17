@@ -9,13 +9,13 @@ ai_gen: true
 
 ## Standard Flow
 
-1. Secretary gets work overview, checks relevant inboxes, and surfaces active priorities or blockers. Secretary is **triage**, not orchestration.
-2. Researcher gathers evidence when the user needs discovery, external documentation, academic input, or model/tool comparison.
+1. Secretary gets work overview, checks relevant inboxes, and surfaces active priorities or blockers. Secretary is **triage**, not orchestration, and also produces documentation and reports.
+2. Research runs as the `bitcraft-research` skill inside Secretary or Planner when the user needs discovery, external documentation, academic input, or model/tool comparison.
 3. Planner converts evidence and requirements into a technical plan with risks, impacted files, validation, and Change Impact Level.
-4. Lead Dev accepts development responsibility and acts as the **development orchestrator**, delegating implementation slices to NET Dev, Web Dev, Dev Ops, Sec Ops, or AI Ops.
-5. Implementing agents make small validated edits and update their own inboxes when they complete or block delegated work.
-6. Review is routed by Change Impact Level and domain: Lead Dev for ordinary code review, Sec Ops for security/privacy risk, Dev Ops for deployment/infrastructure risk, and AI Ops for agentic stack risk.
-7. Typewriter turns approved technical facts into presentable docs or audit reports when needed. Standalone AI-generated reports include the provenance line from `.github/governance/PROVENANCE.md`.
+4. Lead Dev accepts development responsibility and implements directly — backend (.NET) and frontend (React/Vite) both live in this role.
+5. Lead Dev makes small validated edits and updates its inbox when work completes or blocks.
+6. Review is routed by Change Impact Level and domain: Lead Dev for ordinary code review, Sec Ops for security/privacy/deployment risk, and AI Ops for agentic stack risk.
+7. Secretary turns approved technical facts into presentable docs or audit reports when needed. Standalone AI-generated reports include the provenance line from `.github/governance/PROVENANCE.md`.
 8. Secretary or AI Ops captures metrics and queues follow-up work.
 
 ## Inbox Use
@@ -53,14 +53,13 @@ Deep research is expected to run steps 1 through 3 when available and report loc
 - Put human-provided source files under `docs/dev/<stack-slug>/sources/`.
 - Agents may read these stacks when present, but must tolerate the folder being absent or empty.
 
-## Development Delegation
+## Development Ownership
 
-- Lead Dev owns development task routing.
-- NET Dev owns backend .NET, EF Core, Application/Domain/Infrastructure/API, and backend tests.
-- Web Dev owns `tutor-studio/` frontend work.
-- Dev Ops owns Docker, CI/CD, deployment, migrations, release mechanics, and branch policy proposals.
-- Sec Ops owns security, privacy, authorization, prompt-injection, model/tool approval, and data governance risk.
+- Lead Dev owns development execution end to end: backend .NET, EF Core, Application/Domain/Infrastructure/API, backend tests, and `tutor-studio/` frontend work.
+- Sec Ops owns security, privacy, authorization, prompt-injection, model/tool approval, data governance risk, plus CI/CD, Docker, deployment, migrations, release mechanics, and branch policy proposals.
 - AI Ops owns `.github`, MCP specs, prompts, agents, skills, model-routing docs, and agentic metrics.
+- Secretary owns coordination, documentation, and reports.
+- Domain-specific how-to lives in skills, not agents: `bitcraft-backend-feature`, `bitcraft-frontend-feature`, `bitcraft-devops-release`, `bitcraft-security-review`, `bitcraft-doc-maintenance`.
 
 ## Review Routing By Impact
 
@@ -70,8 +69,8 @@ Use `.github/governance/METRICS.md` to classify CSS, DIS, and CIL. Use the match
 | --- | --- | --- |
 | Low | `.github/config/cil-low.yaml` | Implementing agent self-check plus focused validation. |
 | Medium | `.github/config/cil-medium.yaml` | Lead Dev plus relevant specialist. |
-| High | `.github/config/cil-high.yaml` | Lead Dev plus mandatory specialist (Sec Ops / Dev Ops / AI Ops). |
-| Critical | `.github/config/cil-critical.yaml` | Human pre-approval before any work; Sec Ops mandatory; Dev Ops when infra. |
+| High | `.github/config/cil-high.yaml` | Lead Dev plus mandatory specialist (Sec Ops or AI Ops). |
+| Critical | `.github/config/cil-critical.yaml` | Human pre-approval before any work; Sec Ops mandatory. |
 
 ## Document Persistence Layout
 
@@ -90,7 +89,7 @@ Lifecycle: open → active folder → archive when complete or superseded. Alway
 
 ## Branching Work
 
-The next operational task is a Bitbucket/Jira-compatible branch convention. Dev Ops owns the proposal, but humans approve the policy and perform Git write operations.
+The branch convention is captured in `.github/governance/BRANCH_CONVENTION.md` (D-3). Sec Ops maintains the convention guidance and CI/merge-policy compatibility; humans approve the policy and perform Git write operations.
 
 Preferred direction to evaluate:
 
