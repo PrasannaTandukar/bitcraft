@@ -105,13 +105,22 @@ internal sealed class FakeBenchmarkRunQueue : IBenchmarkRunQueue
 internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
 {
     public BenchmarkEngineRequest? LastRequest { get; private set; }
+    public StandardLlmBenchmarkRequest? LastStandardRequest { get; private set; }
     public Result<BenchmarkEngineResult>? ResultToReturn { get; set; }
+    public Result<StandardLlmBenchmarkResult>? StandardResultToReturn { get; set; }
 
     public Task<Result<BenchmarkEngineResult>> EvaluateAsync(BenchmarkEngineRequest request, CancellationToken cancellationToken = default)
     {
         LastRequest = request;
         return Task.FromResult(ResultToReturn ?? Result.Failure<BenchmarkEngineResult>(
             new Error("Benchmark.EngineNotConfigured", "Fake benchmark engine result was not configured.")));
+    }
+
+    public Task<Result<StandardLlmBenchmarkResult>> EvaluateStandardLlmBenchmarkAsync(StandardLlmBenchmarkRequest request, CancellationToken cancellationToken = default)
+    {
+        LastStandardRequest = request;
+        return Task.FromResult(StandardResultToReturn ?? Result.Success(
+            new StandardLlmBenchmarkResult(request.BenchmarkKey, 0.85, 1, "deepeval-fake", "Fake benchmark completed.", null)));
     }
 }
 

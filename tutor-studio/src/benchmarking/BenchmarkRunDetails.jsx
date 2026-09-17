@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Col, Collapse, Descriptions, Empty, Flex, Progress, Row, Space, Spin, Statistic, Table, Tag, Typography } from "antd";
+import { Alert, Button, Card, Col, Collapse, Descriptions, Empty, Flex, Progress, Row, Space, Spin, Statistic, Table, Tag, Tooltip, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
 import StatusTag from "../components/StatusTag.jsx";
@@ -9,6 +9,7 @@ import {
   formatNumber,
   formatPercent,
   metricName,
+  metricTierBadge,
   parseMetrics,
   runStatusLabel,
   safeParseJson,
@@ -99,7 +100,21 @@ export default function BenchmarkRunDetails({ tutorId, runId, initialRun, onBack
   const progressValue = Math.max(0, Math.min(100, Number(summary?.progressPercent) || 0));
 
   const metricColumns = [
-    { title: "Metric", dataIndex: "key", render: metricName },
+    {
+      title: "Metric",
+      dataIndex: "key",
+      render: (key) => {
+        const badge = metricTierBadge(key);
+        return (
+          <Space orientation="horizontal" size={6}>
+            <Tooltip title={badge.tooltip}>
+              <Tag color={badge.color} style={{ cursor: "help" }}>{badge.symbol} {badge.label}</Tag>
+            </Tooltip>
+            <Typography.Text strong>{metricName(key)}</Typography.Text>
+          </Space>
+        );
+      },
+    },
     { title: "Average", dataIndex: "average", render: formatPercent },
     { title: "Threshold", dataIndex: "threshold", render: formatPercent },
     { title: "Result", key: "result", render: (_, metric) => <Tag color={metric.passed === null ? "default" : metric.passed ? "success" : "error"}>{metric.passed === null ? "Not available" : metric.passed ? "Pass" : "Fail"}</Tag> },
@@ -133,7 +148,21 @@ export default function BenchmarkRunDetails({ tutorId, runId, initialRun, onBack
             {runCase.metadataJson ? <Descriptions.Item label="Metadata"><Typography.Text code>{JSON.stringify(metadata)}</Typography.Text></Descriptions.Item> : null}
           </Descriptions>
           {metrics.length ? <Table size="small" rowKey="key" pagination={false} scroll={{ x: 700 }} columns={[
-            { title: "Metric", dataIndex: "key", render: metricName },
+            {
+              title: "Metric",
+              dataIndex: "key",
+              render: (key) => {
+                const badge = metricTierBadge(key);
+                return (
+                  <Space orientation="horizontal" size={6}>
+                    <Tooltip title={badge.tooltip}>
+                      <Tag color={badge.color} style={{ cursor: "help" }}>{badge.symbol} {badge.label}</Tag>
+                    </Tooltip>
+                    <Typography.Text strong>{metricName(key)}</Typography.Text>
+                  </Space>
+                );
+              },
+            },
             { title: "Score", dataIndex: "score", render: formatPercent },
             { title: "Threshold", dataIndex: "threshold", render: formatPercent },
             { title: "Result", dataIndex: "passed", render: (value) => <Tag color={value ? "success" : "error"}>{value ? "Pass" : "Fail"}</Tag> },

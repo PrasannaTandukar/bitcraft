@@ -1,21 +1,82 @@
 export const METRIC_DETAILS = {
+  // Tier 1: Deterministic & Heuristic metrics
   faithfulness: {
-    name: "Faithfulness",
+    name: "Faithfulness (Claim Overlap)",
+    tier: 1,
     description: "Estimates whether answer claims are supported by the supplied context.",
   },
   answer_relevancy: {
-    name: "Answer relevancy",
+    name: "Answer Relevancy",
+    tier: 1,
     description: "Estimates how directly the answer addresses the question.",
   },
   hallucination: {
-    name: "Groundedness / hallucination",
+    name: "Groundedness / Hallucination",
+    tier: 1,
     description: "Estimates whether claims are grounded by context or an expected answer.",
   },
   correctness: {
-    name: "Expected-answer correctness",
+    name: "Expected-answer Correctness",
+    tier: 1,
     description: "Compares the generated answer with the optional expected answer.",
   },
+  contextual_precision: {
+    name: "Contextual Precision",
+    tier: 1,
+    description: "Evaluates context relevance and signal-to-noise ratio in retrieved knowledge.",
+  },
+  contextual_recall: {
+    name: "Contextual Recall",
+    tier: 1,
+    description: "Evaluates whether retrieved chunks cover all necessary facts.",
+  },
+  contextual_relevancy: {
+    name: "Contextual Relevancy",
+    tier: 1,
+    description: "Scores the relevancy of retrieved chunks directly against the prompt.",
+  },
+  pii_leakage: {
+    name: "PII & Secret Guard",
+    tier: 1,
+    description: "Deterministic regex detection for emails, phone numbers, and credentials (COPPA/GDPR-K).",
+  },
+  toxicity: {
+    name: "Toxicity Check",
+    tier: 1,
+    description: "Deterministic keyword heuristic for harmful content.",
+  },
+  bias: {
+    name: "Bias Check",
+    tier: 1,
+    description: "Heuristic scan for stereotypical bias indicators.",
+  },
+
+  // Tier 2: Qualitative & LLM-as-a-Judge / G-Eval
+  g_eval: {
+    name: "G-Eval (Custom Rubric)",
+    tier: 2,
+    description: "Multi-criteria Chain-of-Thought evaluation with custom rubrics.",
+  },
+  prompt_alignment: {
+    name: "Prompt Alignment",
+    tier: 2,
+    description: "Evaluates semantic alignment with prompt instructions.",
+  },
+  role_violation: {
+    name: "Persona & Role Adherence",
+    tier: 2,
+    description: "Audits whether tutor stays within designated persona boundaries.",
+  },
 };
+
+export const STANDARD_BENCHMARKS = [
+  { key: "mmlu", name: "MMLU", description: "Massive Multitask Language Understanding (57 subjects: STEM, humanities, etc.)" },
+  { key: "gsm8k", name: "GSM8K", description: "Grade School Math (8,500 multi-step math problems testing numerical reasoning)" },
+  { key: "big_bench_hard", name: "BIG-Bench Hard", description: "23 challenging multi-step reasoning and algorithmic tasks" },
+  { key: "hellaswag", name: "HellaSwag", description: "Adversarial commonsense reasoning and sentence completion" },
+  { key: "drop", name: "DROP", description: "Discrete Reasoning Over Paragraphs (reading comprehension, dates, counts)" },
+  { key: "truthful_qa", name: "TruthfulQA", description: "Benchmark testing mimicry of human falsehoods and hallucination resistance" },
+];
 
 export const emptyBenchmarkCase = () => ({
   inputText: "",
@@ -43,6 +104,26 @@ export const parseMetrics = (metricsJson) => {
 };
 
 export const metricName = (key) => METRIC_DETAILS[key]?.name ?? key?.replaceAll("_", " ") ?? "Unknown metric";
+
+export const metricTier = (key) => METRIC_DETAILS[key]?.tier ?? 1;
+
+export const metricTierBadge = (key) => {
+  const tier = metricTier(key);
+  if (tier === 1) {
+    return {
+      label: "Deterministic",
+      color: "blue",
+      tooltip: "100% reproducible exact / claim-overlap calculation (No LLM subjectivity).",
+      symbol: "⚡",
+    };
+  }
+  return {
+    label: "LLM Judge",
+    color: "purple",
+    tooltip: "Qualitative evaluation scored via LLM-as-a-judge / G-Eval rubric.",
+    symbol: "⚖️",
+  };
+};
 
 export const formatPercent = (value) => {
   const numeric = Number(value);

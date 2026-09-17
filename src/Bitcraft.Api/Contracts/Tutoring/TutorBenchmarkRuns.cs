@@ -97,3 +97,23 @@ public sealed record TutorBenchmarkRunResponse(
     string? SummaryJson,
     string? SystemMetricsJson,
     string? RawResultJson);
+
+/// <summary>Request to execute a standardized LLM benchmark directly.</summary>
+public sealed record ExecuteStandardBenchmarkRequest(
+    string BenchmarkKey,
+    string Provider,
+    string ModelName,
+    string? BaseUrl = null,
+    string? ApiKeyEnv = null,
+    IReadOnlyList<string>? Tasks = null,
+    int NShots = 0,
+    bool AllowCodeExecution = false);
+
+/// <summary>Response from a standardized LLM benchmark run.</summary>
+public sealed record StandardBenchmarkResponse(
+    string BenchmarkKey,
+    double? OverallScore,
+    int TaskCount,
+    string EngineVersion,
+    string Notes,
+    string? Error);

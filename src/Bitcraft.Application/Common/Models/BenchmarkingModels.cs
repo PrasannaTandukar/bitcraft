@@ -58,3 +58,43 @@ public sealed record GeneratedBenchmarkOutput(
     string ModelUsed,
     string? ContextText,
     double? GenerationLatencyMs);
+
+public sealed record StandardLlmBenchmarkRequest(
+    string BenchmarkKey,
+    string Provider,
+    string ModelName,
+    string? BaseUrl = null,
+    string? ApiKeyEnv = null,
+    IReadOnlyList<string>? Tasks = null,
+    int NShots = 0,
+    bool AllowCodeExecution = false);
+
+public sealed record StandardLlmBenchmarkResult(
+    string BenchmarkKey,
+    double? OverallScore,
+    int TaskCount,
+    string EngineVersion,
+    string Notes,
+    string? Error);
+
+public sealed record ArduinoBenchmarkCaseInput(
+    string CaseId,
+    string Category,
+    string InputPrompt,
+    string? ImageUrl,
+    string? SourceCode,
+    string? ExpectedCircuitFlaw,
+    string? ExpectedGuidanceConcept,
+    double DetailDetectionWeight = 0.20,
+    double CircuitUnderstandingWeight = 0.30,
+    double SolutionReasoningWeight = 0.30,
+    double GuidancePedagogyWeight = 0.20);
+
+public sealed record ArduinoBenchmarkCaseResult(
+    string CaseId,
+    double OverallScore,
+    double DetailDetectionScore,
+    double CircuitUnderstandingScore,
+    double SolutionReasoningScore,
+    double GuidancePedagogyScore,
+    string FeedbackSummary);

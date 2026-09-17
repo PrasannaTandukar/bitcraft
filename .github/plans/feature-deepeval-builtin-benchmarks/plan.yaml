@@ -1,0 +1,38 @@
+# plan.yaml — Deepeval Built-in Benchmarks & Evaluation Architecture
+branch: feature/deepeval-builtin-benchmarks
+created_at: 2026-08-20
+updated_at: 2026-08-20
+status: active
+revision: v1.0
+goal: >
+  Introduce standard zero-sandbox DeepEval benchmarks (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA),
+  clear architectural separation between model continuous evaluation metrics and systematic task benchmarking,
+  deterministic-first scoring with transparent observability, and extensible multi-modal Arduino evaluation skeleton.
+cil: high
+css: 7
+dis: 7
+agents:
+  lead: lead-dev
+  supporting:
+    - NET Dev
+    - Web Dev
+    - researcher
+    - sec-ops
+    - dev-ops
+    - typewriter
+model_family: claude
+artifacts:
+  - plan.md
+  - plan.decisions.md
+reports:
+  - docs/benchmarking-templates.md
+  - docs/change-notes.md
+locked_decisions:
+  - Exclude HumanEval from initial execution set to avoid code sandbox overhead/risk; prioritize zero-sandbox standard benchmarks (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA).
+  - Strict UI and telemetry separation between continuous Model Evaluation (model quality baseline, performance stats) and Systematic Tutor Benchmarking (task suites, test cases, revision snapshots).
+  - Deterministic metrics (token/claim overlap, latency, tokens/sec, PII regex, keyword guards) are enabled and displayed by default for 100% explainable, reproducible scoring. Non-deterministic / LLM-as-a-judge (G-Eval rubrics, semantic faithfulness) are clearly tagged as qualitative/probabilistic overlays.
+  - Multi-step Arduino benchmark skeleton requires 4 sub-scores: Object/Detail Detection, Circuit/Wiring Understanding, Problem Solution/Reasoning, and Guidance Quality.
+human_locks:
+  - Standard benchmark datasets caching location and download trigger.
+  - Default LLM judge provider connection for non-deterministic metric evaluation.
+notes: "Step 2 final planning specification ready for Lead Dev execution handoff."

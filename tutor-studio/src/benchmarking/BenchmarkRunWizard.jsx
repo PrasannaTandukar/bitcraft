@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
 import BenchmarkCaseEditor from "./BenchmarkCaseEditor.jsx";
 import { createBenchmarkRun, listBenchmarkTemplates, listTutorRevisions } from "./benchmarkingApi.js";
-import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus } from "./benchmarkingUtils.js";
+import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus, STANDARD_BENCHMARKS } from "./benchmarkingUtils.js";
+import { ARDUINO_PRESET_CASES, STANDARD_BENCHMARK_PRESET_CASES } from "./presetBenchmarks.js";
 
-const STEP_LABELS = ["Tutor & revision", "Template", "Test cases", "Review & launch"];
+const STEP_LABELS = ["Target & Revision", "Benchmark Suite & Configuration", "Test Cases", "Review & Launch"];
 
 export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError, initialTutorId, initialRevisionId, onSelectionChange, onConfigureTutor, onOpenTemplates, onCreated }) {
+  const [benchmarkType, setBenchmarkType] = useState("rag"); // "rag" | "standard" | "arduino"
   const [step, setStep] = useState(1);
   const [tutorId, setTutorId] = useState(initialTutorId || "");
   const [revisions, setRevisions] = useState([]);
@@ -23,6 +25,8 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [cases, setCases] = useState([emptyBenchmarkCase()]);
   const [topK, setTopK] = useState(5);
   const [consistencyRuns, setConsistencyRuns] = useState(1);
+  const [selectedStandardBenchmark, setSelectedStandardBenchmark] = useState("mmlu");
+  const [nShots, setNShots] = useState(0);
   const [validationError, setValidationError] = useState("");
   const [launchError, setLaunchError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -83,16 +87,38 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     onSelectionChange(value, "");
   };
 
+  const selectBenchmarkCategory = (nextCategory) => {
+    setBenchmarkType(nextCategory);
+    if (nextCategory === "arduino") {
+      setCases(ARDUINO_PRESET_CASES);
+      setAutomatic(true);
+    } else if (nextCategory === "standard") {
+      const preset = STANDARD_BENCHMARK_PRESET_CASES[selectedStandardBenchmark] || [];
+      setCases(preset.length ? preset : [emptyBenchmarkCase()]);
+      setAutomatic(true);
+    }
+  };
+
+  const selectStandardBenchmark = (nextKey) => {
+    setSelectedStandardBenchmark(nextKey);
+    const preset = STANDARD_BENCHMARK_PRESET_CASES[nextKey] || [];
+    if (preset.length) {
+      setCases(preset);
+    }
+  };
+
   const validateStep = (stepNumber) => {
     if (stepNumber === 1) {
       if (!selectedTutor) return "Select a tutor.";
       if (!selectedRevision) return "Select a tutor revision.";
       if (!isUsableRevision(selectedRevision)) return "This revision is not benchmark-ready. Activate a configured revision so its immutable snapshot can be captured.";
     }
-    if (stepNumber === 2 && !selectedTemplate) return "Select an enabled benchmark template.";
+    if (stepNumber === 2 && benchmarkType === "rag" && !selectedTemplate) {
+      return "Select an enabled benchmark template.";
+    }
     if (stepNumber === 3 || stepNumber === 4) {
       if (!cases.length) return "Add at least one test case.";
-      if (cases.some((runCase) => !runCase.inputText.trim())) return "Every case requires a question.";
+      if (cases.some((runCase) => !runCase.inputText.trim())) return "Every case requires a question or input prompt.";
       if (!automatic && cases.some((runCase) => !runCase.actualOutput.trim())) return "Every existing-output case requires an actual answer.";
       if (cases.some((runCase) => {
         if (!runCase.metadataJson.trim()) return false;
@@ -140,16 +166,16 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       const created = await createBenchmarkRun(tutorId, {
         benchmarkTemplateId: templateId,
         tutorRevisionId: revisionId,
-        tutorConfigurationSnapshotId: null,
-        interactionModelId: null,
-        modelAlias: null,
+        tutorConfigurationSnapshotId: selectedRevision?.latestSnapshotId || null,
+        interactionModelId: selectedRevision?.interactionModelId || null,
+        modelAlias: selectedRevision?.providerModelName || selectedRevision?.interactionModelName || null,
         generateActualOutputs: automatic,
         useTutorKnowledge: true,
         topK,
         consistencyRuns,
         cases: cases.map((runCase) => ({
           inputText: runCase.inputText.trim(),
-          actualOutput: automatic ? null : runCase.actualOutput.trim(),
+          actualOutput: automatic ? "" : runCase.actualOutput.trim(),
           expectedOutput: runCase.expectedOutput.trim() || null,
           contextText: runCase.contextText.trim() || null,
           metadataJson: runCase.metadataJson.trim() || null,
@@ -165,11 +191,11 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
   return (
     <div className="benchmark-wizard">
-      <Steps current={step - 1} items={STEP_LABELS.map((title) => ({ title }))} responsive />
+      <Steps current={step - 1} items={STEP_LABELS.map((title) => ({ title }))} responsive style={{ marginBottom: 20 }} />
 
       {step === 1 ? (
-        <Card title="Select tutor and revision">
-          <Typography.Paragraph type="secondary">Choose the exact tutor configuration to execute and preserve with this run.</Typography.Paragraph>
+        <Card title="Select target tutor and revision">
+          <Typography.Paragraph type="secondary">Choose the exact tutor configuration to evaluate with this run.</Typography.Paragraph>
           {tutorsError ? <Alert type="error" title={tutorsError} showIcon style={{ marginBottom: 16 }} /> : null}
           <Form layout="vertical" requiredMark={false}>
             <Form.Item label="Tutor" required extra={selectedTutor?.description}>
@@ -205,36 +231,132 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       ) : null}
 
       {step === 2 ? (
-        <Card title="Select evaluation template">
-          <Typography.Paragraph type="secondary">Templates define which approximate local indicators are calculated and their thresholds.</Typography.Paragraph>
-          {templatesLoading ? <Spin description="Loading templates" /> : null}
-          {templatesError ? <Alert type="error" title={templatesError} showIcon /> : null}
-          {!templatesLoading && !templatesError && !templates.length ? <Empty description="No enabled benchmark templates"><Button type="primary" onClick={onOpenTemplates}>Open templates</Button></Empty> : null}
-          {templates.length ? (
-            <Radio.Group className="benchmark-template-options" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
-              {templates.map((template) => (
-                <label key={template.id} className={`benchmark-template-option ${templateId === template.id ? "selected" : ""}`}>
-                  <Radio value={template.id} />
-                  <span className="benchmark-template-copy">
-                    <Typography.Text strong>{template.name}</Typography.Text>
-                    <Typography.Text type="secondary">{template.description || "No description provided."}</Typography.Text>
-                    <Flex gap={6} wrap>{parseMetrics(template.metricsJson).map((metric) => <Tag key={metric.key}>{metricName(metric.key)} · {formatPercent(metric.threshold)}</Tag>)}</Flex>
-                  </span>
-                </label>
-              ))}
+        <Space orientation="vertical" size={16} style={{ width: "100%" }}>
+          <Card title="1. Select Benchmark Category">
+            <Radio.Group
+              value={benchmarkType}
+              onChange={(e) => selectBenchmarkCategory(e.target.value)}
+              style={{ width: "100%" }}
+            >
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={8}>
+                  <Card
+                    size="small"
+                    hoverable
+                    onClick={() => selectBenchmarkCategory("rag")}
+                    style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "rag" ? "#1677ff" : undefined }}
+                  >
+                    <Radio value="rag"><Typography.Text strong>Tutor RAG & Task Evaluation</Typography.Text></Radio>
+                    <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
+                      Evaluate tutor answers, retrieval grounding, hallucination, and correctness against configured templates.
+                    </Typography.Paragraph>
+                  </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Card
+                    size="small"
+                    hoverable
+                    onClick={() => selectBenchmarkCategory("standard")}
+                    style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "standard" ? "#1677ff" : undefined }}
+                  >
+                    <Radio value="standard"><Typography.Text strong>Standard LLM Benchmarks</Typography.Text></Radio>
+                    <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
+                      Zero-sandbox standardized datasets (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA) for raw model reasoning.
+                    </Typography.Paragraph>
+                  </Card>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Card
+                    size="small"
+                    hoverable
+                    onClick={() => selectBenchmarkCategory("arduino")}
+                    style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "arduino" ? "#1677ff" : undefined }}
+                  >
+                    <Radio value="arduino"><Typography.Text strong>Custom Hardware / STEM Diagnostics</Typography.Text></Radio>
+                    <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
+                      Multi-modal visual circuit diagnostic suite (Arduino board schematics + code + Socratic guidance quality).
+                    </Typography.Paragraph>
+                  </Card>
+                </Col>
+              </Row>
             </Radio.Group>
-          ) : null}
-          {selectedMetrics.length ? (
-            <div className="benchmark-metric-list">
-              {selectedMetrics.map((metric) => (
-                <div className="benchmark-metric-summary" key={metric.key}>
-                  <Typography.Text strong>{metricName(metric.key)} · threshold {formatPercent(metric.threshold)}</Typography.Text>
-                  <Typography.Text type="secondary">{METRIC_DETAILS[metric.key]?.description}</Typography.Text>
+          </Card>
+
+          {benchmarkType === "rag" ? (
+            <Card title="2. Evaluation Template & Metrics">
+              <Typography.Paragraph type="secondary">Templates define which deterministic local indicators and qualitative metrics are calculated.</Typography.Paragraph>
+              {templatesLoading ? <Spin description="Loading templates" /> : null}
+              {templatesError ? <Alert type="error" title={templatesError} showIcon /> : null}
+              {!templatesLoading && !templatesError && !templates.length ? (
+                <Empty description="No enabled benchmark templates">
+                  <Button type="primary" onClick={onOpenTemplates}>Open templates</Button>
+                </Empty>
+              ) : null}
+              {templates.length ? (
+                <Radio.Group className="benchmark-template-options" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+                  {templates.map((template) => (
+                    <label key={template.id} className={`benchmark-template-option ${templateId === template.id ? "selected" : ""}`}>
+                      <Radio value={template.id} />
+                      <span className="benchmark-template-copy">
+                        <Typography.Text strong>{template.name}</Typography.Text>
+                        <Typography.Text type="secondary">{template.description || "No description provided."}</Typography.Text>
+                        <Flex gap={6} wrap>{parseMetrics(template.metricsJson).map((metric) => <Tag key={metric.key}>{metricName(metric.key)} · {formatPercent(metric.threshold)}</Tag>)}</Flex>
+                      </span>
+                    </label>
+                  ))}
+                </Radio.Group>
+              ) : null}
+              {selectedMetrics.length ? (
+                <div className="benchmark-metric-list" style={{ marginTop: 16 }}>
+                  {selectedMetrics.map((metric) => (
+                    <div className="benchmark-metric-summary" key={metric.key}>
+                      <Typography.Text strong>{metricName(metric.key)} · threshold {formatPercent(metric.threshold)}</Typography.Text>
+                      <Typography.Text type="secondary">{METRIC_DETAILS[metric.key]?.description}</Typography.Text>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              ) : null}
+            </Card>
           ) : null}
-        </Card>
+
+          {benchmarkType === "standard" ? (
+            <Card title="2. Standardized Benchmark Suite Options">
+              <Typography.Paragraph type="secondary">Select public dataset to evaluate against target model:</Typography.Paragraph>
+              <Radio.Group value={selectedStandardBenchmark} onChange={(e) => selectStandardBenchmark(e.target.value)} style={{ width: "100%" }}>
+                <Row gutter={[12, 12]}>
+                  {STANDARD_BENCHMARKS.map((bench) => (
+                    <Col xs={24} sm={12} key={bench.key}>
+                      <Card
+                        size="small"
+                        hoverable
+                        onClick={() => selectStandardBenchmark(bench.key)}
+                        style={{ cursor: "pointer", borderColor: selectedStandardBenchmark === bench.key ? "#1677ff" : undefined }}
+                      >
+                        <Radio value={bench.key}><Typography.Text strong>{bench.name}</Typography.Text></Radio>
+                        <Typography.Paragraph type="secondary" style={{ margin: "4px 0 0 24px", fontSize: 12 }}>{bench.description}</Typography.Paragraph>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </Radio.Group>
+              <Form layout="vertical" style={{ marginTop: 16 }}>
+                <Form.Item label="Few-shot examples (n_shots)"><InputNumber min={0} max={5} value={nShots} onChange={setNShots} /></Form.Item>
+              </Form>
+            </Card>
+          ) : null}
+
+          {benchmarkType === "arduino" ? (
+            <Card title="2. Arduino Hardware Diagnostic Suite (Skeleton)">
+              <Typography.Paragraph type="secondary">Multimodal evaluation covering visual pinout detection, circuit comprehension, and pedagogical guidance quality.</Typography.Paragraph>
+              <Alert type="info" title="4-Stage Weighted Evaluation: Detail Detection (20%), Circuit Comprehension (30%), Solution Reasoning (30%), Guidance Pedagogy (20%)." showIcon style={{ marginBottom: 16 }} />
+              <Descriptions bordered size="small" column={1}>
+                <Descriptions.Item label="Target Domain">Arduino Uno / Nano STEM Troubleshooting</Descriptions.Item>
+                <Descriptions.Item label="Input Modality">Image (schematic/breadboard) + Prompt + C++ Code</Descriptions.Item>
+                <Descriptions.Item label="Minor Safety Guardrails">COPPA/GDPR-K Child Safety + Socratic Non-Leaking Guidance</Descriptions.Item>
+              </Descriptions>
+            </Card>
+          ) : null}
+        </Space>
       ) : null}
 
       {step === 3 ? (
@@ -269,12 +391,11 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
             <Descriptions.Item label="Tutor">{selectedTutor?.name}</Descriptions.Item>
             <Descriptions.Item label="Revision">Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</Descriptions.Item>
             <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
-            <Descriptions.Item label="Template">{selectedTemplate?.name}</Descriptions.Item>
-            <Descriptions.Item label="Metrics">{selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "None"}</Descriptions.Item>
+            <Descriptions.Item label="Category">{benchmarkType === "rag" ? "Tutor RAG Evaluation" : benchmarkType === "standard" ? "Standard LLM Benchmark" : "Arduino Diagnostic"}</Descriptions.Item>
+            <Descriptions.Item label="Template / Suite">{benchmarkType === "rag" ? (selectedTemplate?.name || "None") : benchmarkType === "standard" ? selectedStandardBenchmark.toUpperCase() : "Arduino 15-Question Suite"}</Descriptions.Item>
+            <Descriptions.Item label="Metrics">{benchmarkType === "rag" ? (selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "Default quality metrics") : "Standard dataset scoring"}</Descriptions.Item>
             <Descriptions.Item label="Logical questions">{cases.length}</Descriptions.Item>
             <Descriptions.Item label="Consistency runs">{consistencyRuns}</Descriptions.Item>
-            <Descriptions.Item label="Total evaluated outputs">{totalOutputs}</Descriptions.Item>
-            <Descriptions.Item label="Tutor knowledge">Activated configuration · Top {topK}</Descriptions.Item>
           </Descriptions>
         </Card>
       ) : null}

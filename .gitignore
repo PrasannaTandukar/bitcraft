@@ -84,7 +84,7 @@ coverage/
 *.session.md
 *.draft.md
 *.transcript.md
-.github\inboxes\*
+.github/inboxes/*
 
 # Developer-local documentation stacks; humans/developers populate these locally.
 docs/dev/
