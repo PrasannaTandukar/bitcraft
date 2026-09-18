@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App as AntApp, ConfigProvider } from "antd";
 import { Provider, useSelector } from "react-redux";
 import "antd/dist/reset.css";
-import "./index.css";
+import "./styles/index.css";
 import "./styles/workspace.css";
 import App from "./App.jsx";
 import store from "./store";
