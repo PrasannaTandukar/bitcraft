@@ -62,7 +62,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
             request.Name,
             request.ProviderType,
             request.Endpoint,
-            request.ApiKeySecretRef,
+            request.ApiKey,
             request.IsEnabled);
 
         var result = await sender.Send(command, cancellationToken);
@@ -93,9 +93,9 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
             request.Name,
             request.ProviderType,
             request.Endpoint,
-            request.ApiKeySecretRef,
+            request.ApiKey,
             request.IsEnabled,
-            request.ClearApiKeySecret);
+            request.ClearApiKey);
 
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess
@@ -103,7 +103,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
             : TutoringMapping.ToActionResult(result.Error);
     }
 
-    /// <summary>Deletes a runtime engine. Step 4 will introduce FK Restrict from Model rows.</summary>
+    /// <summary>Deletes a runtime engine. Deletion is blocked while any Model references it (FK Restrict).</summary>
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -132,7 +132,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
         var command = new RuntimeEngineFeatures.TestRuntimeEngineCommand(
             request.ProviderType,
             request.Endpoint,
-            request.ApiKeySecretRef,
+            request.ApiKey,
             request.RuntimeEngineId);
 
         var result = await sender.Send(command, cancellationToken);

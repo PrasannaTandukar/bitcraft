@@ -2,7 +2,6 @@ using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Admin;
 using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Contracts.Knowledge;
-using Bitcraft.Api.Contracts.Rag;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Benchmarking;
@@ -112,17 +111,6 @@ internal static class TutoringMapping
         chunk.EmbeddingModel,
         chunk.EmbeddingProvider,
         chunk.IngestedUtc);
-
-    public static AskRagQuestionResponse ToResponse(this RagAnswerResult result) => new(
-        result.Answer,
-        result.Model,
-        result.Sources.Select(source => new RagSourceChunkResponse(
-            source.DocumentId,
-            source.DocumentName,
-            source.ChunkId,
-            source.ChunkIndex,
-            source.Content,
-            source.Score)).ToList());
 
     public static AskTutorQuestionResponse ToResponse(this TutorAnswerResult result) => new(
         result.Answer,
@@ -234,7 +222,7 @@ internal static class TutoringMapping
         engine.Name,
         engine.ProviderType,
         engine.Endpoint,
-        HasApiKeySecret: !string.IsNullOrWhiteSpace(engine.ApiKeySecretRef),
+        HasApiKey: !string.IsNullOrWhiteSpace(engine.ApiKey),
         engine.IsEnabled,
         engine.CreatedUtc,
         engine.CreatedById,

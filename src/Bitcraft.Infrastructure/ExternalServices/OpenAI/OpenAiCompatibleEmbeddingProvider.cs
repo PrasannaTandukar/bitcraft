@@ -4,18 +4,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.OpenAI;
 
 public class OpenAiCompatibleEmbeddingProvider(
     IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
     ILogger<OpenAiCompatibleEmbeddingProvider>? logger = null) : IEmbeddingProvider
 {
-    private const string DefaultBaseUrl = "http://localhost:8080/v1";
-    private const string DefaultEmbeddingModel = "text-embedding-3-small";
 
     public async Task<float[]> GenerateEmbeddingAsync(
         string text,
@@ -34,9 +30,8 @@ public class OpenAiCompatibleEmbeddingProvider(
             throw new ArgumentException("Embedding text is required.", nameof(embeddingRequest));
         }
 
-        var model = string.IsNullOrWhiteSpace(embeddingRequest.Model)
-            ? configuration["ModelProviders:OpenAI:EmbeddingModel"] ?? configuration["OPENAI_EMBED_MODEL"] ?? DefaultEmbeddingModel
-            : embeddingRequest.Model.Trim();
+        // OD-4: the RuntimeEngine entity is the single source of truth for endpoint, model, and key.
+        var model = embeddingRequest.Model?.Trim();
 
         if (string.IsNullOrWhiteSpace(model))
         {
@@ -45,10 +40,7 @@ public class OpenAiCompatibleEmbeddingProvider(
                 "An embedding model is not configured.");
         }
 
-        var baseUrl = embeddingRequest.RuntimeEndpoint
-            ?? configuration["ModelProviders:OpenAI:BaseUrl"]
-            ?? configuration["OPENAI_BASE_URL"]
-            ?? DefaultBaseUrl;
+        var baseUrl = embeddingRequest.RuntimeEndpoint;
 
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
@@ -59,9 +51,7 @@ public class OpenAiCompatibleEmbeddingProvider(
         }
 
         var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleEmbeddingProvider));
-        var apiKey = embeddingRequest.ApiKeySecretRef
-            ?? configuration["ModelProviders:OpenAI:ApiKey"]
-            ?? configuration["OPENAI_API_KEY"];
+        var apiKey = embeddingRequest.ApiKey;
 
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildEmbeddingsUri(baseUri));
         if (!string.IsNullOrWhiteSpace(apiKey))

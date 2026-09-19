@@ -272,6 +272,63 @@ public class StandardBenchmarkFeaturesTests
     }
 
     [Fact]
+    public async Task Process_SendsStoredEngineKeyToSidecar()
+    {
+        // WS5: the stored runtime-engine key travels in the sidecar payload over the
+        // local Unix socket so hosted OpenAI benchmarks can authenticate.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        var (model, runtimeEngine) = EnabledModel();
+        runtimeEngine.ProviderType = RuntimeEngineProviderType.OpenAI;
+        runtimeEngine.Endpoint = "https://api.openai.com/v1";
+        runtimeEngine.ApiKey = "stored-benchmark-key";
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "mmlu",
+            NProblems = 5,
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(engine.LastStandardRequest);
+        Assert.Equal("openai", engine.LastStandardRequest!.Provider);
+        Assert.Equal("stored-benchmark-key", engine.LastStandardRequest.ApiKey);
+    }
+
+    [Fact]
+    public async Task Process_WithKeylessOllamaEngine_SendsNullKey()
+    {
+        // Local Ollama engines carry no key. The payload must send null, not a blank string.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "gsm8k",
+            NProblems = 5,
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(engine.LastStandardRequest);
+        Assert.Null(engine.LastStandardRequest!.ApiKey);
+    }
+
+    [Fact]
     public async Task Process_WithEngineError_MarksRunFailed()
     {
         var runs = new FakeStandardBenchmarkRunRepository();

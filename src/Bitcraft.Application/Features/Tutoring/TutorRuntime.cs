@@ -152,7 +152,7 @@ public sealed class TutorRuntime(
                 TopP: parameters.TopP,
                 MaxTokens: parameters.MaxTokens,
                 RuntimeEndpoint: interaction.Engine.Endpoint,
-                ApiKeySecretRef: interaction.Engine.ApiKeySecretRef,
+                ApiKey: interaction.Engine.ApiKey,
                 ProviderType: interaction.Engine.ProviderType.ToString(),
                 Images: images.Count > 0 ? images : null),
             cancellationToken);
@@ -397,13 +397,7 @@ public sealed class TutorRuntime(
                 "This tutor's interaction runtime is unavailable."));
         }
 
-        var isSupportedProvider = engine.ProviderType is
-            RuntimeEngineProviderType.Ollama or
-            RuntimeEngineProviderType.OpenAI or
-            RuntimeEngineProviderType.OpenAICompatible or
-            RuntimeEngineProviderType.vLLM or
-            RuntimeEngineProviderType.LlamaCpp or
-            RuntimeEngineProviderType.Anthropic;
+        var isSupportedProvider = engine.ProviderType.ToLlmDialect() != LlmDialect.Unsupported;
 
         if (!isSupportedProvider)
         {
@@ -457,11 +451,7 @@ public sealed class TutorRuntime(
                 "Tutor knowledge could not be searched because its embedding runtime is unavailable."));
         }
 
-        var isSupportedEmbeddingProvider = engine.ProviderType is
-            RuntimeEngineProviderType.Ollama or
-            RuntimeEngineProviderType.OpenAI or
-            RuntimeEngineProviderType.OpenAICompatible or
-            RuntimeEngineProviderType.LlamaCpp;
+        var isSupportedEmbeddingProvider = engine.ProviderType.ToEmbeddingDialect() != LlmDialect.Unsupported;
 
         if (!isSupportedEmbeddingProvider)
         {
@@ -502,7 +492,7 @@ public sealed class TutorRuntime(
                     request.UserQuestion.Trim(),
                     providerModelName,
                     engine.Endpoint,
-                    engine.ApiKeySecretRef,
+                    engine.ApiKey,
                     engine.ProviderType.ToString()),
                 cancellationToken);
         }

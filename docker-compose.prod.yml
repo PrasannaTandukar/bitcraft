@@ -9,7 +9,6 @@ services:
       backend:
         condition: service_healthy
   backend:
-    environment:
-      ModelProviders__Ollama__BaseUrl: "http://host.docker.internal:11434"
+    # The backend reads model endpoints from the RuntimeEngines table (OD-4).
     extra_hosts:
       - "host.docker.internal:host-gateway"

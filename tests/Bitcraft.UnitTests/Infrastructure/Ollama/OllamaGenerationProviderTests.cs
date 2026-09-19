@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.Json;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Infrastructure.ExternalServices.Ollama;
-using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Bitcraft.UnitTests.Infrastructure.Ollama;
@@ -12,15 +11,10 @@ public class OllamaGenerationProviderTests
     [Fact]
     public async Task GenerateAsync_WhenBaseUrlIsInvalid_ReturnsFailure()
     {
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["ModelProviders:Ollama:BaseUrl"] = "not-a-url"
-        });
         var provider = new OllamaGenerationProvider(
-            new StubHttpClientFactory(new HttpClient(new StubHandler(HttpStatusCode.OK, "{}"))),
-            configuration);
+            new StubHttpClientFactory(new HttpClient(new StubHandler(HttpStatusCode.OK, "{}"))));
 
-        var result = await provider.GenerateAsync("Explain Docker", null, CancellationToken.None);
+        var result = await provider.GenerateAsync(new LlmGenerationRequest("Explain Docker", "llama3.2", RuntimeEndpoint: "not-a-url"));
 
         Assert.True(result.IsFailure);
         Assert.Equal("Ollama.BaseUrlInvalid", result.Error.Code);
@@ -29,12 +23,10 @@ public class OllamaGenerationProviderTests
     [Fact]
     public async Task GenerateAsync_WhenOllamaReturnsNonSuccess_ReturnsFailure()
     {
-        var configuration = BuildConfiguration();
         var provider = new OllamaGenerationProvider(
-            new StubHttpClientFactory(new HttpClient(new StubHandler(HttpStatusCode.InternalServerError, "failed"))),
-            configuration);
+            new StubHttpClientFactory(new HttpClient(new StubHandler(HttpStatusCode.InternalServerError, "failed"))));
 
-        var result = await provider.GenerateAsync("Explain Docker", null, CancellationToken.None);
+        var result = await provider.GenerateAsync(new LlmGenerationRequest("Explain Docker", "llama3.2", RuntimeEndpoint: "http://localhost:11434"));
 
         Assert.True(result.IsFailure);
         Assert.Equal("Ollama.RequestFailed", result.Error.Code);
@@ -47,8 +39,7 @@ public class OllamaGenerationProviderTests
             HttpStatusCode.OK,
             "{\"model\":\"configured-model\",\"response\":\"Answer\",\"done\":true}");
         var provider = new OllamaGenerationProvider(
-            new StubHttpClientFactory(new HttpClient(handler)),
-            BuildConfiguration());
+            new StubHttpClientFactory(new HttpClient(handler)));
 
         var result = await provider.GenerateAsync(new LlmGenerationRequest(
             "Configured tutor prompt",
@@ -72,24 +63,14 @@ public class OllamaGenerationProviderTests
     public async Task GenerateAsync_WhenConfiguredModelIsMissing_ReturnsSafeModelNotFound()
     {
         var provider = new OllamaGenerationProvider(
-            new StubHttpClientFactory(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "raw upstream body"))),
-            BuildConfiguration());
+            new StubHttpClientFactory(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "raw upstream body"))));
 
-        var result = await provider.GenerateAsync(new LlmGenerationRequest("Prompt", "missing-model"));
+        var result = await provider.GenerateAsync(new LlmGenerationRequest("Prompt", "missing-model", RuntimeEndpoint: "http://localhost:11434"));
 
         Assert.True(result.IsFailure);
         Assert.Equal("Ollama.ModelNotFound", result.Error.Code);
         Assert.DoesNotContain("raw upstream body", result.Error.Description, StringComparison.Ordinal);
     }
-
-    private static IConfiguration BuildConfiguration(Dictionary<string, string?>? values = null) =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(values ?? new Dictionary<string, string?>
-            {
-                ["ModelProviders:Ollama:BaseUrl"] = "http://localhost:11434",
-                ["ModelProviders:Ollama:ChatModel"] = "llama3.2"
-            })
-            .Build();
 
     private sealed class StubHttpClientFactory(HttpClient client) : IHttpClientFactory
     {

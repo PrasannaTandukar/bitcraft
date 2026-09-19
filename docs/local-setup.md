@@ -103,10 +103,11 @@ docker compose -f docker-compose.yml -f docker-compose.ai.yml -f docker-compose.
 | Variable | Default | Purpose | Notes |
 | --- | --- | --- | --- |
 | `OLLAMA_CHAT_MODEL` | `llama3.2:3b` | Default chat model pulled on `up:ai*`. | Jetson Orin Nano (8 GB): set to `llama3.2:1b`. |
-| `OLLAMA_EMBED_MODEL` | `qwen3-embedding:0.6b` | Vector embedding model. | Bitcraft expects the dimension below to match the model. |
+| `OLLAMA_EMBED_MODEL` | `qwen3-embedding:0.6b` | Vector embedding model pulled on `up:ai*`. | Bitcraft expects the dimension below to match the model. |
 | `OLLAMA_EMBED_DIMENSIONS` | `1024` | Pgvector column dimension. | Changing this requires re-embedding all Knowledge. |
-| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Backend → Ollama address. | Override only if you point at a remote Ollama. |
 | `VITE_USE_POLLING` | `false` | Vite file-watch mode in the dev container. | Set to `true` on WSL2 and some macOS VirtioFS setups. |
+
+The backend reads model endpoints and keys from the RuntimeEngines table (OD-4). The `OLLAMA_*` variables above configure the `ollama-pull-*` helper services only.
 
 The full reference is in [`.env.example`](../.env.example).
 

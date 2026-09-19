@@ -60,8 +60,6 @@ services:
       ChatAttachments__RetentionHours: ${CHAT_ATTACHMENTS_RETENTION_HOURS:-24}
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
       Benchmarking__DeepEval__Transport: uds
       Benchmarking__DeepEval__SocketPath: /var/run/bitcraft/sidecar.sock
       BITCRAFT_ADMIN_EMAIL: ${BITCRAFT_ADMIN_EMAIL}
@@ -87,6 +85,9 @@ services:
     environment:
       DEEPEVAL_DISABLE_DOTENV: "1"
     volumes:
+      # DeepEval downloads benchmark datasets through the HuggingFace datasets
+      # library. The named cache keeps them across container rebuilds (O-1).
+      - benchmark_dataset_cache:/root/.cache/huggingface
       - benchmark_sidecar_socket:/var/run/bitcraft
     restart: unless-stopped
     healthcheck:
@@ -116,3 +117,4 @@ volumes:
   postgres_data: {}
   nuget-packages: {}
   benchmark_sidecar_socket: {}
+  benchmark_dataset_cache: {}

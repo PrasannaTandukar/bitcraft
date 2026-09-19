@@ -209,7 +209,7 @@ public static class StandardBenchmarkFeatures
                 Provider: ToSidecarProvider(model.RuntimeEngine.ProviderType),
                 ModelName: model.ProviderModelName,
                 BaseUrl: model.RuntimeEngine.Endpoint,
-                ApiKeyEnv: null,
+                ApiKey: model.RuntimeEngine.ApiKey,
                 Tasks: tasks,
                 NShots: run.NShots,
                 NProblems: run.NProblems,

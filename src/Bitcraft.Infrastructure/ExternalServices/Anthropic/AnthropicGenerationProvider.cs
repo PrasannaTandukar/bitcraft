@@ -4,18 +4,19 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.Anthropic;
 
+/// <summary>
+/// Reserved provider (consolidation plan, OD-2): kept registered so existing Anthropic engine
+/// rows keep functioning, but not surfaced in the UI. OD-4 removed the process-level
+/// configuration fallbacks. The RuntimeEngine entity is the only endpoint/key source.
+/// </summary>
 public class AnthropicGenerationProvider(
     IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
     ILogger<AnthropicGenerationProvider>? logger = null) : ILlmGenerationProvider
 {
-    private const string DefaultBaseUrl = "https://api.anthropic.com";
-    private const string DefaultChatModel = "claude-3-5-sonnet-20241022";
     private const string AnthropicVersion = "2023-06-01";
 
     public async Task<Result<LlmGenerationResult>> GenerateAsync(
@@ -35,10 +36,7 @@ public class AnthropicGenerationProvider(
                 "Prompt is required."));
         }
 
-        var baseUrl = generationRequest.RuntimeEndpoint
-            ?? configuration["ModelProviders:Anthropic:BaseUrl"]
-            ?? configuration["ANTHROPIC_BASE_URL"]
-            ?? DefaultBaseUrl;
+        var baseUrl = generationRequest.RuntimeEndpoint;
 
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
@@ -48,14 +46,16 @@ public class AnthropicGenerationProvider(
                 "Anthropic base URL must be an absolute HTTP or HTTPS URL."));
         }
 
-        var selectedModel = string.IsNullOrWhiteSpace(generationRequest.Model)
-            ? configuration["ModelProviders:Anthropic:ChatModel"] ?? configuration["ANTHROPIC_CHAT_MODEL"] ?? DefaultChatModel
-            : generationRequest.Model.Trim();
+        var selectedModel = generationRequest.Model?.Trim();
+        if (string.IsNullOrWhiteSpace(selectedModel))
+        {
+            return Result.Failure<LlmGenerationResult>(new Error(
+                "Anthropic.ModelInvalid",
+                "Chat model is not configured."));
+        }
 
         var client = httpClientFactory.CreateClient(nameof(AnthropicGenerationProvider));
-        var apiKey = generationRequest.ApiKeySecretRef
-            ?? configuration["ModelProviders:Anthropic:ApiKey"]
-            ?? configuration["ANTHROPIC_API_KEY"];
+        var apiKey = generationRequest.ApiKey;
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, "/v1/messages"));
         if (!string.IsNullOrWhiteSpace(apiKey))

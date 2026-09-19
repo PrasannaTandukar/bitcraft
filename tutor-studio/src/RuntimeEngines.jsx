@@ -9,9 +9,18 @@ const API_PATH = "/api/admin/runtime-engines";
 const PROVIDER_TYPES = [
   { value: 0, label: "Ollama", defaultEndpoint: "http://localhost:11434" },
   { value: 1, label: "OpenAI", defaultEndpoint: "https://api.openai.com/v1" },
-  { value: 101, label: "Anthropic", defaultEndpoint: "https://api.anthropic.com" },
 ];
-const PROVIDER_LABELS = Object.fromEntries(PROVIDER_TYPES.map((provider) => [provider.value, provider.label]));
+// Display labels for reserved provider values. Legacy engine rows keep a readable
+// label even though the dropdown no longer offers them for creation.
+const RESERVED_PROVIDER_LABELS = { 101: "Anthropic" };
+const PROVIDER_LABELS = Object.fromEntries([
+  ...PROVIDER_TYPES.map((provider) => [provider.value, provider.label]),
+  ...Object.entries(RESERVED_PROVIDER_LABELS).map(([value, label]) => [Number(value), label]),
+]);
+const PROVIDER_FILTERS = [
+  ...PROVIDER_TYPES,
+  ...Object.entries(RESERVED_PROVIDER_LABELS).map(([value, label]) => ({ value: Number(value), label })),
+];
 
 export default function RuntimeEnginesPage() {
   const { message } = App.useApp();
@@ -73,7 +82,7 @@ export default function RuntimeEnginesPage() {
       endpoint: engine.endpoint,
       // The API never returns the stored key value, so the field starts blank.
       // Save preserves the stored key when the field is left blank.
-      apiKeySecretRef: undefined,
+      apiKey: undefined,
       isEnabled: engine.isEnabled,
     });
     setOpen(true);
@@ -101,7 +110,7 @@ export default function RuntimeEnginesPage() {
         json: {
           providerType: Number(values.providerType ?? 0),
           endpoint: values.endpoint.trim(),
-          apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+          apiKey: values.apiKey?.trim() || null,
           runtimeEngineId: editingEngine?.id ?? null,
         },
       });
@@ -135,9 +144,9 @@ export default function RuntimeEnginesPage() {
       providerType: Number(values.providerType),
       endpoint: values.endpoint.trim(),
       // Blank + not clearing = backend preserves the stored key. Blank + clearing = backend removes it.
-      apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+      apiKey: values.apiKey?.trim() || null,
       isEnabled: values.isEnabled,
-      clearApiKeySecret: clearApiKey,
+      clearApiKey: clearApiKey,
     };
     try {
       if (editingEngine) {
@@ -174,8 +183,8 @@ export default function RuntimeEnginesPage() {
 
   const columns = [
     { title: "Runtime", key: "runtime", sorter: (a, b) => a.name.localeCompare(b.name), render: (_, engine) => <div className="management-name-cell"><Typography.Text strong>{engine.name}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: engine.endpoint }}>{engine.endpoint || "Endpoint not specified"}</Typography.Text></div> },
-    { title: "Provider", dataIndex: "providerType", width: 150, filters: PROVIDER_TYPES.map((provider) => ({ text: provider.label, value: provider.value })), onFilter: (value, record) => record.providerType === value, render: (value) => PROVIDER_LABELS[value] ?? value },
-    { title: "Credential", dataIndex: "hasApiKeySecret", width: 140, render: (value) => value ? <Tag color="blue">Configured</Tag> : <Typography.Text type="secondary">None</Typography.Text> },
+    { title: "Provider", dataIndex: "providerType", width: 150, filters: PROVIDER_FILTERS.map((provider) => ({ text: provider.label, value: provider.value })), onFilter: (value, record) => record.providerType === value, render: (value) => PROVIDER_LABELS[value] ?? value },
+    { title: "Credential", dataIndex: "hasApiKey", width: 140, render: (value) => value ? <Tag color="blue">Configured</Tag> : <Typography.Text type="secondary">None</Typography.Text> },
     { title: "Status", dataIndex: "isEnabled", width: 100, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
     ...(canWrite || canDelete ? [{
       title: "",
@@ -250,40 +259,40 @@ export default function RuntimeEnginesPage() {
           />
         ) : null}
         <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ providerType: 0, endpoint: "http://localhost:11434", isEnabled: true }}>
-          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter an engine name." }]}><Input placeholder="Local Ollama or Llama.CPP" /></Form.Item>
+          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter an engine name." }]}><Input placeholder="Local Ollama or OpenAI-compatible runtime" /></Form.Item>
           <Form.Item label="Provider type" name="providerType"><Select options={PROVIDER_TYPES} onChange={handleProviderTypeChange} /></Form.Item>
           <Form.Item label="Endpoint" name="endpoint" rules={[{ required: true, whitespace: true, message: "Enter the runtime endpoint." }]} extra="OpenAI Compatible servers default to port 8080 (e.g. http://localhost:8080/v1), Ollama to 11434 (e.g. http://localhost:11434)."><Input placeholder="http://localhost:8080/v1" /></Form.Item>
           <Form.Item
             noStyle
-            shouldUpdate={(prev, next) => prev.apiKeySecretRef !== next.apiKeySecretRef}
+            shouldUpdate={(prev, next) => prev.apiKey !== next.apiKey}
           >
             {() => {
-              const entered = Boolean(form.getFieldValue("apiKeySecretRef")?.trim());
+              const entered = Boolean(form.getFieldValue("apiKey")?.trim());
               const keyExtra = editingEngine
                 ? (clearApiKey
                   ? "The stored key will be removed when you save."
                   : entered
                     ? "Replaces the stored key when you save."
-                    : editingEngine.hasApiKeySecret
+                    : editingEngine.hasApiKey
                       ? "A key is configured. Leave blank to keep it."
-                      : "Optional for local Llama.CPP/Ollama.")
-                : "Optional for local Llama.CPP/Ollama.";
+                      : "Optional for local Ollama.")
+                : "Optional for local Ollama.";
               return (
                 <Form.Item
                   label="API key"
-                  name="apiKeySecretRef"
+                  name="apiKey"
                   extra={keyExtra}
                   validateStatus={clearApiKey ? "warning" : undefined}
                 >
                   <Input
-                    placeholder={editingEngine?.hasApiKeySecret && !clearApiKey ? "Leave blank to keep existing key" : "API key value"}
+                    placeholder={editingEngine?.hasApiKey && !clearApiKey ? "Leave blank to keep existing key" : "API key value"}
                     autoComplete="off"
                     suffix={
-                      editingEngine?.hasApiKeySecret ? (
+                      editingEngine?.hasApiKey ? (
                         clearApiKey ? (
                           <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setClearApiKey(false)}>Undo clear</Button>
                         ) : (
-                          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => { setClearApiKey(true); form.setFieldValue("apiKeySecretRef", undefined); }}>Clear</Button>
+                          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => { setClearApiKey(true); form.setFieldValue("apiKey", undefined); }}>Clear</Button>
                         )
                       ) : null
                     }

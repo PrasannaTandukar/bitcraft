@@ -57,13 +57,13 @@ internal sealed class FakeLlmGenerationProvider : ILlmGenerationProvider
 
     public Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
         string endpoint,
-        string? apiKeySecretRef,
+        string? ApiKey,
         string? providerType,
         CancellationToken cancellationToken = default)
     {
         ProbeCalls++;
         LastEndpoint = endpoint;
-        LastApiKey = apiKeySecretRef;
+        LastApiKey = ApiKey;
         LastProviderType = providerType;
         return Task.FromResult(ProbeResult);
     }

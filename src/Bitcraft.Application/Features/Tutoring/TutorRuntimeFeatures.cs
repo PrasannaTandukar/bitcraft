@@ -92,7 +92,7 @@ public static class TutorRuntimeFeatures
                 revision.InteractionModel is null ||
                 !revision.InteractionModel.IsEnabled ||
                 revision.InteractionModel.RuntimeEngine?.IsEnabled != true ||
-                revision.InteractionModel.RuntimeEngine.ProviderType is not (RuntimeEngineProviderType.Ollama or RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or RuntimeEngineProviderType.vLLM or RuntimeEngineProviderType.LlamaCpp or RuntimeEngineProviderType.Anthropic) ||
+                revision.InteractionModel.RuntimeEngine.ProviderType.ToLlmDialect() == LlmDialect.Unsupported ||
                 string.IsNullOrWhiteSpace(revision.InteractionModel.ProviderModelName))
             {
                 return null;
@@ -119,7 +119,7 @@ public static class TutorRuntimeFeatures
                  !embedding.IsEnabled ||
                  embedding.EmbeddingDimensions <= 0 ||
                  embedding.RuntimeEngine?.IsEnabled != true ||
-                 embedding.RuntimeEngine.ProviderType is not (RuntimeEngineProviderType.Ollama or RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or RuntimeEngineProviderType.LlamaCpp) ||
+                 embedding.RuntimeEngine.ProviderType.ToEmbeddingDialect() == LlmDialect.Unsupported ||
                  string.IsNullOrWhiteSpace(embedding.ProviderModelName) ||
                  !TryReadKnowledgeBindings(snapshot.EffectiveKnowledgeBindingJson, out var bindings) ||
                  documentIds.Any(documentId => !bindings.Any(binding =>

@@ -22,7 +22,7 @@ public class RuntimeEngineFeaturesTests
             "Local Ollama",
             RuntimeEngineProviderType.Ollama,
             "http://localhost:11434",
-            ApiKeySecretRef: null,
+            ApiKey: null,
             IsEnabled: true);
 
         var result = await handler.Handle(cmd, CancellationToken.None);
@@ -141,7 +141,7 @@ public class RuntimeEngineFeaturesTests
         Assert.Equal("New", engine.Name);
         Assert.Equal(RuntimeEngineProviderType.OpenAI, engine.ProviderType);
         Assert.Equal("https://new", engine.Endpoint);
-        Assert.Equal("secret-ref", engine.ApiKeySecretRef);
+        Assert.Equal("secret-ref", engine.ApiKey);
         Assert.False(engine.IsEnabled);
     }
 
@@ -184,68 +184,68 @@ public class RuntimeEngineFeaturesTests
     public async Task Update_WithNullKey_PreservesStoredKey()
     {
         var repo = new FakeRuntimeEngineRepository();
-        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "stored-key" };
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "stored-key" };
         repo.Engines.Add(engine);
 
         var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
         var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
-            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: null, IsEnabled: true);
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKey: null, IsEnabled: true);
 
         var result = await handler.Handle(cmd, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("stored-key", engine.ApiKeySecretRef);
+        Assert.Equal("stored-key", engine.ApiKey);
     }
 
     [Fact]
     public async Task Update_WithEmptyKey_PreservesStoredKey()
     {
         var repo = new FakeRuntimeEngineRepository();
-        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "stored-key" };
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "stored-key" };
         repo.Engines.Add(engine);
 
         var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
         var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
-            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: "   ", IsEnabled: true);
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKey: "   ", IsEnabled: true);
 
         var result = await handler.Handle(cmd, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("stored-key", engine.ApiKeySecretRef);
+        Assert.Equal("stored-key", engine.ApiKey);
     }
 
     [Fact]
     public async Task Update_WithClearFlag_RemovesStoredKey()
     {
         var repo = new FakeRuntimeEngineRepository();
-        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "stored-key" };
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "stored-key" };
         repo.Engines.Add(engine);
 
         var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
         var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
-            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: null, IsEnabled: true, ClearApiKeySecret: true);
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKey: null, IsEnabled: true, ClearApiKey: true);
 
         var result = await handler.Handle(cmd, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Null(engine.ApiKeySecretRef);
+        Assert.Null(engine.ApiKey);
     }
 
     [Fact]
     public async Task Update_WithNewKey_ReplacesStoredKey()
     {
         var repo = new FakeRuntimeEngineRepository();
-        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "old-key" };
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKey = "old-key" };
         repo.Engines.Add(engine);
 
         var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
         var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
-            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: "new-key", IsEnabled: true);
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKey: "new-key", IsEnabled: true);
 
         var result = await handler.Handle(cmd, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new-key", engine.ApiKeySecretRef);
+        Assert.Equal("new-key", engine.ApiKey);
     }
 
     // ----- Delete -----
@@ -288,7 +288,7 @@ public class RuntimeEngineFeaturesTests
             Name = "Hosted",
             ProviderType = RuntimeEngineProviderType.OpenAI,
             Endpoint = "https://api.openai.com/v1",
-            ApiKeySecretRef = "stored-key",
+            ApiKey = "stored-key",
         };
         repo.Engines.Add(engine);
 
@@ -316,7 +316,7 @@ public class RuntimeEngineFeaturesTests
             Name = "Hosted",
             ProviderType = RuntimeEngineProviderType.OpenAI,
             Endpoint = "https://api.openai.com/v1",
-            ApiKeySecretRef = "stored-key",
+            ApiKey = "stored-key",
         };
         repo.Engines.Add(engine);
 
@@ -347,7 +347,7 @@ public class RuntimeEngineFeaturesTests
             Name = "Hosted",
             ProviderType = EditProvider(),
             Endpoint = "https://api.openai.com/v1",
-            ApiKeySecretRef = "stored-key",
+            ApiKey = "stored-key",
         };
         repo.Engines.Add(engine);
 
@@ -383,7 +383,7 @@ public class RuntimeEngineFeaturesTests
             Name = "Hosted",
             ProviderType = RuntimeEngineProviderType.OpenAI,
             Endpoint = "https://api.openai.com/v1",
-            ApiKeySecretRef = "stored-key",
+            ApiKey = "stored-key",
         };
         repo.Engines.Add(engine);
 

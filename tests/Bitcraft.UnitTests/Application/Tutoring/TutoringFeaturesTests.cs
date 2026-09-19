@@ -500,7 +500,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(ownerId),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 100, ChunkOverlap: 0);
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "Ollama", "test-model", MaxChunkLength: 100, ChunkOverlap: 0);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -530,7 +530,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(ownerId),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "Ollama", "test-model");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -557,7 +557,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(Guid.NewGuid()),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "Ollama", "test-model");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -623,7 +623,7 @@ public class KnowledgeFeaturesTests
         // Assert
         Assert.True(result.IsSuccess);
         var chunk = Assert.Single(vectorStore.Chunks);
-        Assert.Equal(EmbeddingProviders.Ollama, chunk.EmbeddingProvider);
+        Assert.Equal("Ollama", chunk.EmbeddingProvider);
         Assert.Equal("test-model", chunk.EmbeddingModel);
     }
 }

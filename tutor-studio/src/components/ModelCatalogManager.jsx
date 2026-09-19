@@ -1,4 +1,4 @@
-import { DeleteOutlined, EditOutlined, ExperimentOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { Alert, App, Button, Drawer, Empty, Flex, Form, Input, InputNumber, Popconfirm, Select, Space, Switch, Table, Tag, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch, getApiErrorDescription } from "../api/client.js";
@@ -44,9 +44,6 @@ const POPULAR_INTERACTION_PRIORITY = [
   "gpt-4-turbo",
   "gpt-4",
   "gpt-3.5-turbo",
-  "claude-3-5-sonnet",
-  "claude-3-5-haiku",
-  "claude-3-opus",
   "llama3.3",
   "llama3.2",
   "llama3.1",
@@ -167,7 +164,7 @@ export default function ModelCatalogManager({ kind }) {
         json: {
           providerType: Number(engine.providerType ?? 0),
           endpoint: engine.endpoint.trim(),
-          apiKeySecretRef: null,
+          apiKey: null,
           runtimeEngineId: engine.id,
         },
       });

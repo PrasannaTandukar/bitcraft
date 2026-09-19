@@ -21,7 +21,7 @@ from app.schemas import (
 # research-backed public datasets.
 #
 # Cost and safety notes:
-# - Every call here reaches a real model (Ollama, OpenAI, or Anthropic) and,
+# - Every call here reaches a real model (Ollama or OpenAI) and,
 #   depending on `tasks`/`n_shots`, can issue many requests. Callers should
 #   pass a small `tasks` subset to keep a first run low-cost; omitting
 #   `tasks` runs deepeval's full default task set for that benchmark.
@@ -29,9 +29,11 @@ from app.schemas import (
 #   pass@k. This requires `allow_code_execution=True` and should only be run
 #   in a disposable/sandboxed environment, never against an untrusted model
 #   in a shared process.
-# - No credentials are read from this repository. `judge_model.api_key_env`
-#   names an environment variable already present in the sidecar process;
-#   the key value itself never appears in requests, responses, or logs.
+# - No credentials are read from this repository or its environment.
+#   `judge_model.api_key` carries the stored runtime-engine key sent by the
+#   backend over the local Unix socket (WS5 decision, 2026-09-19). The key
+#   transits the local socket only. It never reaches the network and never
+#   appears in logs.
 
 _BENCHMARK_MODULE = "deepeval.benchmarks"
 _TASK_ENUM_NAMES = {
@@ -93,9 +95,6 @@ class _SidecarJudgeLLM:
 
         return _Model()
 
-    def _resolve_api_key(self) -> str | None:
-        return os.getenv(self._config.api_key_env) if self._config.api_key_env else None
-
     def _call(self, prompt: str) -> str:
         provider = self._config.provider.lower()
         if provider == "ollama":
@@ -115,12 +114,15 @@ class _SidecarJudgeLLM:
         # Active provider dialects: Ollama (local) and OpenAI (hosted API).
         # The backend rejects other engine types before a run is queued.
         if provider == "openai":
-            api_key = self._resolve_api_key()
+            # WS5: the key value arrives in the request payload over the
+            # local Unix socket. It is used for the Authorization header and
+            # never logged.
+            api_key = self._config.api_key or None
             headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             base_url = self._config.base_url or "https://api.openai.com/v1"
             if not api_key and "api.openai.com" in base_url:
                 raise RuntimeError(
-                    "OpenAI hosted models require `api_key_env` to name a set environment variable."
+                    "OpenAI hosted models require `api_key` in the judge model payload."
                 )
             response = httpx.post(
                 f"{base_url}/chat/completions",
@@ -134,28 +136,8 @@ class _SidecarJudgeLLM:
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
 
-        if provider == "anthropic":
-            api_key = self._resolve_api_key()
-            if not api_key:
-                raise RuntimeError(
-                    "Anthropic judge model requires `api_key_env` to name a set environment variable."
-                )
-            base_url = self._config.base_url or "https://api.anthropic.com/v1"
-            response = httpx.post(
-                f"{base_url}/messages",
-                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
-                json={
-                    "model": self._config.model_name,
-                    "max_tokens": 1024,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            return "".join(
-                block.get("text", "") for block in response.json().get("content", [])
-            )
-
+        # Anthropic was removed from the active dialect set (consolidation plan, OD-2):
+        # the backend only ever sends ollama/openai.
         raise ValueError(f"Unsupported judge provider: {self._config.provider}")
 
 
@@ -218,6 +200,20 @@ async def run_llm_benchmark(
                 "HumanEval executes model-generated Python code to score pass@k. "
                 "Set allow_code_execution=true only in a disposable/sandboxed environment."
             ),
+        )
+
+    # Consolidation plan OD-2: only ollama and openai are active dialects.
+    # Reject any other provider before dataset loading so the failure is
+    # attributed to the provider, not to a downstream import error.
+    judge_provider = request.judge_model.provider.strip().lower()
+    if judge_provider not in ("ollama", "openai"):
+        return SidecarLlmBenchmarkResponse(
+            benchmark_key=key,
+            overall_score=None,
+            task_count=0,
+            engine_version=engine_version,
+            notes="",
+            error=f"Unsupported judge provider: {request.judge_model.provider}. Supported: ollama, openai.",
         )
 
     try:

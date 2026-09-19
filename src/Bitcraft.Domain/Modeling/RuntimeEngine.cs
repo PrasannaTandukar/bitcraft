@@ -21,7 +21,7 @@ public class RuntimeEngine : BaseModel
     /// API key credential for the upstream runtime. Stored as the raw key value at rest today;
     /// a deployment secret store is future work. Never returned by API responses.
     /// </summary>
-    public string? ApiKeySecretRef { get; set; }
+    public string? ApiKey { get; set; }
 
     /// <summary>
     /// Gates selection of any child <c>Model</c> in tutor / knowledge UI. Disabling does not delete dependent models.

@@ -64,7 +64,7 @@ public sealed record StandardLlmBenchmarkRequest(
     string Provider,
     string ModelName,
     string? BaseUrl = null,
-    string? ApiKeyEnv = null,
+    string? ApiKey = null,
     IReadOnlyList<string>? Tasks = null,
     int NShots = 0,
     int NProblems = 10,

@@ -112,7 +112,7 @@ public sealed class DeepEvalBenchmarkEngine(
                     provider = request.Provider,
                     model_name = request.ModelName,
                     base_url = request.BaseUrl,
-                    api_key_env = request.ApiKeyEnv
+                    api_key = request.ApiKey
                 },
                 tasks = request.Tasks,
                 n_shots = request.NShots,

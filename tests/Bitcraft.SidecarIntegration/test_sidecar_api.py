@@ -335,3 +335,76 @@ def test_llm_benchmark_n_problems_defaults_and_schema_accepts_zero() -> None:
         payload = response.json()
         assert payload["overall_score"] is None
         assert payload["error"] is not None
+
+
+def test_llm_benchmark_with_anthropic_judge_returns_structured_error() -> None:
+    # Consolidation plan OD-2: Anthropic is out of the active dialect set.
+    # The backend only sends ollama/openai, so an anthropic judge must fail
+    # with a structured error instead of reaching a real model.
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "gsm8k",
+            "judge_model": {
+                "provider": "anthropic",
+                "model_name": "claude-3-5-sonnet",
+                "base_url": "http://localhost:11434",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_score"] is None
+    assert payload["task_count"] == 0
+    assert "Unsupported judge provider" in payload["error"]
+
+
+def test_llm_benchmark_schema_accepts_api_key_in_judge_model() -> None:
+    # WS5: the judge model carries the stored key value in `api_key`. The
+    # request is validated without reaching a real model: an offline
+    # endpoint yields a structured error, which proves the schema accepted
+    # the field.
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "gsm8k",
+            "judge_model": {
+                "provider": "openai",
+                "model_name": "gpt-4o-mini",
+                "base_url": "http://localhost:9999",
+                "api_key": "stored-benchmark-key",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_score"] is None
+    assert payload["error"] is not None
+
+
+def test_llm_benchmark_hosted_openai_without_api_key_returns_structured_error() -> None:
+    # WS5: hosted api.openai.com without a key must fail with the guard
+    # message instead of sending an unauthenticated request. The guard is
+    # exercised directly on the judge model because full benchmark runs
+    # require the deepeval dataset stack.
+    from app.schemas import SidecarJudgeModelConfig
+    from app.tools.deepeval_llm_benchmarks import _SidecarJudgeLLM
+
+    judge = _SidecarJudgeLLM(
+        SidecarJudgeModelConfig(
+            provider="openai",
+            model_name="gpt-4o-mini",
+            base_url="https://api.openai.com/v1",
+            api_key=None,
+        )
+    )
+
+    try:
+        judge._call("ping")
+        raised = False
+    except RuntimeError as error:
+        raised = "api_key" in str(error)
+
+    assert raised

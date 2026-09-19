@@ -18,7 +18,7 @@ public interface ILlmGenerationProvider
 
     Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
         string endpoint,
-        string? apiKeySecretRef,
+        string? apiKey,
         string? providerType,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<string>?>(null);

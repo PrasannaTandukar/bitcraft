@@ -25,7 +25,10 @@ public class RuntimeEngineConfiguration : IEntityTypeConfiguration<RuntimeEngine
             .IsRequired()
             .HasMaxLength(500);
 
-        entity.Property(x => x.ApiKeySecretRef)
+        // OD-3: the property was renamed ApiKeySecretRef -> ApiKey. The value is the raw key at
+        // rest. The column keeps its historical name so no migration is needed.
+        entity.Property(x => x.ApiKey)
+            .HasColumnName("ApiKeySecretRef")
             .HasMaxLength(200);
 
         entity.Property(x => x.IsEnabled).IsRequired();

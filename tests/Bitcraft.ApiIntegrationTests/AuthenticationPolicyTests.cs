@@ -91,7 +91,7 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
         {
             providerType = 0,
             endpoint = "http://localhost:11434",
-            apiKeySecretRef = (string?)null,
+            apiKey = (string?)null,
             runtimeEngineId = (Guid?)null,
         });
 

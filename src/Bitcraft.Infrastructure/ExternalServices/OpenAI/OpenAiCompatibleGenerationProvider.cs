@@ -4,18 +4,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.OpenAI;
 
 public class OpenAiCompatibleGenerationProvider(
     IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
     ILogger<OpenAiCompatibleGenerationProvider>? logger = null) : ILlmGenerationProvider
 {
-    private const string DefaultBaseUrl = "http://localhost:8080/v1";
-    private const string DefaultChatModel = "gpt-4o-mini";
 
     public async Task<Result<LlmGenerationResult>> GenerateAsync(
         string prompt,
@@ -41,10 +37,9 @@ public class OpenAiCompatibleGenerationProvider(
                 "Model cannot be empty when provided."));
         }
 
-        var baseUrl = generationRequest.RuntimeEndpoint
-            ?? configuration["ModelProviders:OpenAI:BaseUrl"]
-            ?? configuration["OPENAI_BASE_URL"]
-            ?? DefaultBaseUrl;
+        // OD-4: the RuntimeEngine entity is the single source of truth for endpoint, model, and key.
+        // Process-level configuration fallbacks were removed to kill the parallel config path.
+        var baseUrl = generationRequest.RuntimeEndpoint;
 
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
@@ -54,9 +49,7 @@ public class OpenAiCompatibleGenerationProvider(
                 "OpenAI compatible base URL must be an absolute HTTP or HTTPS URL."));
         }
 
-        var selectedModel = string.IsNullOrWhiteSpace(generationRequest.Model)
-            ? configuration["ModelProviders:OpenAI:ChatModel"] ?? configuration["OPENAI_CHAT_MODEL"] ?? DefaultChatModel
-            : generationRequest.Model.Trim();
+        var selectedModel = generationRequest.Model?.Trim();
 
         if (string.IsNullOrWhiteSpace(selectedModel))
         {
@@ -67,9 +60,7 @@ public class OpenAiCompatibleGenerationProvider(
 
         var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleGenerationProvider));
 
-        var apiKey = generationRequest.ApiKeySecretRef
-            ?? configuration["ModelProviders:OpenAI:ApiKey"]
-            ?? configuration["OPENAI_API_KEY"];
+        var apiKey = generationRequest.ApiKey;
 
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildChatCompletionsUri(baseUri));
         if (!string.IsNullOrWhiteSpace(apiKey))
@@ -185,7 +176,7 @@ public class OpenAiCompatibleGenerationProvider(
 
     public async Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
         string endpoint,
-        string? apiKeySecretRef,
+        string? apiKey,
         CancellationToken cancellationToken = default)
     {
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var baseUri))
@@ -197,11 +188,9 @@ public class OpenAiCompatibleGenerationProvider(
         client.Timeout = TimeSpan.FromSeconds(5);
 
         // Security: the probe endpoint accepts caller-chosen endpoints. Never attach a
-        // server-configured credential here — a client could steer the process-wide key to a
+        // server-configured credential here — a client could steer a process-wide key to a
         // host it controls. The probe uses only the caller-supplied or server-resolved stored
-        // key passed in as apiKeySecretRef. Generation (GenerateAsync) keeps its config
-        // fallback because it runs against configured endpoints, not caller-chosen ones.
-        var apiKey = apiKeySecretRef;
+        // key passed in as apiKey (Sec Ops finding F1).
 
         var endpointsToTry = new[]
         {

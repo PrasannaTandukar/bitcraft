@@ -223,14 +223,14 @@ public static class InteractionModelFeatures
             var engine = model.RuntimeEngine ?? await engines.GetByIdAsync(model.RuntimeEngineId, cancellationToken);
             if (!model.IsEnabled || engine?.IsEnabled != true)
                 return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.Disabled", "Enable the model and runtime engine before testing."));
-            if (engine.ProviderType is not (RuntimeEngineProviderType.Ollama or RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or RuntimeEngineProviderType.vLLM or RuntimeEngineProviderType.LlamaCpp or RuntimeEngineProviderType.Anthropic))
+            if (engine.ProviderType.ToLlmDialect() == LlmDialect.Unsupported)
                 return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.ProviderUnsupported", "This runtime provider is not supported for generation."));
             var image = await attachments.ReadAsync(request.AttachmentId, currentUser.UserId, cancellationToken);
             if (image.IsFailure) return Result.Failure<ImageInputTestResponse>(image.Error);
             // A diagnostic of the saved runtime/model. It never infers or updates capabilities.
             var result = await generation.GenerateAsync(new LlmGenerationRequest(
                 "Briefly describe the attached image in one sentence.", model.ProviderModelName,
-                MaxTokens: 128, RuntimeEndpoint: engine.Endpoint, ApiKeySecretRef: engine.ApiKeySecretRef,
+                MaxTokens: 128, RuntimeEndpoint: engine.Endpoint, ApiKey: engine.ApiKey,
                 ProviderType: engine.ProviderType.ToString(), Images: [new(image.Value.Metadata.MimeType, image.Value.Data)]), cancellationToken);
             if (result.IsFailure || string.IsNullOrWhiteSpace(result.Value.Response))
                 return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.ImageTestFailed", "The model could not process the image. Check its image support and runtime configuration."));

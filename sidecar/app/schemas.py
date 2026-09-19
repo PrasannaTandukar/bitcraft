@@ -62,14 +62,15 @@ class SidecarError(BaseModel):
 
 
 class SidecarJudgeModelConfig(BaseModel):
-    """Identifies the model to benchmark. No credentials are embedded here:
-    `api_key_env` names an environment variable that must already be set in
-    the sidecar process; the key value itself is never part of the request."""
+    """Identifies the model to benchmark. `api_key` carries the stored
+    runtime-engine key sent by the backend over the local Unix socket. The
+    key transits the local socket only. It never reaches the network and
+    never appears in logs."""
 
-    provider: str  # "ollama" | "openai" | "anthropic"
+    provider: str  # "ollama" | "openai" (Anthropic removed, consolidation plan OD-2)
     model_name: str
     base_url: str | None = None
-    api_key_env: str | None = None
+    api_key: str | None = None
 
 
 class SidecarLlmBenchmarkRequest(BaseModel):

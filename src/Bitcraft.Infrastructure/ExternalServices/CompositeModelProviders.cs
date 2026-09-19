@@ -8,6 +8,20 @@ using Bitcraft.Infrastructure.ExternalServices.OpenAI;
 
 namespace Bitcraft.Infrastructure.ExternalServices;
 
+/// <summary>
+/// Shared provider-type parsing for the composites. A blank value is the legacy Ollama path
+/// (pre-RuntimeEngine callers). An unparseable value returns null. Callers fail closed on null.
+/// </summary>
+internal static class CompositeProviderTypeParser
+{
+    public static RuntimeEngineProviderType? Parse(string? providerType) =>
+        string.IsNullOrWhiteSpace(providerType)
+            ? RuntimeEngineProviderType.Ollama
+            : Enum.TryParse<RuntimeEngineProviderType>(providerType, ignoreCase: true, out var parsed)
+                ? parsed
+                : null;
+}
+
 public class CompositeLlmGenerationProvider(
     OllamaGenerationProvider ollamaProvider,
     OpenAiCompatibleGenerationProvider openAiProvider,
@@ -23,48 +37,34 @@ public class CompositeLlmGenerationProvider(
         LlmGenerationRequest request,
         CancellationToken cancellationToken = default)
     {
-        var providerType = request.ProviderType;
-        if (string.IsNullOrWhiteSpace(providerType))
-        {
-            return ollamaProvider.GenerateAsync(request, cancellationToken);
-        }
+        // A blank provider type is the legacy Ollama path (pre-RuntimeEngine callers).
+        var dialect = CompositeProviderTypeParser.Parse(request.ProviderType)?.ToLlmDialect();
 
-        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAI), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAICompatible), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.vLLM), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.LlamaCpp), StringComparison.OrdinalIgnoreCase))
+        return dialect switch
         {
-            return openAiProvider.GenerateAsync(request, cancellationToken);
-        }
-
-        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.Anthropic), StringComparison.OrdinalIgnoreCase))
-        {
-            return anthropicProvider.GenerateAsync(request, cancellationToken);
-        }
-
-        return ollamaProvider.GenerateAsync(request, cancellationToken);
+            LlmDialect.OpenAI => openAiProvider.GenerateAsync(request, cancellationToken),
+            LlmDialect.Anthropic => anthropicProvider.GenerateAsync(request, cancellationToken),
+            LlmDialect.Ollama => ollamaProvider.GenerateAsync(request, cancellationToken),
+            _ => Task.FromResult(Result.Failure<LlmGenerationResult>(
+                new Error("LlmGeneration.ProviderTypeUnsupported", $"The provider type '{request.ProviderType}' is not supported.")))
+        };
     }
 
     public Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
         string endpoint,
-        string? apiKeySecretRef,
+        string? apiKey,
         string? providerType,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAI), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAICompatible), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.vLLM), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.LlamaCpp), StringComparison.OrdinalIgnoreCase))
-        {
-            return openAiProvider.ProbeAvailableModelsAsync(endpoint, apiKeySecretRef, cancellationToken);
-        }
+        // Fail closed: an unparseable provider type probes nothing (OD-8).
+        var dialect = CompositeProviderTypeParser.Parse(providerType)?.ToLlmDialect();
 
-        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.Ollama), StringComparison.OrdinalIgnoreCase))
+        return dialect switch
         {
-            return ollamaProvider.ProbeAvailableModelsAsync(endpoint, cancellationToken);
-        }
-
-        return Task.FromResult<IReadOnlyList<string>?>(null);
+            LlmDialect.OpenAI => openAiProvider.ProbeAvailableModelsAsync(endpoint, apiKey, cancellationToken),
+            LlmDialect.Ollama => ollamaProvider.ProbeAvailableModelsAsync(endpoint, cancellationToken),
+            _ => Task.FromResult<IReadOnlyList<string>?>(null)
+        };
     }
 }
 
@@ -82,19 +82,16 @@ public class CompositeEmbeddingProvider(
         EmbeddingGenerationRequest request,
         CancellationToken cancellationToken = default)
     {
-        var providerType = request.ProviderType;
-        if (string.IsNullOrWhiteSpace(providerType))
-        {
-            return ollamaProvider.GenerateEmbeddingAsync(request, cancellationToken);
-        }
+        // A blank provider type is the legacy Ollama path (pre-RuntimeEngine callers).
+        var dialect = CompositeProviderTypeParser.Parse(request.ProviderType)?.ToEmbeddingDialect();
 
-        if (string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAI), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.OpenAICompatible), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(providerType, nameof(RuntimeEngineProviderType.LlamaCpp), StringComparison.OrdinalIgnoreCase))
+        return dialect switch
         {
-            return openAiProvider.GenerateEmbeddingAsync(request, cancellationToken);
-        }
-
-        return ollamaProvider.GenerateEmbeddingAsync(request, cancellationToken);
+            LlmDialect.OpenAI => openAiProvider.GenerateEmbeddingAsync(request, cancellationToken),
+            LlmDialect.Ollama => ollamaProvider.GenerateEmbeddingAsync(request, cancellationToken),
+            _ => throw new EmbeddingProviderException(
+                EmbeddingProviderFailureKind.RequestFailed,
+                $"The provider type '{request.ProviderType}' is not supported.")
+        };
     }
 }

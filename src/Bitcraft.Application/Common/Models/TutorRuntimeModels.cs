@@ -81,7 +81,7 @@ public sealed record LlmGenerationRequest(
     double? TopP = null,
     int? MaxTokens = null,
     string? RuntimeEndpoint = null,
-    string? ApiKeySecretRef = null,
+    string? ApiKey = null,
     string? ProviderType = null,
     IReadOnlyList<LlmImageInput>? Images = null);
 
@@ -89,7 +89,7 @@ public sealed record EmbeddingGenerationRequest(
     string Text,
     string Model,
     string? RuntimeEndpoint = null,
-    string? ApiKeySecretRef = null,
+    string? ApiKey = null,
     string? ProviderType = null);
 
 public sealed record KnowledgeSearchRequest(

@@ -37,9 +37,8 @@ cp .env.example .env
 
 Key variables:
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` — PostgreSQL credentials
-- `OLLAMA_BASE_URL` — Ollama service endpoint. Default assumes Ollama running on the host at `http://host.docker.internal:11434`.
-- `OLLAMA_EMBED_MODEL` — Embedding model to use. Default: `nomic-embed-text`.
 - `OLLAMA_DOCKER_TAG` — Docker tag used by the optional Ollama container override.
+- `OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL` — Models pulled by the `ollama-pull-*` helper services. The backend reads model endpoints and keys from the RuntimeEngines table.
 
 ## Build and Test
 
@@ -98,7 +97,7 @@ dotnet run --project src/Bitcraft.Api
 
 The API will be available at `http://localhost:5260` and `https://localhost:7123` when started through the local launch profile. The containerized API remains available at `http://localhost:8000`.
 
-If you use benchmarking endpoints locally, keep `benchmark-sidecar` running. If you use vectorization, ensure Ollama is reachable through `OLLAMA_BASE_URL`.
+If you use benchmarking endpoints locally, keep `benchmark-sidecar` running. If you use vectorization, ensure the configured runtime engine endpoint is reachable.
 
 ### Tutor Studio local development
 
@@ -152,7 +151,6 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 | `GET/POST` | `/api/tutors/{tutorId}/benchmark-runs` | List and queue tutor benchmark runs |
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}` | Inspect benchmark run detail |
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}/progress` | Poll lightweight benchmark progress |
-| `POST` | `/api/ollama/generate` | Generate text using the configured local Ollama chat model |
 
 See Swagger UI (`/swagger`) for full request/response schemas. Document formats, limits, extraction, and re-vectorization behavior are described in [docs/document-ingestion.md](docs/document-ingestion.md). Additional operational notes live in `docs/authorization-roles.md` and `docs/benchmarking-templates.md`.
 

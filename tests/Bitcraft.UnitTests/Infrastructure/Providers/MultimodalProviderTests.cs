@@ -6,7 +6,6 @@ using Bitcraft.Infrastructure.ExternalServices;
 using Bitcraft.Infrastructure.ExternalServices.Anthropic;
 using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.ExternalServices.OpenAI;
-using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Bitcraft.UnitTests.Infrastructure.Providers;
@@ -31,7 +30,7 @@ public sealed class MultimodalProviderTests
         var images = new[] { new LlmImageInput("image/png", new byte[] { 1, 2 }), new LlmImageInput("image/jpeg", new byte[] { 3, 4 }) };
         var result = await provider.GenerateAsync(new LlmGenerationRequest("Tutor prompt", "custom-model",
             Temperature: 0.25, TopP: 0.9, MaxTokens: 123, RuntimeEndpoint: "https://runtime.test",
-            ApiKeySecretRef: "test-key", ProviderType: providerType, Images: withImages ? images : null));
+            ApiKey: "test-key", ProviderType: providerType, Images: withImages ? images : null));
         Assert.True(result.IsSuccess, result.Error.Description);
         Assert.Equal("Answer", result.Value.Response);
         var body = handler.Body;
@@ -100,7 +99,7 @@ public sealed class MultimodalProviderTests
     {
         using var client = new HttpClient(new RecordingHandler(HttpStatusCode.BadRequest));
         var result = await CreateProvider(client).GenerateAsync(new LlmGenerationRequest("Prompt", "custom",
-            ProviderType: providerType, Images: [new("image/png", new byte[] { 1 })]));
+            RuntimeEndpoint: "https://runtime.test", ProviderType: providerType, Images: [new("image/png", new byte[] { 1 })]));
         Assert.True(result.IsFailure);
         Assert.Equal($"{providerType}.ImageRejected", result.Error.Code);
         Assert.DoesNotContain("sensitive upstream body", result.Error.Description);
@@ -124,14 +123,10 @@ public sealed class MultimodalProviderTests
         var handler = new ProbeRecordingHandler();
         using var client = new HttpClient(handler);
         var factory = new ClientFactory(client);
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ModelProviders:OpenAI:ApiKey"] = "server-wide-secret",
-                ["OPENAI_API_KEY"] = "server-wide-secret",
-            })
-            .Build();
-        var provider = new OpenAiCompatibleGenerationProvider(factory, configuration);
+        // OD-4 removed the process-level config fallbacks entirely, so the probe can only ever
+        // see the caller-supplied key. The regression assertion (no server credential attached)
+        // is preserved for the case a fallback is ever reintroduced.
+        var provider = new OpenAiCompatibleGenerationProvider(factory);
 
         await provider.ProbeAvailableModelsAsync("https://attacker.example.com/v1", null, CancellationToken.None);
 
@@ -147,13 +142,87 @@ public sealed class MultimodalProviderTests
         var handler = new ProbeRecordingHandler();
         using var client = new HttpClient(handler);
         var factory = new ClientFactory(client);
-        var configuration = new ConfigurationBuilder().Build();
-        var provider = new OpenAiCompatibleGenerationProvider(factory, configuration);
+        var provider = new OpenAiCompatibleGenerationProvider(factory);
 
         var models = await provider.ProbeAvailableModelsAsync("https://provider.example.com/v1", "probe-key", CancellationToken.None);
 
         Assert.NotNull(models);
         Assert.All(handler.Authorizations, auth => Assert.Equal("Bearer probe-key", auth));
+    }
+
+    [Theory]
+    [InlineData("OpenAI")]
+    [InlineData("OpenAICompatible")]
+    [InlineData("vLLM")]
+    [InlineData("LlamaCpp")]
+    public async Task CompositeProbeRoutesOpenAiDialectAliasesToOpenAiProvider(string providerType)
+    {
+        // OD-1: the aliases collapse to the OpenAI dialect through the shared map (review L4).
+        var handler = new ProbeRecordingHandler();
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client);
+
+        var models = await provider.ProbeAvailableModelsAsync("https://runtime.test/v1", "alias-key", providerType, CancellationToken.None);
+
+        Assert.NotNull(models);
+        Assert.Equal(new[] { "model-a", "model-b" }, models);
+        Assert.All(handler.Authorizations, auth => Assert.Equal("Bearer alias-key", auth));
+    }
+
+    [Theory]
+    [InlineData("Ollama")]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task CompositeProbeRoutesOllamaDialectToOllamaProvider(string? providerType)
+    {
+        // A blank provider type is the documented legacy Ollama path (OD-8).
+        var handler = new ProbeRecordingHandler();
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client);
+
+        var models = await provider.ProbeAvailableModelsAsync("http://runtime.test:11434", null, providerType, CancellationToken.None);
+
+        Assert.NotNull(models);
+        Assert.Equal(new[] { "model-a", "model-b" }, models);
+        Assert.All(handler.Authorizations, Assert.Null);
+    }
+
+    [Theory]
+    [InlineData("Anthropic")]
+    [InlineData("AzureOpenAI")]
+    [InlineData("Bedrock")]
+    [InlineData("not-a-provider")]
+    public async Task CompositeProbeWithUnsupportedProviderTypeReturnsNull(string providerType)
+    {
+        // OD-8: fail closed. An unparseable or non-probeable provider type probes nothing.
+        var handler = new ProbeRecordingHandler();
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client);
+
+        var models = await provider.ProbeAvailableModelsAsync("https://runtime.test", null, providerType, CancellationToken.None);
+
+        Assert.Null(models);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Theory]
+    [InlineData("AzureOpenAI")]
+    [InlineData("Bedrock")]
+    [InlineData("not-a-provider")]
+    public async Task CompositeGenerationWithUnsupportedProviderTypeFailsClosed(string providerType)
+    {
+        // OD-8: generation with an unparseable or unsupported provider type returns a failure.
+        // It never falls back to a different provider silently.
+        var handler = new RequestCountingHandler();
+        using var client = new HttpClient(handler);
+        var provider = CreateProvider(client);
+
+        var result = await provider.GenerateAsync(new LlmGenerationRequest("Prompt", "custom",
+            RuntimeEndpoint: "https://runtime.test", ProviderType: providerType));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("LlmGeneration.ProviderTypeUnsupported", result.Error.Code);
+        Assert.Equal(0, handler.RequestCount);
     }
 
     private sealed class ProbeRecordingHandler : HttpMessageHandler
@@ -165,9 +234,27 @@ public sealed class MultimodalProviderTests
         {
             RequestCount++;
             Authorizations.Add(request.Headers.Authorization?.ToString());
+            // The Ollama probe reads /api/tags; the OpenAI probe reads /v1/models.
+            var body = request.RequestUri!.AbsolutePath.EndsWith("/api/tags")
+                ? "{\"models\":[{\"name\":\"model-a\"},{\"name\":\"model-b\"}]}"
+                : "{\"data\":[{\"id\":\"model-a\"},{\"id\":\"model-b\"}]}";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"data\":[{\"id\":\"model-a\"},{\"id\":\"model-b\"}]}"),
+                Content = new StringContent(body),
+            });
+        }
+    }
+
+    private sealed class RequestCountingHandler : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"model\":\"custom-model\",\"response\":\"Answer\",\"done\":true}"),
             });
         }
     }
@@ -175,8 +262,7 @@ public sealed class MultimodalProviderTests
     private static ILlmGenerationProvider CreateProvider(HttpClient client)
     {
         var factory = new ClientFactory(client);
-        var configuration = new ConfigurationBuilder().Build();
-        return new CompositeLlmGenerationProvider(new OllamaGenerationProvider(factory, configuration), new OpenAiCompatibleGenerationProvider(factory, configuration), new AnthropicGenerationProvider(factory, configuration));
+        return new CompositeLlmGenerationProvider(new OllamaGenerationProvider(factory), new OpenAiCompatibleGenerationProvider(factory), new AnthropicGenerationProvider(factory));
     }
 
     private sealed class TextOnlyProvider : ILlmGenerationProvider

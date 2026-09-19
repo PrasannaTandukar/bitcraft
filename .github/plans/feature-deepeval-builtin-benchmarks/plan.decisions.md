@@ -1,6 +1,6 @@
 ---
 created_at: 2026-08-20
-edited_at: 2026-08-20
+edited_at: 2026-09-19
 creator: planner
 editor: lead-dev
 ai_gen: true
@@ -21,5 +21,5 @@ ai_gen: true
 
 | ID | Decision Question | Options | Recommended |
 | :--- | :--- | :--- | :--- |
-| **O-1** | Standard Benchmark Dataset Caching | Where should downloaded DeepEval benchmark datasets be persisted? | Local disk cache in sidecar (`~/.cache/deepeval`) mounted via Docker volume. |
-| **O-2** | Default Judge Model Provider | When LLM-as-a-judge / G-Eval is triggered, what should be the default fallback judge? | Local Ollama (`llama3:8b` or `qwen2.5`) if running locally, otherwise user-supplied provider key in `.env`. |
+| **O-1** | Standard Benchmark Dataset Caching | **RESOLVED 2026-09-19**: named Docker volume for the DeepEval cache in the `benchmark-sidecar` service. Datasets survive container rebuilds. The compose edit routes through Sec Ops review. | Named cache volume (accepted). |
+| **O-2** | Default Judge Model Provider | **RESOLVED 2026-09-19**: the judge defaults to the engine under test (self-judging). The earlier `.env`-key recommendation is struck; it contradicted consolidation OD-4 (env/config fallbacks removed). The Tier-2 judge tool stays unregistered until that work resumes. | Engine under test (accepted). |

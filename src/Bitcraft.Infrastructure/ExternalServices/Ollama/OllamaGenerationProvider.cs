@@ -3,19 +3,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.Ollama;
 
 public class OllamaGenerationProvider(
     IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
     ILogger<OllamaGenerationProvider>? logger = null) : ILlmGenerationProvider
 {
-    private const string DefaultBaseUrl = "http://ollama:11434";
-    private const string DefaultChatModel = "llama3.2";
-
     public async Task<Result<LlmGenerationResult>> GenerateAsync(
         string prompt,
         string? model,
@@ -40,10 +35,9 @@ public class OllamaGenerationProvider(
                 "Model cannot be empty when provided."));
         }
 
-        var baseUrl = generationRequest.RuntimeEndpoint
-            ?? configuration["ModelProviders:Ollama:BaseUrl"]
-            ?? configuration["OLLAMA_BASE_URL"]
-            ?? DefaultBaseUrl;
+        // OD-4: the RuntimeEngine entity is the single source of truth for endpoint and model.
+        // Process-level configuration fallbacks were removed to kill the parallel config path.
+        var baseUrl = generationRequest.RuntimeEndpoint;
 
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
@@ -53,9 +47,7 @@ public class OllamaGenerationProvider(
                 "Ollama base URL must be an absolute HTTP or HTTPS URL."));
         }
 
-        var selectedModel = string.IsNullOrWhiteSpace(generationRequest.Model)
-            ? configuration["ModelProviders:Ollama:ChatModel"] ?? configuration["OLLAMA_CHAT_MODEL"] ?? DefaultChatModel
-            : generationRequest.Model.Trim();
+        var selectedModel = generationRequest.Model?.Trim();
 
         if (string.IsNullOrWhiteSpace(selectedModel))
         {

@@ -1,8 +1,8 @@
 ---
 created_at: 2026-09-18
-edited_at: 2026-09-18
+edited_at: 2026-09-19
 creator: planner
-editor: planner
+editor: lead-dev
 ai_gen: true
 ---
 # Sub-Plan: Server-Side Key Prefill for Read-Only Probes
@@ -74,7 +74,7 @@ Recommendation: **Option A**, pending the authorization decision below.
 |---|---|---|
 | OD-1 | Probe authorization | Any authenticated user; endpoint-specific permission. Server resolves the stored key and returns probe results without exposing the key. |
 | OD-2 | Page navigation scope | (a) The three model/admin pages stay Admin-only. |
-| OD-3 | Field naming | Keep project convention: `ApiKeySecretRef` (no rename). |
+| OD-3 | Field naming | Keep project convention: `ApiKeySecretRef` (no rename). **Superseded 2026-09-19** by consolidation OD-3 (`plan.provider-consolidation-cleanup.md`): property renamed to `ApiKey`; the EF column keeps the historical name. |
 | OD-4 | Prefill scope | Moot: OD-1 already covers both call sites. |
 
 ## Impacted Files
