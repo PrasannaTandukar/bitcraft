@@ -3,9 +3,9 @@ import { Alert, Button, Card, Col, Descriptions, Empty, Flex, Form, InputNumber,
 import { useEffect, useMemo, useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
 import BenchmarkCaseEditor from "./BenchmarkCaseEditor.jsx";
-import { createBenchmarkRun, listBenchmarkTemplates, listTutorRevisions } from "./benchmarkingApi.js";
-import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus, STANDARD_BENCHMARKS } from "./benchmarkingUtils.js";
-import { ARDUINO_PRESET_CASES, STANDARD_BENCHMARK_PRESET_CASES } from "./presetBenchmarks.js";
+import { createBenchmarkRun, createStandardBenchmarkRun, listBenchmarkTemplates, listInteractionModelsForAdmin, listStandardBenchmarkSuites, listTutorRevisions } from "./benchmarkingApi.js";
+import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus } from "./benchmarkingUtils.js";
+import { ARDUINO_PRESET_CASES } from "./presetBenchmarks.js";
 
 const STEP_LABELS = ["Target & Revision", "Benchmark Suite & Configuration", "Test Cases", "Review & Launch"];
 
@@ -27,6 +27,14 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [consistencyRuns, setConsistencyRuns] = useState(1);
   const [selectedStandardBenchmark, setSelectedStandardBenchmark] = useState("mmlu");
   const [nShots, setNShots] = useState(0);
+  const [nProblems, setNProblems] = useState(10);
+  const [standardModelId, setStandardModelId] = useState("");
+  const [standardSuites, setStandardSuites] = useState([]);
+  const [standardSuitesLoading, setStandardSuitesLoading] = useState(true);
+  const [standardSuitesError, setStandardSuitesError] = useState("");
+  const [interactionModels, setInteractionModels] = useState([]);
+  const [interactionModelsLoading, setInteractionModelsLoading] = useState(true);
+  const [interactionModelsError, setInteractionModelsError] = useState("");
   const [validationError, setValidationError] = useState("");
   const [launchError, setLaunchError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +62,41 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    listStandardBenchmarkSuites(controller.signal)
+      .then((data) => {
+        setStandardSuites(data ?? []);
+        setStandardSuitesError("");
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") setStandardSuitesError(getApiErrorDescription(error, "Could not load standardized benchmark suites."));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setStandardSuitesLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    listInteractionModelsForAdmin(controller.signal)
+      .then((data) => {
+        setInteractionModels(data ?? []);
+        setInteractionModelsError("");
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") setInteractionModelsError(getApiErrorDescription(error, "Could not load interaction models."));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setInteractionModelsLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const selectedStandardSuite = standardSuites.find((suite) => suite.key === selectedStandardBenchmark);
+  const selectedStandardModel = interactionModels.find((model) => model.id === standardModelId);
 
   useEffect(() => {
     if (!tutorId) return undefined;
@@ -89,34 +132,36 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
   const selectBenchmarkCategory = (nextCategory) => {
     setBenchmarkType(nextCategory);
+    setStep(1);
     if (nextCategory === "arduino") {
       setCases(ARDUINO_PRESET_CASES);
       setAutomatic(true);
-    } else if (nextCategory === "standard") {
-      const preset = STANDARD_BENCHMARK_PRESET_CASES[selectedStandardBenchmark] || [];
-      setCases(preset.length ? preset : [emptyBenchmarkCase()]);
-      setAutomatic(true);
     }
+    // Standard runs no longer use preset cases: they execute against the real
+    // DeepEval dataset via the sidecar, so no case editing applies.
   };
 
   const selectStandardBenchmark = (nextKey) => {
     setSelectedStandardBenchmark(nextKey);
-    const preset = STANDARD_BENCHMARK_PRESET_CASES[nextKey] || [];
-    if (preset.length) {
-      setCases(preset);
-    }
   };
 
   const validateStep = (stepNumber) => {
-    if (stepNumber === 1) {
+    if (stepNumber === 1 && benchmarkType !== "standard") {
       if (!selectedTutor) return "Select a tutor.";
       if (!selectedRevision) return "Select a tutor revision.";
       if (!isUsableRevision(selectedRevision)) return "This revision is not benchmark-ready. Activate a configured revision so its immutable snapshot can be captured.";
     }
+    if (stepNumber === 1 && benchmarkType === "standard") {
+      if (!standardModelId) return "Select an interaction model to evaluate.";
+    }
     if (stepNumber === 2 && benchmarkType === "rag" && !selectedTemplate) {
       return "Select an enabled benchmark template.";
     }
+    if (stepNumber === 2 && benchmarkType === "standard" && !selectedStandardBenchmark) {
+      return "Select a standardized benchmark suite.";
+    }
     if (stepNumber === 3 || stepNumber === 4) {
+      if (benchmarkType === "standard") return "";
       if (!cases.length) return "Add at least one test case.";
       if (cases.some((runCase) => !runCase.inputText.trim())) return "Every case requires a question or input prompt.";
       if (!automatic && cases.some((runCase) => !runCase.actualOutput.trim())) return "Every existing-output case requires an actual answer.";
@@ -135,7 +180,13 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const goNext = () => {
     const nextError = validateStep(step);
     setValidationError(nextError);
-    if (!nextError) setStep((current) => Math.min(4, current + 1));
+    if (nextError) return;
+    // Standard runs have no case editing: jump from configuration straight to review.
+    if (benchmarkType === "standard" && step === 2) {
+      setStep(4);
+      return;
+    }
+    setStep((current) => Math.min(4, current + 1));
   };
 
   const updateCase = (index, value) => setCases((current) => current.map((runCase, position) => position === index ? value : runCase));
@@ -163,6 +214,17 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     setSubmitting(true);
     setLaunchError("");
     try {
+      if (benchmarkType === "standard") {
+        const created = await createStandardBenchmarkRun({
+          interactionModelId: standardModelId,
+          benchmarkKey: selectedStandardBenchmark,
+          tasks: null,
+          nShots,
+          nProblems,
+        });
+        onCreated(null, created.id, "standard");
+        return;
+      }
       const created = await createBenchmarkRun(tutorId, {
         benchmarkTemplateId: templateId,
         tutorRevisionId: revisionId,
@@ -194,6 +256,32 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       <Steps current={step - 1} items={STEP_LABELS.map((title) => ({ title }))} responsive style={{ marginBottom: 20 }} />
 
       {step === 1 ? (
+        benchmarkType === "standard" ? (
+          <Card title="Select target interaction model">
+            <Typography.Paragraph type="secondary">Standardized benchmarks evaluate a model directly against public datasets. Tutor prompts and knowledge are not involved.</Typography.Paragraph>
+            {interactionModelsError ? <Alert type="error" title={interactionModelsError} showIcon style={{ marginBottom: 16 }} /> : null}
+            <Form layout="vertical" requiredMark={false}>
+              <Form.Item label="Interaction model" required>
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  value={standardModelId || undefined}
+                  onChange={setStandardModelId}
+                  loading={interactionModelsLoading}
+                  placeholder="Select an interaction model"
+                  options={interactionModels.map((model) => ({ value: model.id, label: `${model.name} · ${model.providerModelName || "Provider model not specified"}` }))}
+                />
+              </Form.Item>
+            </Form>
+            {selectedStandardModel ? (
+              <Descriptions className="benchmark-selection-summary" bordered size="small" column={{ xs: 1, sm: 2 }}>
+                <Descriptions.Item label="Model">{selectedStandardModel.name}</Descriptions.Item>
+                <Descriptions.Item label="Provider model">{selectedStandardModel.providerModelName || "Not specified"}</Descriptions.Item>
+                <Descriptions.Item label="Runtime engine">{selectedStandardModel.runtimeEngineName || "—"}</Descriptions.Item>
+              </Descriptions>
+            ) : null}
+          </Card>
+        ) : (
         <Card title="Select target tutor and revision">
           <Typography.Paragraph type="secondary">Choose the exact tutor configuration to evaluate with this run.</Typography.Paragraph>
           {tutorsError ? <Alert type="error" title={tutorsError} showIcon style={{ marginBottom: 16 }} /> : null}
@@ -228,6 +316,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
           ) : null}
           {selectedRevision && !isUsableRevision(selectedRevision) ? <Alert type="warning" title="This revision needs a valid prompt, an enabled interaction model, and an activation snapshot before it can be benchmarked." showIcon style={{ marginTop: 16 }} /> : null}
         </Card>
+        )
       ) : null}
 
       {step === 2 ? (
@@ -322,25 +411,55 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
           {benchmarkType === "standard" ? (
             <Card title="2. Standardized Benchmark Suite Options">
               <Typography.Paragraph type="secondary">Select public dataset to evaluate against target model:</Typography.Paragraph>
-              <Radio.Group value={selectedStandardBenchmark} onChange={(e) => selectStandardBenchmark(e.target.value)} style={{ width: "100%" }}>
-                <Row gutter={[12, 12]}>
-                  {STANDARD_BENCHMARKS.map((bench) => (
-                    <Col xs={24} sm={12} key={bench.key}>
-                      <Card
-                        size="small"
-                        hoverable
-                        onClick={() => selectStandardBenchmark(bench.key)}
-                        style={{ cursor: "pointer", borderColor: selectedStandardBenchmark === bench.key ? "#1677ff" : undefined }}
-                      >
-                        <Radio value={bench.key}><Typography.Text strong>{bench.name}</Typography.Text></Radio>
-                        <Typography.Paragraph type="secondary" style={{ margin: "4px 0 0 24px", fontSize: 12 }}>{bench.description}</Typography.Paragraph>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </Radio.Group>
+              {standardSuitesError ? <Alert type="error" title={standardSuitesError} showIcon style={{ marginBottom: 16 }} /> : null}
+              {standardSuitesLoading ? <Spin description="Loading suites" /> : null}
+              {!standardSuitesLoading && !standardSuitesError ? (
+                <Radio.Group value={selectedStandardBenchmark} onChange={(e) => selectStandardBenchmark(e.target.value)} style={{ width: "100%" }}>
+                  <Row gutter={[12, 12]}>
+                    {standardSuites.map((bench) => (
+                      <Col xs={24} sm={12} key={bench.key}>
+                        <Card
+                          size="small"
+                          hoverable={bench.enabled}
+                          onClick={() => bench.enabled && selectStandardBenchmark(bench.key)}
+                          style={{ cursor: bench.enabled ? "pointer" : "not-allowed", opacity: bench.enabled ? 1 : 0.55, borderColor: selectedStandardBenchmark === bench.key ? "#1677ff" : undefined }}
+                        >
+                          <Radio value={bench.key} disabled={!bench.enabled}>
+                            <Typography.Text strong>{bench.displayName}</Typography.Text>
+                            {!bench.enabled ? <Tag color="default" style={{ marginLeft: 8 }}>Deferred</Tag> : null}
+                          </Radio>
+                          <Typography.Paragraph type="secondary" style={{ margin: "4px 0 0 24px", fontSize: 12 }}>
+                            {bench.description}
+                            {!bench.enabled ? " Requires a code-execution sandbox; not selectable." : ""}
+                          </Typography.Paragraph>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                </Radio.Group>
+              ) : null}
               <Form layout="vertical" style={{ marginTop: 16 }}>
-                <Form.Item label="Few-shot examples (n_shots)"><InputNumber min={0} max={5} value={nShots} onChange={setNShots} /></Form.Item>
+                <Row gutter={16}>
+                  <Col xs={24} md={8}>
+                    <Form.Item
+                      label="Few-shot examples (n_shots)"
+                      extra={selectedStandardSuite && !selectedStandardSuite.supportsShots ? "Not supported by this suite; value is ignored." : "0 = zero-shot."}
+                    >
+                      <InputNumber min={0} max={5} value={nShots} onChange={setNShots} disabled={selectedStandardSuite ? !selectedStandardSuite.supportsShots : false} />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} md={8}>
+                    <Form.Item
+                      label="Problem cap (n_problems)"
+                      extra={selectedStandardSuite && !selectedStandardSuite.supportsProblemCap
+                        ? "Not supported by this suite; the full dataset runs."
+                        : "0 = full dataset (slow). Positive values cap problems per task on task-based suites."}
+                    >
+                      <InputNumber min={0} max={10000} value={nProblems} onChange={setNProblems} disabled={selectedStandardSuite ? !selectedStandardSuite.supportsProblemCap : false} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                {nProblems === 0 ? <Alert type="warning" title="A problem cap of 0 runs the full default dataset. This can issue thousands of model calls and take hours." showIcon /> : null}
               </Form>
             </Card>
           ) : null}
@@ -387,23 +506,34 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
       {step === 4 ? (
         <Card title="Review and launch">
-          <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-            <Descriptions.Item label="Tutor">{selectedTutor?.name}</Descriptions.Item>
-            <Descriptions.Item label="Revision">Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</Descriptions.Item>
-            <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
-            <Descriptions.Item label="Category">{benchmarkType === "rag" ? "Tutor RAG Evaluation" : benchmarkType === "standard" ? "Standard LLM Benchmark" : "Arduino Diagnostic"}</Descriptions.Item>
-            <Descriptions.Item label="Template / Suite">{benchmarkType === "rag" ? (selectedTemplate?.name || "None") : benchmarkType === "standard" ? selectedStandardBenchmark.toUpperCase() : "Arduino 15-Question Suite"}</Descriptions.Item>
-            <Descriptions.Item label="Metrics">{benchmarkType === "rag" ? (selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "Default quality metrics") : "Standard dataset scoring"}</Descriptions.Item>
-            <Descriptions.Item label="Logical questions">{cases.length}</Descriptions.Item>
-            <Descriptions.Item label="Consistency runs">{consistencyRuns}</Descriptions.Item>
-          </Descriptions>
+          {benchmarkType === "standard" ? (
+            <Descriptions bordered column={{ xs: 1, sm: 2 }}>
+              <Descriptions.Item label="Model">{selectedStandardModel ? `${selectedStandardModel.name} · ${selectedStandardModel.providerModelName || "Provider model not specified"}` : "—"}</Descriptions.Item>
+              <Descriptions.Item label="Category">Standard LLM Benchmark</Descriptions.Item>
+              <Descriptions.Item label="Suite">{selectedStandardSuite?.displayName || selectedStandardBenchmark}</Descriptions.Item>
+              <Descriptions.Item label="Few-shot examples">{nShots}</Descriptions.Item>
+              <Descriptions.Item label="Problem cap">{nProblems === 0 ? "None (full dataset)" : `${nProblems} per task`}</Descriptions.Item>
+              <Descriptions.Item label="Execution">Runs asynchronously against the model's runtime engine.</Descriptions.Item>
+            </Descriptions>
+          ) : (
+            <Descriptions bordered column={{ xs: 1, sm: 2 }}>
+              <Descriptions.Item label="Tutor">{selectedTutor?.name}</Descriptions.Item>
+              <Descriptions.Item label="Revision">Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</Descriptions.Item>
+              <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
+              <Descriptions.Item label="Category">{benchmarkType === "rag" ? "Tutor RAG Evaluation" : "Arduino Diagnostic"}</Descriptions.Item>
+              <Descriptions.Item label="Template / Suite">{benchmarkType === "rag" ? (selectedTemplate?.name || "None") : "Arduino 15-Question Suite"}</Descriptions.Item>
+              <Descriptions.Item label="Metrics">{benchmarkType === "rag" ? (selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "Default quality metrics") : "Standard dataset scoring"}</Descriptions.Item>
+              <Descriptions.Item label="Logical questions">{cases.length}</Descriptions.Item>
+              <Descriptions.Item label="Consistency runs">{consistencyRuns}</Descriptions.Item>
+            </Descriptions>
+          )}
         </Card>
       ) : null}
 
       {validationError ? <Alert type="warning" title={validationError} showIcon /> : null}
       {launchError ? <Alert type="error" title={launchError} showIcon /> : null}
       <Flex justify="space-between">
-        <Button onClick={() => { setValidationError(""); setStep((current) => Math.max(1, current - 1)); }} disabled={step === 1 || submitting}>Back</Button>
+        <Button onClick={() => { setValidationError(""); setStep((current) => benchmarkType === "standard" && current === 4 ? 2 : Math.max(1, current - 1)); }} disabled={step === 1 || submitting}>Back</Button>
         {step < 4
           ? <Button type="primary" onClick={goNext}>Continue</Button>
           : <Button type="primary" onClick={launch} loading={submitting} disabled={Boolean(validateStep(4))}>Launch benchmark</Button>}

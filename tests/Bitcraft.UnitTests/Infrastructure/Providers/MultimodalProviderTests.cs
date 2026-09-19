@@ -115,6 +115,63 @@ public sealed class MultimodalProviderTests
         Assert.Equal("Llm.ImageInputNotSupported", result.Error.Code);
     }
 
+    [Fact]
+    public async Task ProbeNeverAttachesServerConfiguredCredential()
+    {
+        // Regression for Sec Ops finding F1: the probe endpoint accepts caller-chosen
+        // endpoints, so a null-key probe to an arbitrary endpoint must not attach the
+        // process-wide OpenAI credential from configuration.
+        var handler = new ProbeRecordingHandler();
+        using var client = new HttpClient(handler);
+        var factory = new ClientFactory(client);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ModelProviders:OpenAI:ApiKey"] = "server-wide-secret",
+                ["OPENAI_API_KEY"] = "server-wide-secret",
+            })
+            .Build();
+        var provider = new OpenAiCompatibleGenerationProvider(factory, configuration);
+
+        await provider.ProbeAvailableModelsAsync("https://attacker.example.com/v1", null, CancellationToken.None);
+
+        // First URL succeeds and the probe returns early; the essential assertion is that no
+        // request carried a server-configured credential.
+        Assert.Equal(1, handler.RequestCount);
+        Assert.All(handler.Authorizations, Assert.Null);
+    }
+
+    [Fact]
+    public async Task ProbeUsesCallerSuppliedKeyOnly()
+    {
+        var handler = new ProbeRecordingHandler();
+        using var client = new HttpClient(handler);
+        var factory = new ClientFactory(client);
+        var configuration = new ConfigurationBuilder().Build();
+        var provider = new OpenAiCompatibleGenerationProvider(factory, configuration);
+
+        var models = await provider.ProbeAvailableModelsAsync("https://provider.example.com/v1", "probe-key", CancellationToken.None);
+
+        Assert.NotNull(models);
+        Assert.All(handler.Authorizations, auth => Assert.Equal("Bearer probe-key", auth));
+    }
+
+    private sealed class ProbeRecordingHandler : HttpMessageHandler
+    {
+        public List<string?> Authorizations { get; } = new();
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            Authorizations.Add(request.Headers.Authorization?.ToString());
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"data\":[{\"id\":\"model-a\"},{\"id\":\"model-b\"}]}"),
+            });
+        }
+    }
+
     private static ILlmGenerationProvider CreateProvider(HttpClient client)
     {
         var factory = new ClientFactory(client);

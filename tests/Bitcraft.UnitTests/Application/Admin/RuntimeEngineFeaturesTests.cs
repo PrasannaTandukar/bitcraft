@@ -180,6 +180,74 @@ public class RuntimeEngineFeaturesTests
         Assert.True(result.IsSuccess);
     }
 
+    [Fact]
+    public async Task Update_WithNullKey_PreservesStoredKey()
+    {
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "stored-key" };
+        repo.Engines.Add(engine);
+
+        var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
+        var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: null, IsEnabled: true);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("stored-key", engine.ApiKeySecretRef);
+    }
+
+    [Fact]
+    public async Task Update_WithEmptyKey_PreservesStoredKey()
+    {
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "stored-key" };
+        repo.Engines.Add(engine);
+
+        var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
+        var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: "   ", IsEnabled: true);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("stored-key", engine.ApiKeySecretRef);
+    }
+
+    [Fact]
+    public async Task Update_WithClearFlag_RemovesStoredKey()
+    {
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "stored-key" };
+        repo.Engines.Add(engine);
+
+        var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
+        var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: null, IsEnabled: true, ClearApiKeySecret: true);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(engine.ApiKeySecretRef);
+    }
+
+    [Fact]
+    public async Task Update_WithNewKey_ReplacesStoredKey()
+    {
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine { Name = "Keyed", ProviderType = RuntimeEngineProviderType.OpenAI, Endpoint = "https://api.openai.com/v1", ApiKeySecretRef = "old-key" };
+        repo.Engines.Add(engine);
+
+        var handler = new RuntimeEngineFeatures.UpdateRuntimeEngineHandler(repo, Admin());
+        var cmd = new RuntimeEngineFeatures.UpdateRuntimeEngineCommand(
+            engine.Id, "Keyed", RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", ApiKeySecretRef: "new-key", IsEnabled: true);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("new-key", engine.ApiKeySecretRef);
+    }
+
     // ----- Delete -----
 
     [Fact]
@@ -207,5 +275,175 @@ public class RuntimeEngineFeaturesTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("RuntimeEngine.Forbidden", result.Error.Code);
+    }
+
+    // ----- Test connection -----
+
+    [Fact]
+    public async Task Test_WithEngineId_PrefillsStoredKey_ServerSide()
+    {
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine
+        {
+            Name = "Hosted",
+            ProviderType = RuntimeEngineProviderType.OpenAI,
+            Endpoint = "https://api.openai.com/v1",
+            ApiKeySecretRef = "stored-key",
+        };
+        repo.Engines.Add(engine);
+
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", null, engine.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, provider.ProbeCalls);
+        Assert.Equal("stored-key", provider.LastApiKey);
+        Assert.Equal("https://api.openai.com/v1", provider.LastEndpoint);
+    }
+
+    [Fact]
+    public async Task Test_WithEngineIdAndDifferentEndpoint_DoesNotPrefillStoredKey()
+    {
+        // A stored credential must never be sent to an endpoint other than the engine's own.
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine
+        {
+            Name = "Hosted",
+            ProviderType = RuntimeEngineProviderType.OpenAI,
+            Endpoint = "https://api.openai.com/v1",
+            ApiKeySecretRef = "stored-key",
+        };
+        repo.Engines.Add(engine);
+
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                RuntimeEngineProviderType.OpenAI, "http://attacker.example.com/v1", null, engine.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(provider.LastApiKey);
+        Assert.Equal("http://attacker.example.com/v1", provider.LastEndpoint);
+    }
+
+    [Theory]
+    [InlineData("https://api.openai.com/v1/")]   // trailing slash differs
+    [InlineData("HTTPS://API.OPENAI.COM/V1")]    // scheme/host case differs (host matches case-insensitively; scheme too)
+    [InlineData("https://api.openai.com/v2")]    // different path
+    public async Task Test_WithEndpointNormalizationVariants_FailClosed(string probedEndpoint)
+    {
+        // The prefill guard is exact-match after trim. Any difference other than surrounding
+        // whitespace must fail closed: no stored key attached.
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine
+        {
+            Name = "Hosted",
+            ProviderType = EditProvider(),
+            Endpoint = "https://api.openai.com/v1",
+            ApiKeySecretRef = "stored-key",
+        };
+        repo.Engines.Add(engine);
+
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                EditProvider(), probedEndpoint, null, engine.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        if (!string.Equals(probedEndpoint, "https://api.openai.com/v1", StringComparison.OrdinalIgnoreCase))
+        {
+            // Trailing slash and path variants: prefill skipped.
+            Assert.Null(provider.LastApiKey);
+        }
+        else
+        {
+            // Case-only difference: OrdinalIgnoreCase matches, prefill applies.
+            Assert.Equal("stored-key", provider.LastApiKey);
+        }
+    }
+
+    private static RuntimeEngineProviderType EditProvider() => RuntimeEngineProviderType.OpenAI;
+
+    [Fact]
+    public async Task Test_WithClientSuppliedKey_ClientKeyWins()
+    {
+        var repo = new FakeRuntimeEngineRepository();
+        var engine = new RuntimeEngine
+        {
+            Name = "Hosted",
+            ProviderType = RuntimeEngineProviderType.OpenAI,
+            Endpoint = "https://api.openai.com/v1",
+            ApiKeySecretRef = "stored-key",
+        };
+        repo.Engines.Add(engine);
+
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", "fresh-key", engine.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("fresh-key", provider.LastApiKey);
+    }
+
+    [Fact]
+    public async Task Test_WithoutEngineIdOrNullKey_ProbesWithNullKey()
+    {
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, new FakeRuntimeEngineRepository());
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                RuntimeEngineProviderType.Ollama, "http://localhost:11434", null, null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, provider.ProbeCalls);
+        Assert.Null(provider.LastApiKey);
+        Assert.Equal(["model-a", "model-b"], result.Value.AvailableModels);
+    }
+
+    [Fact]
+    public async Task Test_WithUnknownEngineId_ProbesWithNullKey()
+    {
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, new FakeRuntimeEngineRepository());
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                RuntimeEngineProviderType.OpenAI, "https://api.openai.com/v1", null, Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(provider.LastApiKey);
+    }
+
+    [Fact]
+    public async Task Test_WithInvalidEndpoint_ValidationFailsBeforeProbe()
+    {
+        var provider = new FakeLlmGenerationProvider();
+        var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, new FakeRuntimeEngineRepository());
+
+        var result = await handler.Handle(
+            new RuntimeEngineFeatures.TestRuntimeEngineCommand(
+                RuntimeEngineProviderType.Ollama, "not-a-uri", null, null),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("RuntimeEngine.EndpointInvalid", result.Error.Code);
+        Assert.Equal(0, provider.ProbeCalls);
     }
 }

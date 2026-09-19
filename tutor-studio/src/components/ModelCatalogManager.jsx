@@ -96,14 +96,12 @@ const catalogConfig = {
     title: "Model catalog",
     description: "Manage embedding models used for document vectorization and tutor knowledge retrieval.",
     singular: "embedding model",
-    providerPlaceholder: "nomic-embed-text / text-embedding-3-small / bge-m3",
   },
   interaction: {
     apiPath: "/api/admin/interaction-models",
     title: "Interaction models",
     description: "Manage the language models that power active tutor conversations and benchmark generation.",
     singular: "interaction model",
-    providerPlaceholder: "llama3.3:70b / gpt-4o / claude-3-5-sonnet-20241022",
   },
 };
 
@@ -169,11 +167,27 @@ export default function ModelCatalogManager({ kind }) {
         json: {
           providerType: Number(engine.providerType ?? 0),
           endpoint: engine.endpoint.trim(),
-          apiKeySecretRef: engine.apiKeySecretRef?.trim() || null,
+          apiKeySecretRef: null,
+          runtimeEngineId: engine.id,
         },
       });
 
+      // The probe returns HTTP 200 with isSuccess=false on failure; surface the backend
+      // diagnostic instead of a generic message so the admin can tell auth, provider-type,
+      // and reachability problems apart.
+      if (result && result.isSuccess === false) {
+        setEngineProbeError(result.message || "The endpoint was unreachable or returned no model catalog.");
+        setDiscoveredModelsByEngine((prev) => ({
+          ...prev,
+          [engineId]: [],
+        }));
+        return;
+      }
+
       const rawModels = result?.availableModels ?? [];
+      if (rawModels.length === 0 && result?.message) {
+        setEngineProbeError(result.message);
+      }
       const topModels = filterAndSortAvailableModels(rawModels, isEmbedding, 10);
       setDiscoveredModelsByEngine((prev) => ({
         ...prev,
@@ -332,7 +346,7 @@ export default function ModelCatalogManager({ kind }) {
         {engineError ? <Alert type="error" title={engineError} showIcon style={{ marginBottom: 16 }} /> : null}
         {!editingModel && !engines.length && !engineError ? <Alert type="warning" title="No enabled runtime engines are available. Add or enable a runtime engine first." showIcon style={{ marginBottom: 16 }} /> : null}
         <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, supportsImageInput: false, embeddingDimensions: 0 }}>
-          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a model name." }]}><Input placeholder={`My ${isEmbedding ? "Embedding" : "Interaction"} Model`} /></Form.Item>
+          <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a model name." }]}><Input placeholder="e.g. Local Llama 3.3 70B" /></Form.Item>
           <Form.Item label="Runtime engine" name="runtimeEngineId" rules={[{ required: true, message: "Select a runtime engine." }]}>
             <Select
               placeholder="Select an enabled runtime engine"
@@ -399,14 +413,16 @@ export default function ModelCatalogManager({ kind }) {
                     })}
                   </Flex>
                 ) : !fetchingEngineModels ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {selectedEngineId ? "No models reported by provider or endpoint is currently offline." : "Select a runtime engine above to load available provider models."}
+                  <Typography.Text type={engineProbeError ? "warning" : "secondary"} style={{ fontSize: 12 }}>
+                    {selectedEngineId
+                      ? (engineProbeError || "No models reported by provider or endpoint is currently offline.")
+                      : "Select a runtime engine above to load available provider models."}
                   </Typography.Text>
                 ) : null}
               </div>
             )}
           >
-            <Input placeholder={config.providerPlaceholder} />
+            <Input placeholder={discoveredModelsByEngine[selectedEngineId]?.length > 0 ? discoveredModelsByEngine[selectedEngineId][0] : "Provider model name (pick from detected list above)"} />
           </Form.Item>
           {isEmbedding ? (
             <Form.Item label="Embedding dimensions" name="embeddingDimensions" extra={editingModel ? "Dimensions cannot be changed after a model is created." : undefined}>

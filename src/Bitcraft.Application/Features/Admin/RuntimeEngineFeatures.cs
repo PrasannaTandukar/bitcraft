@@ -108,13 +108,18 @@ public static class RuntimeEngineFeatures
 
     // ----- Update -----
 
+    /// <summary>
+    /// Updates an admin-managed runtime engine. A null or empty <paramref name="ApiKeySecretRef"/>
+    /// preserves the stored key reference. Set <paramref name="ClearApiKeySecret"/> to remove it.
+    /// </summary>
     public sealed record UpdateRuntimeEngineCommand(
         Guid RuntimeEngineId,
         string Name,
         RuntimeEngineProviderType ProviderType,
         string Endpoint,
         string? ApiKeySecretRef,
-        bool IsEnabled) : IRequest<Result<RuntimeEngine>>;
+        bool IsEnabled,
+        bool ClearApiKeySecret = false) : IRequest<Result<RuntimeEngine>>;
 
     public sealed class UpdateRuntimeEngineHandler(
         IRuntimeEngineRepository repository,
@@ -153,7 +158,16 @@ public static class RuntimeEngineFeatures
             engine.Name = name;
             engine.ProviderType = request.ProviderType;
             engine.Endpoint = request.Endpoint.Trim();
-            engine.ApiKeySecretRef = string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim();
+            // Preserve-on-null: a blank key reference from the client keeps the stored value.
+            // Removal is explicit via ClearApiKeySecret so an edit-save never silently drops the key.
+            if (request.ClearApiKeySecret)
+            {
+                engine.ApiKeySecretRef = null;
+            }
+            else if (!string.IsNullOrWhiteSpace(request.ApiKeySecretRef))
+            {
+                engine.ApiKeySecretRef = request.ApiKeySecretRef.Trim();
+            }
             engine.IsEnabled = request.IsEnabled;
 
             await repository.UpdateAsync(engine, cancellationToken);
@@ -201,21 +215,34 @@ public static class RuntimeEngineFeatures
     public sealed record TestRuntimeEngineCommand(
         RuntimeEngineProviderType ProviderType,
         string Endpoint,
-        string? ApiKeySecretRef) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
+        string? ApiKeySecretRef,
+        Guid? RuntimeEngineId = null) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
 
+    // Authorization is enforced by the API layer (ViewerOrAbove on the test endpoint). The handler
+    // performs no role check so any authenticated user can run this read-only probe.
     public sealed class TestRuntimeEngineHandler(
         ILlmGenerationProvider generationProvider,
-        ICurrentUserContext currentUser)
+        IRuntimeEngineRepository repository)
         : IRequestHandler<TestRuntimeEngineCommand, Result<TestRuntimeEngineConnectionResult>>
     {
         public async Task<Result<TestRuntimeEngineConnectionResult>> Handle(
             TestRuntimeEngineCommand request,
             CancellationToken cancellationToken)
         {
-            if (!currentUser.IsInRole(AppRoles.Admin))
+            // Server-side key prefill: a probe without a client-supplied key reuses the stored
+            // credential server-side so saved engines test with their persisted key. Read-only.
+            // The stored key only attaches to the stored engine's own endpoint. Mixing a stored
+            // credential with an arbitrary endpoint would let any authenticated user steer the
+            // key to a host they control, so prefill requires an endpoint match.
+            var apiKey = request.ApiKeySecretRef;
+            if (string.IsNullOrWhiteSpace(apiKey) && request.RuntimeEngineId is { } engineId)
             {
-                return Result.Failure<TestRuntimeEngineConnectionResult>(
-                    new Error("RuntimeEngine.Forbidden", "Only administrators can test runtime engines."));
+                var stored = await repository.GetByIdAsync(engineId, cancellationToken);
+                if (stored is not null &&
+                    string.Equals(stored.Endpoint?.Trim(), request.Endpoint?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    apiKey = stored.ApiKeySecretRef;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(request.Endpoint) ||
@@ -231,7 +258,7 @@ public static class RuntimeEngineFeatures
             {
                 var discoveredModels = await generationProvider.ProbeAvailableModelsAsync(
                     request.Endpoint.Trim(),
-                    string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
+                    string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim(),
                     request.ProviderType.ToString(),
                     cancellationToken);
 

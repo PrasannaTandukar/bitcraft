@@ -9,13 +9,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Bitcraft.Api.Controllers.Admin;
 
+/// <remarks>
+/// Authorization is endpoint-specific: management operations require AdminOnly. The read-only
+/// connection test is available to any authenticated user (ViewerOrAbove) per human decision OD-1.
+/// </remarks>
 [ApiController]
-[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 [Route("api/admin/runtime-engines")]
 [Produces("application/json")]
 public class RuntimeEnginesController(ISender sender) : ControllerBase
 {
     /// <summary>Lists admin-managed runtime engines.</summary>
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<RuntimeEngineResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -29,6 +33,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
     }
 
     /// <summary>Returns a single runtime engine by id.</summary>
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(RuntimeEngineResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -43,6 +48,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
     }
 
     /// <summary>Creates a new runtime engine.</summary>
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpPost]
     [ProducesResponseType(typeof(RuntimeEngineResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -70,6 +76,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
     }
 
     /// <summary>Updates an existing runtime engine.</summary>
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(RuntimeEngineResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -87,7 +94,8 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
             request.ProviderType,
             request.Endpoint,
             request.ApiKeySecretRef,
-            request.IsEnabled);
+            request.IsEnabled,
+            request.ClearApiKeySecret);
 
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess
@@ -96,6 +104,7 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
     }
 
     /// <summary>Deletes a runtime engine. Step 4 will introduce FK Restrict from Model rows.</summary>
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -109,7 +118,8 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
             : TutoringMapping.ToActionResult(result.Error);
     }
 
-    /// <summary>Tests connection to a runtime engine.</summary>
+    /// <summary>Tests connection to a runtime engine. Available to any authenticated user; a stored key is resolved server-side and never returned.</summary>
+    [Authorize(Policy = AuthorizationPolicies.ViewerOrAbove)]
     [HttpPost("test")]
     [ProducesResponseType(typeof(TestConnectionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -122,7 +132,8 @@ public class RuntimeEnginesController(ISender sender) : ControllerBase
         var command = new RuntimeEngineFeatures.TestRuntimeEngineCommand(
             request.ProviderType,
             request.Endpoint,
-            request.ApiKeySecretRef);
+            request.ApiKeySecretRef,
+            request.RuntimeEngineId);
 
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess

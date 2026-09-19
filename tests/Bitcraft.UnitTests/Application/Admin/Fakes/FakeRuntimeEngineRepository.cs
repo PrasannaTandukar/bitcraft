@@ -1,4 +1,5 @@
 using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Modeling;
 
 namespace Bitcraft.UnitTests.Application.Admin.Fakes;
@@ -37,5 +38,33 @@ internal sealed class FakeRuntimeEngineRepository : IRuntimeEngineRepository
         DeleteCalls++;
         Engines.Remove(engine);
         return Task.CompletedTask;
+    }
+}
+
+internal sealed class FakeLlmGenerationProvider : ILlmGenerationProvider
+{
+    public int ProbeCalls { get; private set; }
+    public string? LastEndpoint { get; private set; }
+    public string? LastApiKey { get; private set; }
+    public string? LastProviderType { get; private set; }
+    public IReadOnlyList<string>? ProbeResult { get; set; } = ["model-a", "model-b"];
+
+    public Task<Result<LlmGenerationResult>> GenerateAsync(
+        string prompt,
+        string? model,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Failure<LlmGenerationResult>(new Error("Fake.NotSupported", "Generation is not used in these tests.")));
+
+    public Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
+        string endpoint,
+        string? apiKeySecretRef,
+        string? providerType,
+        CancellationToken cancellationToken = default)
+    {
+        ProbeCalls++;
+        LastEndpoint = endpoint;
+        LastApiKey = apiKeySecretRef;
+        LastProviderType = providerType;
+        return Task.FromResult(ProbeResult);
     }
 }

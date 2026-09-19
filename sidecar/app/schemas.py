@@ -77,6 +77,12 @@ class SidecarLlmBenchmarkRequest(BaseModel):
     judge_model: SidecarJudgeModelConfig
     tasks: list[str] | None = None
     n_shots: int = Field(default=0, ge=0, le=5)
+    # Caps the number of problems evaluated. 0 means "no cap" and runs the
+    # full default dataset for the benchmark. For task-based benchmarks
+    # (MMLU, HellaSwag, BBH, DROP, TruthfulQA) deepeval applies the cap per
+    # task, not across all tasks combined; for single-dataset benchmarks
+    # (GSM8K) it takes the first N problems sequentially.
+    n_problems: int = Field(default=10, ge=0)
     # HumanEval executes model-generated Python code to check pass/fail.
     # This must be explicitly opted into and should never be enabled against
     # an untrusted model or outside a sandboxed execution context.
@@ -90,4 +96,3 @@ class SidecarLlmBenchmarkResponse(BaseModel):
     engine_version: str
     notes: str
     error: str | None = None
-

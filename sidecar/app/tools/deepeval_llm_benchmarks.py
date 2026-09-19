@@ -7,7 +7,11 @@ from importlib.metadata import PackageNotFoundError, version
 
 import httpx
 
-from app.schemas import SidecarJudgeModelConfig, SidecarLlmBenchmarkRequest, SidecarLlmBenchmarkResponse
+from app.schemas import (
+    SidecarJudgeModelConfig,
+    SidecarLlmBenchmarkRequest,
+    SidecarLlmBenchmarkResponse,
+)
 
 # Standardized deepeval LLM benchmarks (BIG-Bench Hard, HellaSwag, MMLU, DROP,
 # TruthfulQA, HumanEval, GSM8K). This is a separate, opt-in capability from
@@ -56,7 +60,9 @@ class _SidecarJudgeLLM:
     so the rest of the sidecar keeps working without a judge configured."""
 
     def __init__(self, config: SidecarJudgeModelConfig):
-        from deepeval.models.base_model import DeepEvalBaseLLM  # local import, see class docstring
+        from deepeval.models.base_model import (
+            DeepEvalBaseLLM,
+        )  # local import, see class docstring
 
         self._config = config
         self._base = DeepEvalBaseLLM
@@ -96,21 +102,33 @@ class _SidecarJudgeLLM:
             base_url = self._config.base_url or "http://localhost:11434"
             response = httpx.post(
                 f"{base_url}/api/generate",
-                json={"model": self._config.model_name, "prompt": prompt, "stream": False},
+                json={
+                    "model": self._config.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                },
                 timeout=120.0,
             )
             response.raise_for_status()
             return response.json().get("response", "")
 
+        # Active provider dialects: Ollama (local) and OpenAI (hosted API).
+        # The backend rejects other engine types before a run is queued.
         if provider == "openai":
             api_key = self._resolve_api_key()
-            if not api_key:
-                raise RuntimeError("OpenAI judge model requires `api_key_env` to name a set environment variable.")
+            headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
             base_url = self._config.base_url or "https://api.openai.com/v1"
+            if not api_key and "api.openai.com" in base_url:
+                raise RuntimeError(
+                    "OpenAI hosted models require `api_key_env` to name a set environment variable."
+                )
             response = httpx.post(
                 f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={"model": self._config.model_name, "messages": [{"role": "user", "content": prompt}]},
+                headers=headers,
+                json={
+                    "model": self._config.model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
                 timeout=120.0,
             )
             response.raise_for_status()
@@ -119,16 +137,24 @@ class _SidecarJudgeLLM:
         if provider == "anthropic":
             api_key = self._resolve_api_key()
             if not api_key:
-                raise RuntimeError("Anthropic judge model requires `api_key_env` to name a set environment variable.")
+                raise RuntimeError(
+                    "Anthropic judge model requires `api_key_env` to name a set environment variable."
+                )
             base_url = self._config.base_url or "https://api.anthropic.com/v1"
             response = httpx.post(
                 f"{base_url}/messages",
                 headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
-                json={"model": self._config.model_name, "max_tokens": 1024, "messages": [{"role": "user", "content": prompt}]},
+                json={
+                    "model": self._config.model_name,
+                    "max_tokens": 1024,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
                 timeout=120.0,
             )
             response.raise_for_status()
-            return "".join(block.get("text", "") for block in response.json().get("content", []))
+            return "".join(
+                block.get("text", "") for block in response.json().get("content", [])
+            )
 
         raise ValueError(f"Unsupported judge provider: {self._config.provider}")
 
@@ -137,7 +163,11 @@ def _import_task_enum(benchmark_key: str):
     task_enum_name = _TASK_ENUM_NAMES.get(benchmark_key)
     if not task_enum_name:
         return None
-    candidates = [_BENCHMARK_MODULE, f"deepeval.benchmarks.{benchmark_key}.task", f"deepeval.benchmarks.tasks"]
+    candidates = [
+        _BENCHMARK_MODULE,
+        f"deepeval.benchmarks.{benchmark_key}.task",
+        f"deepeval.benchmarks.tasks",
+    ]
     for module_path in candidates:
         try:
             module = importlib.import_module(module_path)
@@ -161,7 +191,9 @@ def _resolve_tasks(benchmark_key: str, requested: list[str] | None):
     return resolved or None
 
 
-async def run_llm_benchmark(request: SidecarLlmBenchmarkRequest) -> SidecarLlmBenchmarkResponse:
+async def run_llm_benchmark(
+    request: SidecarLlmBenchmarkRequest,
+) -> SidecarLlmBenchmarkResponse:
     engine_version = _resolve_engine_version()
     key = request.benchmark_key.strip().lower()
     class_name = _BENCHMARK_CLASS_NAMES.get(key)
@@ -209,6 +241,19 @@ async def run_llm_benchmark(request: SidecarLlmBenchmarkRequest) -> SidecarLlmBe
             kwargs["tasks"] = resolved_tasks
         if "n_shots" in accepted_params:
             kwargs["n_shots"] = request.n_shots
+        # n_problems: 0 means "no cap" (full dataset), so only forward a
+        # positive value. deepeval names the parameter `n_problems` on
+        # single-dataset benchmarks and `n_problems_per_task` on task-based
+        # ones; the signature gate picks whichever the installed version
+        # accepts so a deepeval upgrade cannot break this call.
+        n_problems_forwarded = 0
+        if request.n_problems > 0:
+            if "n_problems" in accepted_params:
+                kwargs["n_problems"] = request.n_problems
+                n_problems_forwarded = request.n_problems
+            elif "n_problems_per_task" in accepted_params:
+                kwargs["n_problems_per_task"] = request.n_problems
+                n_problems_forwarded = request.n_problems
 
         benchmark = benchmark_cls(**kwargs)
         model = _SidecarJudgeLLM(request.judge_model).build()
@@ -221,14 +266,28 @@ async def run_llm_benchmark(request: SidecarLlmBenchmarkRequest) -> SidecarLlmBe
         benchmark.evaluate(**evaluate_kwargs)
         overall_score = float(getattr(benchmark, "overall_score", 0.0) or 0.0)
         task_scores = getattr(benchmark, "task_scores", None)
-        task_count = int(len(task_scores)) if task_scores is not None else (len(resolved_tasks) if resolved_tasks else 1)
+        task_count = (
+            int(len(task_scores))
+            if task_scores is not None
+            else (len(resolved_tasks) if resolved_tasks else 1)
+        )
+
+        if n_problems_forwarded > 0:
+            cap_note = (
+                f"Problem cap: {n_problems_forwarded} per task."
+                if "n_problems_per_task" in kwargs
+                else f"Problem cap: {n_problems_forwarded} problems."
+            )
+        else:
+            cap_note = "Problem cap: none (full default dataset)."
+        notes = f"Scored against deepeval's public benchmark dataset using the configured judge model. {cap_note}"
 
         return SidecarLlmBenchmarkResponse(
             benchmark_key=key,
             overall_score=round(overall_score, 4),
             task_count=task_count,
             engine_version=engine_version,
-            notes="Scored against deepeval's public benchmark dataset using the configured judge model.",
+            notes=notes,
             error=None,
         )
     except Exception as error:  # noqa: BLE001 - never crash the sidecar process on a benchmark failure.

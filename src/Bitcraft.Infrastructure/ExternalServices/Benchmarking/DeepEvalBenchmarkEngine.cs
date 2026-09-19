@@ -116,6 +116,7 @@ public sealed class DeepEvalBenchmarkEngine(
                 },
                 tasks = request.Tasks,
                 n_shots = request.NShots,
+                n_problems = request.NProblems,
                 allow_code_execution = request.AllowCodeExecution
             };
 

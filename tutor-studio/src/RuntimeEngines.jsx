@@ -29,6 +29,7 @@ export default function RuntimeEnginesPage() {
   const [deletingId, setDeletingId] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [clearApiKey, setClearApiKey] = useState(false);
 
   const load = useCallback((refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -65,11 +66,14 @@ export default function RuntimeEnginesPage() {
   const openEdit = (engine) => {
     setEditingEngine(engine);
     setTestResult(null);
+    setClearApiKey(false);
     form.setFieldsValue({
       name: engine.name,
       providerType: engine.providerType,
       endpoint: engine.endpoint,
-      apiKeySecretRef: engine.apiKeySecretRef ?? undefined,
+      // The API never returns the stored key value, so the field starts blank.
+      // Save preserves the stored key when the field is left blank.
+      apiKeySecretRef: undefined,
       isEnabled: engine.isEnabled,
     });
     setOpen(true);
@@ -98,6 +102,7 @@ export default function RuntimeEnginesPage() {
           providerType: Number(values.providerType ?? 0),
           endpoint: values.endpoint.trim(),
           apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+          runtimeEngineId: editingEngine?.id ?? null,
         },
       });
       setTestResult(result);
@@ -118,6 +123,7 @@ export default function RuntimeEnginesPage() {
     setEditingEngine(null);
     setFormError("");
     setTestResult(null);
+    setClearApiKey(false);
     form.resetFields();
   };
 
@@ -128,8 +134,10 @@ export default function RuntimeEnginesPage() {
       name: values.name.trim(),
       providerType: Number(values.providerType),
       endpoint: values.endpoint.trim(),
+      // Blank + not clearing = backend preserves the stored key. Blank + clearing = backend removes it.
       apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
       isEnabled: values.isEnabled,
+      clearApiKeySecret: clearApiKey,
     };
     try {
       if (editingEngine) {
@@ -245,7 +253,45 @@ export default function RuntimeEnginesPage() {
           <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter an engine name." }]}><Input placeholder="Local Ollama or Llama.CPP" /></Form.Item>
           <Form.Item label="Provider type" name="providerType"><Select options={PROVIDER_TYPES} onChange={handleProviderTypeChange} /></Form.Item>
           <Form.Item label="Endpoint" name="endpoint" rules={[{ required: true, whitespace: true, message: "Enter the runtime endpoint." }]} extra="OpenAI Compatible servers default to port 8080 (e.g. http://localhost:8080/v1), Ollama to 11434 (e.g. http://localhost:11434)."><Input placeholder="http://localhost:8080/v1" /></Form.Item>
-          <Form.Item label="API key secret reference" name="apiKeySecretRef" extra="Store only a secret reference here, never an API key value. Optional for local Llama.CPP/Ollama."><Input placeholder="my-api-key-ref" /></Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, next) => prev.apiKeySecretRef !== next.apiKeySecretRef}
+          >
+            {() => {
+              const entered = Boolean(form.getFieldValue("apiKeySecretRef")?.trim());
+              const keyExtra = editingEngine
+                ? (clearApiKey
+                  ? "The stored key will be removed when you save."
+                  : entered
+                    ? "Replaces the stored key when you save."
+                    : editingEngine.hasApiKeySecret
+                      ? "A key is configured. Leave blank to keep it."
+                      : "Optional for local Llama.CPP/Ollama.")
+                : "Optional for local Llama.CPP/Ollama.";
+              return (
+                <Form.Item
+                  label="API key"
+                  name="apiKeySecretRef"
+                  extra={keyExtra}
+                  validateStatus={clearApiKey ? "warning" : undefined}
+                >
+                  <Input
+                    placeholder={editingEngine?.hasApiKeySecret && !clearApiKey ? "Leave blank to keep existing key" : "API key value"}
+                    autoComplete="off"
+                    suffix={
+                      editingEngine?.hasApiKeySecret ? (
+                        clearApiKey ? (
+                          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => setClearApiKey(false)}>Undo clear</Button>
+                        ) : (
+                          <Button type="link" size="small" style={{ padding: 0 }} onClick={() => { setClearApiKey(true); form.setFieldValue("apiKeySecretRef", undefined); }}>Clear</Button>
+                        )
+                      ) : null
+                    }
+                  />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
           <Form.Item label="Enabled" name="isEnabled" valuePropName="checked"><Switch /></Form.Item>
         </Form>
       </Drawer>

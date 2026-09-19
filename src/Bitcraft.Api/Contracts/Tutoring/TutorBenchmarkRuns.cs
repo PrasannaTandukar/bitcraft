@@ -98,22 +98,42 @@ public sealed record TutorBenchmarkRunResponse(
     string? SystemMetricsJson,
     string? RawResultJson);
 
-/// <summary>Request to execute a standardized LLM benchmark directly.</summary>
+/// <summary>Request to launch a standardized LLM benchmark run for an interaction model.</summary>
 public sealed record ExecuteStandardBenchmarkRequest(
+    Guid InteractionModelId,
     string BenchmarkKey,
-    string Provider,
-    string ModelName,
-    string? BaseUrl = null,
-    string? ApiKeyEnv = null,
     IReadOnlyList<string>? Tasks = null,
     int NShots = 0,
-    bool AllowCodeExecution = false);
+    int NProblems = 10);
 
-/// <summary>Response from a standardized LLM benchmark run.</summary>
-public sealed record StandardBenchmarkResponse(
+/// <summary>Admin-visible projection of a standardized benchmark run. Never exposes engine credentials.</summary>
+public sealed record StandardBenchmarkRunResponse(
+    Guid Id,
+    Guid InteractionModelId,
+    string? InteractionModelName,
     string BenchmarkKey,
+    string? TasksJson,
+    int NShots,
+    int NProblems,
+    string Status,
+    DateTime QueuedUtc,
+    DateTime? StartedUtc,
+    DateTime? CompletedUtc,
+    string? EngineName,
+    string? EngineVersion,
     double? OverallScore,
     int TaskCount,
-    string EngineVersion,
-    string Notes,
-    string? Error);
+    string? TaskScoresJson,
+    string? Notes,
+    string? FailureCode,
+    string? FailureDescription);
+
+/// <summary>Metadata for one standardized benchmark suite in the catalog.</summary>
+public sealed record StandardBenchmarkSuiteResponse(
+    string Key,
+    string DisplayName,
+    string Description,
+    bool SupportsTasks,
+    bool SupportsShots,
+    bool SupportsProblemCap,
+    bool Enabled);

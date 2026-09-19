@@ -25,3 +25,20 @@ export const getBenchmarkRun = (tutorId, runId, signal) =>
 
 export const getBenchmarkProgress = (tutorId, runId, signal) =>
   apiFetch(`/api/tutors/${tutorId}/benchmark-runs/${runId}/progress`, { signal });
+
+// ----- Standardized (model-scoped) DeepEval benchmark runs -----
+
+export const listStandardBenchmarkSuites = (signal) =>
+  apiFetch("/api/standard-benchmark-runs/suites", { signal });
+
+export const listStandardBenchmarkRuns = (interactionModelId, signal) =>
+  apiFetch(`/api/standard-benchmark-runs${interactionModelId ? `?interactionModelId=${interactionModelId}` : ""}`, { signal });
+
+export const getStandardBenchmarkRun = (runId, signal) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}`, { signal });
+
+export const createStandardBenchmarkRun = (payload) =>
+  apiFetch("/api/standard-benchmark-runs", { method: "POST", json: payload });
+
+export const listInteractionModelsForAdmin = (signal) =>
+  apiFetch("/api/admin/interaction-models", { signal });

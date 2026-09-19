@@ -1,9 +1,9 @@
 # plan.yaml — Deepeval Built-in Benchmarks & Evaluation Architecture
 branch: feature/deepeval-builtin-benchmarks
 created_at: 2026-08-20
-updated_at: 2026-08-20
+updated_at: 2026-09-18
 status: active
-revision: v1.0
+revision: v1.1
 goal: >
   Introduce standard zero-sandbox DeepEval benchmarks (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA),
   clear architectural separation between model continuous evaluation metrics and systematic task benchmarking,
@@ -24,6 +24,7 @@ model_family: claude
 artifacts:
   - plan.md
   - plan.decisions.md
+  - context.md
 reports:
   - docs/benchmarking-templates.md
   - docs/change-notes.md
@@ -35,4 +36,4 @@ locked_decisions:
 human_locks:
   - Standard benchmark datasets caching location and download trigger.
   - Default LLM judge provider connection for non-deterministic metric evaluation.
-notes: "Step 2 final planning specification ready for Lead Dev execution handoff."
+notes: "v1.1 (2026-09-18): n_problems + standard-run wiring approved; provider key preserve-on-null approved; research docs for DeepEval gap analysis, observability, Arduino options. See context.md. v1.3 (2026-09-18): server-side key prefill implemented after human decisions OD-1..OD-4 (probe = any authenticated user via ViewerOrAbove, management stays AdminOnly, ApiKeySecretRef naming retained, prefill covers both call sites); Sec Ops review done, F1 credential-steering fallback removed; F4 fallback-policy follow-up queued."

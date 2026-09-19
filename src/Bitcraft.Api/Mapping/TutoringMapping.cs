@@ -5,6 +5,7 @@ using Bitcraft.Api.Contracts.Knowledge;
 using Bitcraft.Api.Contracts.Rag;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Application.Features.Benchmarking;
 using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Application.Features.Tutoring;
 using Bitcraft.Domain.Benchmarking;
@@ -425,4 +426,34 @@ internal static class TutoringMapping
         run.SummaryJson,
         run.SystemMetricsJson,
         run.RawResultJson);
+
+    public static StandardBenchmarkRunResponse ToResponse(this StandardBenchmarkRun run) => new(
+        run.Id,
+        run.InteractionModelId,
+        run.InteractionModel?.Name,
+        run.BenchmarkKey,
+        run.TasksJson,
+        run.NShots,
+        run.NProblems,
+        run.Status.ToString(),
+        run.QueuedUtc,
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.EngineName,
+        run.EngineVersion,
+        run.OverallScore,
+        run.TaskCount,
+        run.TaskScoresJson,
+        run.Notes,
+        run.FailureCode,
+        run.FailureDescription);
+
+    public static StandardBenchmarkSuiteResponse ToResponse(this StandardBenchmarkSuiteRegistry.SuiteInfo suite) => new(
+        suite.Key,
+        suite.DisplayName,
+        suite.Description,
+        suite.SupportsTasks,
+        suite.SupportsShots,
+        suite.SupportsProblemCap,
+        suite.Enabled);
 }

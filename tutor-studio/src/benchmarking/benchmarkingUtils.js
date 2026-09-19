@@ -69,14 +69,9 @@ export const METRIC_DETAILS = {
   },
 };
 
-export const STANDARD_BENCHMARKS = [
-  { key: "mmlu", name: "MMLU", description: "Massive Multitask Language Understanding (57 subjects: STEM, humanities, etc.)" },
-  { key: "gsm8k", name: "GSM8K", description: "Grade School Math (8,500 multi-step math problems testing numerical reasoning)" },
-  { key: "big_bench_hard", name: "BIG-Bench Hard", description: "23 challenging multi-step reasoning and algorithmic tasks" },
-  { key: "hellaswag", name: "HellaSwag", description: "Adversarial commonsense reasoning and sentence completion" },
-  { key: "drop", name: "DROP", description: "Discrete Reasoning Over Paragraphs (reading comprehension, dates, counts)" },
-  { key: "truthful_qa", name: "TruthfulQA", description: "Benchmark testing mimicry of human falsehoods and hallucination resistance" },
-];
+// Standardized benchmark suites are served by the backend
+// (GET /api/standard-benchmark-runs/suites) from the canonical
+// StandardBenchmarkSuiteRegistry. Do not hardcode suite lists here.
 
 export const emptyBenchmarkCase = () => ({
   inputText: "",

@@ -67,6 +67,7 @@ public sealed record StandardLlmBenchmarkRequest(
     string? ApiKeyEnv = null,
     IReadOnlyList<string>? Tasks = null,
     int NShots = 0,
+    int NProblems = 10,
     bool AllowCodeExecution = false);
 
 public sealed record StandardLlmBenchmarkResult(

@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-08-09
+edited_at: 2026-09-18
 creator: planner
-editor: codex
+editor: lead-dev
 ai_gen: true
 ---
 # Bitcraft Architecture (Living Document)
@@ -490,7 +490,7 @@ Interactive requests resolve `Tutor.ActiveRevisionId` and accept bounded in-requ
 
 **Error codes.** Failures cross the API boundary as `ApiError { code, message, details? }` with stable `code` strings the frontend branches on. Initial vocabulary: `tutor_inactive`, `knowledge_not_ready_for_active_embedding_model`, `revision_not_editable`, `membership_required`, `runtime_engine_disabled`, `embedding_dimensions_mismatch`, `slug_conflict`. New codes are added by Application handlers and surfaced through the Api mapping layer; controllers never invent codes.
 
-**Configuration and secrets.** All configuration follows 12-Factor Config (D9). The full per-factor status, including the `BITCRAFT_RUNTIME_LOCAL_ONLY` build-stage classification under Factor V and the `BootstrapOptions`/env-vars-first plan under Factor III, lives in [.github/governance/twelve-factor.md](../.github/governance/twelve-factor.md). Secret material is never persisted in a database column; `ApiKeySecretRef` columns hold a logical key resolved against the deployment secret store.
+**Configuration and secrets.** All configuration follows 12-Factor Config (D9). The full per-factor status, including the `BITCRAFT_RUNTIME_LOCAL_ONLY` build-stage classification under Factor V and the `BootstrapOptions`/env-vars-first plan under Factor III, lives in [.github/governance/twelve-factor.md](../.github/governance/twelve-factor.md). Secret material is never persisted in a database column; `ApiKeySecretRef` columns currently hold the API key value itself and are resolved directly by providers. A deployment secret store is future work; API responses never return the stored value.
 
 **Migration strategy.** Schema evolution is the 8-step dependency-ordered sequence in [plan.erm.md §10](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#10-migration-sequencing) (D21): Identity vocabulary → resource membership → RuntimeEngine → Model TPH → Tutor-Document M:N → dynamic-dimension Knowledge → Tutor revisions → benchmark FK realignment. Each migration is reviewable in isolation; humans run `dotnet ef migrations add ...` per [AGENTS.md](../AGENTS.md) — agents do not.
 

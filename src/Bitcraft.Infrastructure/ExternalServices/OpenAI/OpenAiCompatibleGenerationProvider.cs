@@ -196,9 +196,12 @@ public class OpenAiCompatibleGenerationProvider(
         var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleGenerationProvider));
         client.Timeout = TimeSpan.FromSeconds(5);
 
-        var apiKey = apiKeySecretRef
-            ?? configuration["ModelProviders:OpenAI:ApiKey"]
-            ?? configuration["OPENAI_API_KEY"];
+        // Security: the probe endpoint accepts caller-chosen endpoints. Never attach a
+        // server-configured credential here — a client could steer the process-wide key to a
+        // host it controls. The probe uses only the caller-supplied or server-resolved stored
+        // key passed in as apiKeySecretRef. Generation (GenerateAsync) keeps its config
+        // fallback because it runs against configured endpoints, not caller-chosen ones.
+        var apiKey = apiKeySecretRef;
 
         var endpointsToTry = new[]
         {
@@ -206,6 +209,7 @@ public class OpenAiCompatibleGenerationProvider(
             baseUri.ToString().TrimEnd('/') + "/v1/models"
         };
 
+        IReadOnlyList<string>? lastParsed = null;
         foreach (var rawUrl in endpointsToTry.Distinct())
         {
             try
@@ -265,7 +269,9 @@ public class OpenAiCompatibleGenerationProvider(
                         if (list.Count > 0) return list;
                     }
 
-                    return Array.Empty<string>();
+                    // Remember an empty-but-valid response and keep trying the alternate URL.
+                    // Some servers only serve one of /models or /v1/models.
+                    lastParsed ??= Array.Empty<string>();
                 }
             }
             catch
@@ -274,7 +280,7 @@ public class OpenAiCompatibleGenerationProvider(
             }
         }
 
-        return null;
+        return lastParsed;
     }
 
     private static Uri BuildChatCompletionsUri(Uri baseUri)

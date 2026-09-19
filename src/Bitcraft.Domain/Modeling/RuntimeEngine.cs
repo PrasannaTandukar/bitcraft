@@ -18,7 +18,8 @@ public class RuntimeEngine : BaseModel
     public string Endpoint { get; set; } = string.Empty;
 
     /// <summary>
-    /// Logical secret key looked up against the deployment secret store. Never a raw secret value.
+    /// API key credential for the upstream runtime. Stored as the raw key value at rest today;
+    /// a deployment secret store is future work. Never returned by API responses.
     /// </summary>
     public string? ApiKeySecretRef { get; set; }
 

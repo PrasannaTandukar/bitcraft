@@ -155,6 +155,9 @@ public static class DependencyInjection
         services.AddScoped<ITutorBenchmarkOutputGenerator, TutorBenchmarkOutputGenerator>();
         services.AddSingleton<IBenchmarkRunQueue, InMemoryBenchmarkRunQueue>();
         services.AddHostedService<BenchmarkRunWorker>();
+        services.AddScoped<IStandardBenchmarkRunRepository, StandardBenchmarkRunRepository>();
+        services.AddSingleton<IStandardBenchmarkRunQueue, InMemoryStandardBenchmarkRunQueue>();
+        services.AddHostedService<StandardBenchmarkRunWorker>();
 
         // External model providers
         var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 30;
