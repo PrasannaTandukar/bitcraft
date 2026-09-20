@@ -30,6 +30,12 @@ public class StandardBenchmarkRunConfiguration : IEntityTypeConfiguration<Standa
         entity.Property(x => x.EngineVersion)
             .HasMaxLength(60);
 
+        entity.Property(x => x.ProgressStage)
+            .HasMaxLength(100);
+
+        entity.Property(x => x.LastProgressUtc)
+            .HasColumnType("timestamp with time zone");
+
         entity.Property(x => x.TaskScoresJson)
             .HasColumnType("jsonb");
 

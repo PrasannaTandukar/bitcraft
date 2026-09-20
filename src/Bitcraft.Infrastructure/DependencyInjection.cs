@@ -139,7 +139,14 @@ public static class DependencyInjection
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider>();
         services.AddScoped<ILlmGenerationProvider, Bitcraft.Infrastructure.ExternalServices.CompositeLlmGenerationProvider>();
         services.AddKnowledgePersistence(configuration);
-        services.Configure<DeepEvalBenchmarkOptions>(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName));
+        services.AddOptions<DeepEvalBenchmarkOptions>()
+            .Bind(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddOptions<Bitcraft.Application.Features.Benchmarking.StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions>()
+            .Bind(configuration.GetSection(Bitcraft.Application.Features.Benchmarking.StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();

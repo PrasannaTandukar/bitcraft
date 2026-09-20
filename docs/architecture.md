@@ -1,6 +1,6 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-09-19
+edited_at: 2026-09-21
 creator: planner
 editor: lead-dev
 ai_gen: true
@@ -325,11 +325,23 @@ classDiagram
         +string? Output
         +string? ScoresJson
     }
+    class StandardBenchmarkRun {
+        +Guid Id
+        +Guid InteractionModelId
+        +string BenchmarkKey
+        +int NShots
+        +int NProblems
+        +string Status
+        +string? ProgressStage
+        +double? OverallScore
+        +string? TaskScoresJson
+    }
     BenchmarkTemplate "1" -- "*" BenchmarkRun
     BenchmarkRun "1" -- "*" BenchmarkRunCase
 ```
 
 - **Invariants**: every `BenchmarkRun` is keyed off a `TutorRevisionId` (D6); the optional `TutorConfigurationSnapshotId` carries the materialized payload used by the run. The sidecar consumes contracts only; it never touches the database directly.
+- **Standardized runs**: `StandardBenchmarkRun` is model-scoped and has no tutor link. Execution runs in a dedicated per-run sidecar subprocess. The backend uses a start/poll contract, so no long-lived HTTP call blocks the sidecar event loop.
 - **Cross-link**: [plan.erm.md §8](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#8-benchmarking-context).
 
 ## 4. Entity-Relational Model

@@ -125,6 +125,22 @@ public sealed record StandardBenchmarkRunResponse(
     int TaskCount,
     string? TaskScoresJson,
     string? Notes,
+    string? ProgressStage,
+    DateTime? LastProgressUtc,
+    string? FailureCode,
+    string? FailureDescription);
+
+/// <summary>Lightweight standardized benchmark run progress response for polling UI state.</summary>
+public sealed record StandardBenchmarkRunProgressResponse(
+    Guid Id,
+    string Status,
+    string? ProgressStage,
+    double? OverallScore,
+    int TaskCount,
+    DateTime QueuedUtc,
+    DateTime? StartedUtc,
+    DateTime? CompletedUtc,
+    DateTime? LastProgressUtc,
     string? FailureCode,
     string? FailureDescription);
 
@@ -136,4 +152,5 @@ public sealed record StandardBenchmarkSuiteResponse(
     bool SupportsTasks,
     bool SupportsShots,
     bool SupportsProblemCap,
+    int MaxShots,
     bool Enabled);

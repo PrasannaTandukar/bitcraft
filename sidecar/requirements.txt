@@ -3,3 +3,7 @@ uvicorn[standard]>=0.30,<1.0
 orjson>=3.10,<4.0
 deepeval>=4.2,<5.0
 httpx>=0.27,<1.0
+# deepeval benchmark datasets load through the HuggingFace datasets stack
+# (C1: MMLU and every other enabled suite fail at construction without it).
+datasets>=2.20,<3.0
+pandas>=2.2,<3.0

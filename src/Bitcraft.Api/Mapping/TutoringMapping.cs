@@ -433,6 +433,8 @@ internal static class TutoringMapping
         run.TaskCount,
         run.TaskScoresJson,
         run.Notes,
+        run.ProgressStage,
+        run.LastProgressUtc,
         run.FailureCode,
         run.FailureDescription);
 
@@ -443,5 +445,19 @@ internal static class TutoringMapping
         suite.SupportsTasks,
         suite.SupportsShots,
         suite.SupportsProblemCap,
+        suite.MaxShots,
         suite.Enabled);
+
+    public static StandardBenchmarkRunProgressResponse ToProgressResponse(this StandardBenchmarkRun run) => new(
+        run.Id,
+        run.Status.ToString(),
+        run.ProgressStage,
+        run.OverallScore,
+        run.TaskCount,
+        run.QueuedUtc,
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.LastProgressUtc,
+        run.FailureCode,
+        run.FailureDescription);
 }

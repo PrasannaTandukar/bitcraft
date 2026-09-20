@@ -31,6 +31,12 @@ public class StandardBenchmarkRun : BaseModel
     public DateTime? StartedUtc { get; set; }
     public DateTime? CompletedUtc { get; set; }
 
+    /// <summary>Coarse execution stage reported by the engine (loading-dataset, evaluating, finalizing).</summary>
+    public string? ProgressStage { get; set; }
+
+    /// <summary>Timestamp of the last progress update received from the engine.</summary>
+    public DateTime? LastProgressUtc { get; set; }
+
     public string? EngineName { get; set; }
     public string? EngineVersion { get; set; }
 

@@ -1,6 +1,5 @@
 using System.Net.Sockets;
 using System.Net.Http.Json;
-using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Microsoft.Extensions.Logging;
@@ -17,11 +16,17 @@ public sealed class DeepEvalBenchmarkEngine(
     private const string SafeSidecarFailureDescription = "Benchmark sidecar evaluation failed.";
     private readonly DeepEvalBenchmarkOptions sidecarOptions = options.Value;
 
+    // One cached UDS client for the engine lifetime. MS Learn advises reusing
+    // HttpClient instances because per-call construction risks socket
+    // exhaustion. The HTTP fallback keeps the IHttpClientFactory-managed client.
+    private readonly Lazy<HttpClient> udsClient = new(() => CreateUdsClient(options.Value));
+
     public async Task<Result<BenchmarkEngineResult>> EvaluateAsync(BenchmarkEngineRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            using var client = CreateClient();
+            using var lease = ResolveClient();
+            var client = lease.Client;
             var sidecarRequest = new SidecarEnvelope(
                 DeepEvalToolKey,
                 new SidecarRequest(
@@ -99,45 +104,52 @@ public sealed class DeepEvalBenchmarkEngine(
         }
     }
 
-    public async Task<Result<StandardLlmBenchmarkResult>> EvaluateStandardLlmBenchmarkAsync(StandardLlmBenchmarkRequest request, CancellationToken cancellationToken = default)
+    public async Task<Result<StandardBenchmarkHandle>> StartStandardLlmBenchmarkAsync(StandardLlmBenchmarkRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            using var client = CreateClient();
-            var payload = new
-            {
-                benchmark_key = request.BenchmarkKey,
-                judge_model = new
-                {
-                    provider = request.Provider,
-                    model_name = request.ModelName,
-                    base_url = request.BaseUrl,
-                    api_key = request.ApiKey
-                },
-                tasks = request.Tasks,
-                n_shots = request.NShots,
-                n_problems = request.NProblems,
-                allow_code_execution = request.AllowCodeExecution
-            };
+            using var lease = ResolveClient();
+            var client = lease.Client;
+            var payload = new SidecarStandardBenchmarkStartRequest(
+                request.BenchmarkKey,
+                new SidecarJudgeModelPayload(request.Provider, request.ModelName, request.BaseUrl, request.ApiKey),
+                request.Tasks,
+                request.NShots,
+                request.NProblems,
+                request.AllowCodeExecution);
 
-            using var httpResponse = await client.PostAsJsonAsync("/internal/tools/llm-benchmark", payload, cancellationToken);
-            if (!httpResponse.IsSuccessStatusCode)
+            using var startResponse = await client.PostAsJsonAsync(
+                "/internal/tools/llm-benchmark",
+                payload,
+                DeepEvalBenchmarkJsonContext.Default.SidecarStandardBenchmarkStartRequest,
+                cancellationToken);
+
+            if ((int)startResponse.StatusCode == 409)
             {
-                return Result.Failure<StandardLlmBenchmarkResult>(new Error(
-                    "Benchmark.StandardLlmFailed",
-                    $"Standard LLM benchmark call failed with status {(int)httpResponse.StatusCode}."));
+                return Result.Failure<StandardBenchmarkHandle>(new Error(
+                    "StandardBenchmark.SidecarBusy",
+                    "The benchmark sidecar is already running a standardized benchmark."));
             }
 
-            var responseJson = await httpResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-            var result = new StandardLlmBenchmarkResult(
-                responseJson.TryGetProperty("benchmark_key", out var bKey) ? bKey.GetString() ?? request.BenchmarkKey : request.BenchmarkKey,
-                responseJson.TryGetProperty("overall_score", out var scoreProp) && scoreProp.ValueKind == JsonValueKind.Number ? scoreProp.GetDouble() : null,
-                responseJson.TryGetProperty("task_count", out var countProp) ? countProp.GetInt32() : 0,
-                responseJson.TryGetProperty("engine_version", out var verProp) ? verProp.GetString() ?? "unknown" : "unknown",
-                responseJson.TryGetProperty("notes", out var notesProp) ? notesProp.GetString() ?? "" : "",
-                responseJson.TryGetProperty("error", out var errProp) ? errProp.GetString() : null);
+            if (!startResponse.IsSuccessStatusCode)
+            {
+                var error = await startResponse.Content.ReadFromJsonAsync(
+                    DeepEvalBenchmarkJsonContext.Default.SidecarError,
+                    cancellationToken);
+                return Result.Failure<StandardBenchmarkHandle>(new Error(
+                    error?.Code ?? "Benchmark.StandardLlmFailed",
+                    error?.Description ?? $"Standard LLM benchmark start failed with status {(int)startResponse.StatusCode}."));
+            }
 
-            return Result.Success(result);
+            var started = await startResponse.Content.ReadFromJsonAsync(
+                DeepEvalBenchmarkJsonContext.Default.SidecarStandardBenchmarkStartResponse,
+                cancellationToken);
+            if (started is null || string.IsNullOrWhiteSpace(started.RunId))
+            {
+                return Result.Failure<StandardBenchmarkHandle>(new Error("Benchmark.SidecarEmptyResponse", "Sidecar returned an empty start response."));
+            }
+
+            return Result.Success(new StandardBenchmarkHandle(started.RunId));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -145,22 +157,81 @@ public sealed class DeepEvalBenchmarkEngine(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "DeepEval standard LLM benchmark through sidecar failed.");
-            return Result.Failure<StandardLlmBenchmarkResult>(new Error("Benchmark.SidecarException", SafeSidecarFailureDescription));
+            logger.LogError(ex, "Starting DeepEval standard LLM benchmark through sidecar failed.");
+            return Result.Failure<StandardBenchmarkHandle>(new Error("Benchmark.SidecarException", SafeSidecarFailureDescription));
         }
     }
 
-    private HttpClient CreateClient()
+    public async Task<Result<StandardBenchmarkStatus>> GetStandardLlmBenchmarkStatusAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var lease = ResolveClient();
+            var client = lease.Client;
+            using var statusResponse = await client.GetAsync($"/internal/benchmarks/{Uri.EscapeDataString(handle.RunId)}/status", cancellationToken);
+
+            if (!statusResponse.IsSuccessStatusCode)
+            {
+                var error = await statusResponse.Content.ReadFromJsonAsync(
+                    DeepEvalBenchmarkJsonContext.Default.SidecarError,
+                    cancellationToken);
+                return Result.Failure<StandardBenchmarkStatus>(new Error(
+                    error?.Code ?? "Benchmark.StandardLlmStatusFailed",
+                    error?.Description ?? $"Standard LLM benchmark status call failed with status {(int)statusResponse.StatusCode}."));
+            }
+
+            var status = await statusResponse.Content.ReadFromJsonAsync(
+                DeepEvalBenchmarkJsonContext.Default.SidecarStandardBenchmarkStatusResponse,
+                cancellationToken);
+            if (status is null)
+            {
+                return Result.Failure<StandardBenchmarkStatus>(new Error("Benchmark.SidecarEmptyResponse", "Sidecar returned an empty status response."));
+            }
+
+            return Result.Success(new StandardBenchmarkStatus(
+                status.State,
+                status.Stage,
+                status.OverallScore,
+                status.TaskScores?.Select(x => new StandardBenchmarkTaskScore(x.Task, x.Score)).ToList(),
+                status.TaskCount,
+                status.EngineVersion,
+                status.Notes,
+                status.Error));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Reading DeepEval standard LLM benchmark status through sidecar failed.");
+            return Result.Failure<StandardBenchmarkStatus>(new Error("Benchmark.SidecarException", SafeSidecarFailureDescription));
+        }
+    }
+
+    private ClientLease ResolveClient()
     {
         var useUds = string.Equals(sidecarOptions.Transport, "uds", StringComparison.OrdinalIgnoreCase);
-        if (!useUds)
-        {
-            var client = httpClientFactory.CreateClient(nameof(DeepEvalBenchmarkEngine));
-            client.BaseAddress = new Uri(sidecarOptions.BaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(sidecarOptions.TimeoutSeconds);
-            return client;
-        }
+        return useUds
+            ? new ClientLease(udsClient.Value, Owns: false)
+            : new ClientLease(httpClientFactory.CreateClient(nameof(DeepEvalBenchmarkEngine)), Owns: true);
+    }
 
+    /// <summary>Disposes the client only when the engine created it (factory path).
+    /// The cached UDS client lives for the engine lifetime.</summary>
+    private readonly record struct ClientLease(HttpClient Client, bool Owns) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (Owns)
+            {
+                Client.Dispose();
+            }
+        }
+    }
+
+    private static HttpClient CreateUdsClient(DeepEvalBenchmarkOptions sidecarOptions)
+    {
         var handler = new SocketsHttpHandler
         {
             ConnectCallback = async (context, cancellationToken) =>
@@ -169,12 +240,17 @@ public sealed class DeepEvalBenchmarkEngine(
                 var endpoint = new UnixDomainSocketEndPoint(sidecarOptions.SocketPath);
                 await socket.ConnectAsync(endpoint, cancellationToken);
                 return new NetworkStream(socket, ownsSocket: true);
-            }
+            },
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10)
         };
 
         return new HttpClient(handler)
         {
             BaseAddress = new Uri("http://localhost"),
+            // Short per-call timeout only. Long benchmark runs are governed by
+            // the Application poll loop and its cancellation token, never by a
+            // multi-hour HttpClient.Timeout (MS Learn: only the shorter of the
+            // two timeouts applies).
             Timeout = TimeSpan.FromSeconds(sidecarOptions.TimeoutSeconds)
         };
     }

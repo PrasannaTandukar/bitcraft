@@ -17,6 +17,9 @@ internal sealed class FakeStandardBenchmarkRunRepository : IStandardBenchmarkRun
     public Task<StandardBenchmarkRun?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         Task.FromResult(Runs.TryGetValue(id, out var run) ? run : null);
 
+    public Task<StandardBenchmarkRun?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Runs.TryGetValue(id, out var run) ? run : null);
+
     public Task<List<StandardBenchmarkRun>> ListByModelAsync(Guid interactionModelId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Runs.Values.Where(x => x.InteractionModelId == interactionModelId).OrderByDescending(x => x.QueuedUtc).ToList());
 

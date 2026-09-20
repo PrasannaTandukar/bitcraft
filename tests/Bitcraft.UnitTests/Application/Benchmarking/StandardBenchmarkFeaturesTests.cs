@@ -3,6 +3,7 @@ using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Modeling;
 using Bitcraft.UnitTests.Application.Benchmarking.Fakes;
 using Bitcraft.UnitTests.Application.Tutoring.Fakes;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Bitcraft.UnitTests.Application.Benchmarking;
@@ -12,6 +13,12 @@ public class StandardBenchmarkFeaturesTests
     private static FakeCurrentUserContext Admin() => new(Guid.NewGuid(), isAdmin: true);
     private static FakeCurrentUserContext NonAdmin() => new(Guid.NewGuid(), isAdmin: false);
     private static FakeCurrentUserContext Auditor() => new(Guid.NewGuid(), isAuditor: true);
+
+    private static StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler ProcessHandler(
+        FakeStandardBenchmarkRunRepository runs,
+        FakeModelRepository models,
+        FakeBenchmarkEngine engine) =>
+        new(runs, models, engine, Options.Create(new StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions()), TimeProvider.System);
 
     private static (InteractionModel Model, RuntimeEngine Engine) EnabledModel()
     {
@@ -112,6 +119,43 @@ public class StandardBenchmarkFeaturesTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(expectedCode, result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Create_BigBenchHard_WithFourShots_IsRejected()
+    {
+        // AC15: BBH asserts n_shots <= 3 in deepeval; the API must reject before queueing.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        var handler = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunHandler(runs, models, new FakeStandardBenchmarkRunQueue(), Admin());
+        var cmd = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunCommand(model.Id, "big_bench_hard", null, 4, 10);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NShotsOutOfRange", result.Error.Code);
+        Assert.Empty(runs.Runs);
+    }
+
+    [Fact]
+    public async Task Create_Mmlu_WithFiveShots_IsAccepted()
+    {
+        // AC15: MMLU allows up to 5 shots.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        var handler = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunHandler(runs, models, new FakeStandardBenchmarkRunQueue(), Admin());
+        var cmd = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunCommand(model.Id, "mmlu", null, 5, 10);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(runs.Runs);
     }
 
     [Fact]
@@ -256,7 +300,7 @@ public class StandardBenchmarkFeaturesTests
         };
         runs.Runs[run.Id] = run;
 
-        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var handler = ProcessHandler(runs, models, engine);
         var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -293,13 +337,87 @@ public class StandardBenchmarkFeaturesTests
         };
         runs.Runs[run.Id] = run;
 
-        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var handler = ProcessHandler(runs, models, engine);
         var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(engine.LastStandardRequest);
         Assert.Equal("openai", engine.LastStandardRequest!.Provider);
         Assert.Equal("stored-benchmark-key", engine.LastStandardRequest.ApiKey);
+    }
+
+    [Fact]
+    public async Task Process_CompletedRun_PersistsTaskScoresAsCamelCase()
+    {
+        // Regression: TaskScoresJson is parsed by the frontend as { task, score }.
+        // PascalCase (Task/Score) would render empty UI columns.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
+            new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
+                Bitcraft.Application.Common.Models.StandardBenchmarkStatus.StateCompleted,
+                "finalizing",
+                0.9,
+                [new Bitcraft.Application.Common.Models.StandardBenchmarkTaskScore("abstract_algebra", 0.75)],
+                1,
+                "deepeval-fake",
+                "done",
+                null)));
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "mmlu",
+            NProblems = 2,
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = ProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(run.TaskScoresJson);
+        Assert.Contains("\"task\":\"abstract_algebra\"", run.TaskScoresJson);
+        Assert.Contains("\"score\":0.75", run.TaskScoresJson);
+    }
+
+    [Fact]
+    public async Task Process_WithUnknownRunnerState_MarksRunFailed()
+    {
+        // An unrecognized state must fail fast instead of polling for the whole budget.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
+            new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
+                "wat",
+                "evaluating",
+                null,
+                null,
+                0,
+                "deepeval-fake",
+                "",
+                null)));
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "gsm8k",
+            NProblems = 5,
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = ProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(BenchmarkRunStatus.Failed, run.Status);
+        Assert.Equal("StandardBenchmark.UnknownState", run.FailureCode);
     }
 
     [Fact]
@@ -320,7 +438,7 @@ public class StandardBenchmarkFeaturesTests
         };
         runs.Runs[run.Id] = run;
 
-        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var handler = ProcessHandler(runs, models, engine);
         var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -333,11 +451,17 @@ public class StandardBenchmarkFeaturesTests
     {
         var runs = new FakeStandardBenchmarkRunRepository();
         var models = new FakeModelRepository();
-        var engine = new FakeBenchmarkEngine
-        {
-            StandardResultToReturn = Bitcraft.Application.Common.Models.Result.Success(
-                new Bitcraft.Application.Common.Models.StandardLlmBenchmarkResult("gsm8k", null, 0, "deepeval-fake", "", "model unavailable"))
-        };
+        var engine = new FakeBenchmarkEngine();
+        engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
+            new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
+                Bitcraft.Application.Common.Models.StandardBenchmarkStatus.StateFailed,
+                "evaluating",
+                null,
+                null,
+                0,
+                "deepeval-fake",
+                "",
+                "model unavailable")));
         var (model, _) = EnabledModel();
         models.InteractionModels[model.Id] = model;
         var run = new StandardBenchmarkRun
@@ -349,7 +473,7 @@ public class StandardBenchmarkFeaturesTests
         };
         runs.Runs[run.Id] = run;
 
-        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var handler = ProcessHandler(runs, models, engine);
         var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -373,7 +497,7 @@ public class StandardBenchmarkFeaturesTests
         };
         runs.Runs[run.Id] = run;
 
-        var handler = new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler(runs, models, engine);
+        var handler = ProcessHandler(runs, models, engine);
         var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);

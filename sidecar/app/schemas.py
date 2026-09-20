@@ -97,3 +97,21 @@ class SidecarLlmBenchmarkResponse(BaseModel):
     engine_version: str
     notes: str
     error: str | None = None
+
+
+class SidecarTaskScore(BaseModel):
+    """Per-task score reported by a task-based benchmark (decision D-R7)."""
+
+    task: str
+    score: float
+
+
+class SidecarLlmBenchmarkStartResponse(BaseModel):
+    """Handle returned when a runner subprocess is spawned (decisions D-R1/D-R3).
+
+    The backend polls GET /internal/benchmarks/{run_id}/status until the
+    status document reaches `completed` or `failed`.
+    """
+
+    run_id: str
+    status_path: str

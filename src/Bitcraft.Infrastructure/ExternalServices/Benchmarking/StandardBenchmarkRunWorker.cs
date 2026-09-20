@@ -61,7 +61,7 @@ public sealed class StandardBenchmarkRunWorker(
         {
             using var scope = scopeFactory.CreateScope();
             var runs = scope.ServiceProvider.GetRequiredService<IStandardBenchmarkRunRepository>();
-            var run = await runs.GetByIdAsync(runId, stoppingToken);
+            var run = await runs.GetTrackedByIdAsync(runId, stoppingToken);
             if (run is null || run.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed)
             {
                 return;

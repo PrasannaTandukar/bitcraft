@@ -4,6 +4,7 @@ using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Modeling;
 using MediatR;
+using Microsoft.Extensions.Options;
 
 namespace Bitcraft.Application.Features.Benchmarking;
 
@@ -14,6 +15,22 @@ namespace Bitcraft.Application.Features.Benchmarking;
 /// </summary>
 public static class StandardBenchmarkFeatures
 {
+    /// <summary>
+    /// Poll-loop tuning for standardized benchmark processing. Bound from
+    /// Benchmarking:StandardProcessing in Infrastructure. Defaults keep a 30 s
+    /// poll cadence and a 6 h total budget per run.
+    /// </summary>
+    public sealed class StandardBenchmarkProcessingOptions
+    {
+        public const string SectionName = "Benchmarking:StandardProcessing";
+
+        [System.ComponentModel.DataAnnotations.Range(5, 600)]
+        public int PollIntervalSeconds { get; set; } = 30;
+
+        [System.ComponentModel.DataAnnotations.Range(60, 86_400)]
+        public int StandardTimeoutSeconds { get; set; } = 21_600;
+    }
+
     // ----- Create -----
 
     public sealed record CreateStandardBenchmarkRunCommand(
@@ -47,9 +64,13 @@ public static class StandardBenchmarkFeatures
                     $"Benchmark '{request.BenchmarkKey}' is not an available standardized suite."));
             }
 
-            if (request.NShots is < 0 or > 5)
+            if (request.NShots < 0 || request.NShots > suite.MaxShots)
             {
-                return Result.Failure<StandardBenchmarkRun>(new Error("StandardBenchmark.NShotsOutOfRange", "Few-shot count must be between 0 and 5."));
+                return Result.Failure<StandardBenchmarkRun>(new Error(
+                    "StandardBenchmark.NShotsOutOfRange",
+                    suite.MaxShots == 0
+                        ? $"Benchmark '{suite.Key}' does not support few-shot examples."
+                        : $"Few-shot count must be between 0 and {suite.MaxShots} for benchmark '{suite.Key}'."));
             }
 
             if (request.NProblems is < 0 or > MaxProblems)
@@ -165,6 +186,31 @@ public static class StandardBenchmarkFeatures
         }
     }
 
+    /// <summary>Lightweight progress read for polling while a standardized run is queued or executing.</summary>
+    public sealed record GetStandardBenchmarkRunProgressQuery(Guid RunId) : IRequest<Result<StandardBenchmarkRun>>;
+
+    public sealed class GetStandardBenchmarkRunProgressHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<GetStandardBenchmarkRunProgressQuery, Result<StandardBenchmarkRun>>
+    {
+        public async Task<Result<StandardBenchmarkRun>> Handle(GetStandardBenchmarkRunProgressQuery request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin) && !currentUser.IsInRole(AppRoles.Auditor))
+            {
+                return Result.Failure<StandardBenchmarkRun>(new Error("StandardBenchmark.Forbidden", "Only administrators and auditors can view standardized benchmark runs."));
+            }
+
+            var run = await runRepository.GetByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<StandardBenchmarkRun>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            return Result.Success(run);
+        }
+    }
+
     // ----- Process (worker) -----
 
     public sealed record ProcessQueuedStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<bool>>;
@@ -172,12 +218,23 @@ public static class StandardBenchmarkFeatures
     public sealed class ProcessQueuedStandardBenchmarkRunHandler(
         IStandardBenchmarkRunRepository runRepository,
         IModelRepository modelRepository,
-        IBenchmarkEngine benchmarkEngine)
-        : IRequestHandler<ProcessQueuedStandardBenchmarkRunCommand, Result<bool>>
+        IBenchmarkEngine benchmarkEngine,
+        IOptions<StandardBenchmarkProcessingOptions> processingOptions,
+        TimeProvider timeProvider) : IRequestHandler<ProcessQueuedStandardBenchmarkRunCommand, Result<bool>>
     {
+        /// <summary>
+        /// TaskScoresJson is read back by the frontend as { task, score } records, so it is
+        /// persisted with camelCase names. The default serializer would emit PascalCase
+        /// (Task/Score) and the UI table would render empty columns.
+        /// </summary>
+        private static readonly System.Text.Json.JsonSerializerOptions TaskScoresJsonOptions = new()
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        };
+
         public async Task<Result<bool>> Handle(ProcessQueuedStandardBenchmarkRunCommand request, CancellationToken cancellationToken)
         {
-            var run = await runRepository.GetByIdAsync(request.RunId, cancellationToken);
+            var run = await runRepository.GetTrackedByIdAsync(request.RunId, cancellationToken);
             if (run is null)
             {
                 return Result.Failure<bool>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
@@ -200,7 +257,7 @@ public static class StandardBenchmarkFeatures
             }
 
             run.Status = BenchmarkRunStatus.Running;
-            run.StartedUtc = DateTime.UtcNow;
+            run.StartedUtc = timeProvider.GetUtcNow().UtcDateTime;
             await runRepository.UpdateAsync(run, cancellationToken);
 
             var tasks = ParseTasks(run.TasksJson);
@@ -215,37 +272,93 @@ public static class StandardBenchmarkFeatures
                 NProblems: run.NProblems,
                 AllowCodeExecution: false);
 
-            var evaluated = await benchmarkEngine.EvaluateStandardLlmBenchmarkAsync(engineRequest, cancellationToken);
-            if (evaluated.IsFailure)
+            var started = await benchmarkEngine.StartStandardLlmBenchmarkAsync(engineRequest, cancellationToken);
+            if (started.IsFailure)
             {
-                return await MarkFailedAsync(run, runRepository, evaluated.Error.Code, evaluated.Error.Description);
+                return await MarkFailedAsync(run, runRepository, started.Error.Code, started.Error.Description);
             }
 
-            var result = evaluated.Value;
-            if (!string.IsNullOrWhiteSpace(result.Error))
-            {
-                return await MarkFailedAsync(run, runRepository, "StandardBenchmark.EngineError", result.Error);
-            }
-
-            run.Status = BenchmarkRunStatus.Completed;
-            run.CompletedUtc = DateTime.UtcNow;
-            run.OverallScore = result.OverallScore;
-            run.TaskCount = result.TaskCount;
-            run.EngineName = "DeepEval";
-            run.EngineVersion = result.EngineVersion;
-            run.Notes = result.Notes;
-            await runRepository.UpdateAsync(run, cancellationToken);
-            return Result.Success(true);
+            return await PollUntilTerminalAsync(run, started.Value, cancellationToken);
         }
 
-        private static async Task<Result<bool>> MarkFailedAsync(
+        private async Task<Result<bool>> PollUntilTerminalAsync(
+            StandardBenchmarkRun run,
+            StandardBenchmarkHandle handle,
+            CancellationToken cancellationToken)
+        {
+            var startedAt = timeProvider.GetUtcNow();
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var statusResult = await benchmarkEngine.GetStandardLlmBenchmarkStatusAsync(handle, cancellationToken);
+                if (statusResult.IsFailure)
+                {
+                    return await MarkFailedAsync(run, runRepository, statusResult.Error.Code, statusResult.Error.Description);
+                }
+
+                var status = statusResult.Value;
+                run.ProgressStage = status.Stage;
+                run.LastProgressUtc = timeProvider.GetUtcNow().UtcDateTime;
+                if (status.State == StandardBenchmarkStatus.StateCompleted)
+                {
+                    run.Status = BenchmarkRunStatus.Completed;
+                    run.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+                    run.OverallScore = status.OverallScore;
+                    run.TaskCount = status.TaskCount;
+                    run.EngineName = "DeepEval";
+                    run.EngineVersion = status.EngineVersion;
+                    run.Notes = status.Notes;
+                    run.TaskScoresJson = status.TaskScores is { Count: > 0 }
+                        ? System.Text.Json.JsonSerializer.Serialize(status.TaskScores, TaskScoresJsonOptions)
+                        : null;
+                    await runRepository.UpdateAsync(run, cancellationToken);
+                    return Result.Success(true);
+                }
+
+                if (status.State == StandardBenchmarkStatus.StateFailed)
+                {
+                    return await MarkFailedAsync(
+                        run,
+                        runRepository,
+                        "StandardBenchmark.EngineError",
+                        status.Error ?? "The benchmark runner reported a failure without an error description.");
+                }
+
+                // Fail fast on an unrecognized state instead of polling for the whole
+                // timeout budget. The runner only emits running/completed/failed.
+                if (status.State != StandardBenchmarkStatus.StateRunning)
+                {
+                    return await MarkFailedAsync(
+                        run,
+                        runRepository,
+                        "StandardBenchmark.UnknownState",
+                        $"The benchmark runner reported an unrecognized state '{status.State}'.");
+                }
+
+                if (timeProvider.GetUtcNow() - startedAt > TimeSpan.FromSeconds(processingOptions.Value.StandardTimeoutSeconds))
+                {
+                    return await MarkFailedAsync(
+                        run,
+                        runRepository,
+                        "StandardBenchmark.Timeout",
+                        $"The benchmark run exceeded the {processingOptions.Value.StandardTimeoutSeconds}-second budget.");
+                }
+
+                run.Status = BenchmarkRunStatus.Running;
+                await runRepository.UpdateAsync(run, cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(processingOptions.Value.PollIntervalSeconds), cancellationToken);
+            }
+        }
+
+        private async Task<Result<bool>> MarkFailedAsync(
             StandardBenchmarkRun run,
             IStandardBenchmarkRunRepository runRepository,
             string code,
             string description)
         {
             run.Status = BenchmarkRunStatus.Failed;
-            run.CompletedUtc = DateTime.UtcNow;
+            run.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
             run.FailureCode = code.Length > 200 ? code[..200] : code;
             run.FailureDescription = description.Length > 2000 ? description[..2000] : description;
             await runRepository.UpdateAsync(run);

@@ -151,6 +151,10 @@ dotnet ef migrations remove --project src/Bitcraft.Infrastructure --startup-proj
 | `GET/POST` | `/api/tutors/{tutorId}/benchmark-runs` | List and queue tutor benchmark runs |
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}` | Inspect benchmark run detail |
 | `GET` | `/api/tutors/{tutorId}/benchmark-runs/{runId}/progress` | Poll lightweight benchmark progress |
+| `GET` | `/api/standard-benchmark-runs/suites` | List standardized DeepEval benchmark suites |
+| `GET/POST` | `/api/standard-benchmark-runs` | List and queue model-scoped standardized benchmark runs |
+| `GET` | `/api/standard-benchmark-runs/{runId}` | Inspect standardized benchmark run detail |
+| `GET` | `/api/standard-benchmark-runs/{runId}/progress` | Poll lightweight standardized benchmark progress |
 
 See Swagger UI (`/swagger`) for full request/response schemas. Document formats, limits, extraction, and re-vectorization behavior are described in [docs/document-ingestion.md](docs/document-ingestion.md). Additional operational notes live in `docs/authorization-roles.md` and `docs/benchmarking-templates.md`.
 

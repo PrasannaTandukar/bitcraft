@@ -107,7 +107,8 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
     public BenchmarkEngineRequest? LastRequest { get; private set; }
     public StandardLlmBenchmarkRequest? LastStandardRequest { get; private set; }
     public Result<BenchmarkEngineResult>? ResultToReturn { get; set; }
-    public Result<StandardLlmBenchmarkResult>? StandardResultToReturn { get; set; }
+    public Result<StandardBenchmarkHandle>? StartResultToReturn { get; set; }
+    public Queue<Result<StandardBenchmarkStatus>> StatusResults { get; } = new();
 
     public Task<Result<BenchmarkEngineResult>> EvaluateAsync(BenchmarkEngineRequest request, CancellationToken cancellationToken = default)
     {
@@ -116,11 +117,26 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
             new Error("Benchmark.EngineNotConfigured", "Fake benchmark engine result was not configured.")));
     }
 
-    public Task<Result<StandardLlmBenchmarkResult>> EvaluateStandardLlmBenchmarkAsync(StandardLlmBenchmarkRequest request, CancellationToken cancellationToken = default)
+    public Task<Result<StandardBenchmarkHandle>> StartStandardLlmBenchmarkAsync(StandardLlmBenchmarkRequest request, CancellationToken cancellationToken = default)
     {
         LastStandardRequest = request;
-        return Task.FromResult(StandardResultToReturn ?? Result.Success(
-            new StandardLlmBenchmarkResult(request.BenchmarkKey, 0.85, 1, "deepeval-fake", "Fake benchmark completed.", null)));
+        return Task.FromResult(StartResultToReturn ?? Result.Success(new StandardBenchmarkHandle(Guid.NewGuid().ToString())));
+    }
+
+    public Task<Result<StandardBenchmarkStatus>> GetStandardLlmBenchmarkStatusAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
+    {
+        var status = StatusResults.Count > 0
+            ? StatusResults.Dequeue()
+            : Result.Success(new StandardBenchmarkStatus(
+                StandardBenchmarkStatus.StateCompleted,
+                "finalizing",
+                0.85,
+                null,
+                1,
+                "deepeval-fake",
+                "Fake benchmark completed.",
+                null));
+        return Task.FromResult(status);
     }
 }
 

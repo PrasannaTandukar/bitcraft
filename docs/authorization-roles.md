@@ -38,6 +38,8 @@ Policy and role names are centralized in `Bitcraft.Application.Common.Security` 
 | Tutor revisions read/list | `AuditorOrAbove` | Scoped to a specific tutor `{tutorId}`. |
 | Tutor revision mutations (create, publish, activate, archive, discard) | `EditorOrAdmin` | Includes all state-machine transitions. |
 | Document folders (admin grouping) | `EditorOrAdmin` | Administrative organization only; folders are never visible at tutor runtime. |
+| Standardized benchmark suites and runs (read) | `AuditorOrAbove` | `GET /api/standard-benchmark-runs`, `.../suites`, `.../{runId}`, `.../{runId}/progress`. |
+| Standardized benchmark run launch | `AdminOnly` | `POST /api/standard-benchmark-runs` queues a model-scoped DeepEval run. |
 | Health check | Anonymous | `GET /api/health` returns `{ status, version }`. |
 
 

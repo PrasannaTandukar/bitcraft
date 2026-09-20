@@ -59,6 +59,20 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
             : TutoringMapping.ToActionResult(result.Error);
     }
 
+    /// <summary>Gets lightweight standardized benchmark progress for polling while a run is queued or executing.</summary>
+    [HttpGet("{runId:guid}/progress")]
+    [ProducesResponseType(typeof(StandardBenchmarkRunProgressResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StandardBenchmarkRunProgressResponse>> GetProgress(Guid runId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.GetStandardBenchmarkRunProgressQuery(runId), cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Value.ToProgressResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
     /// <summary>Queues a standardized benchmark run for an interaction model. Executes asynchronously.</summary>
     /// <remarks>Requires the Admin role. n_problems of 0 runs the full default dataset; positive values cap problems (per task on task-based suites).</remarks>
     [HttpPost]

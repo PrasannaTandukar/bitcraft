@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -259,11 +260,12 @@ def test_llm_benchmark_with_unsupported_key_returns_structured_error() -> None:
         },
     )
 
-    assert response.status_code == 200
+    # WS1: validation now fails before a runner subprocess is spawned, so the
+    # sidecar returns 400 with a structured error instead of a 200 result.
+    assert response.status_code == 400
     payload = response.json()
-    assert payload["overall_score"] is None
-    assert payload["task_count"] == 0
-    assert "Unsupported benchmark_key" in payload["error"]
+    assert payload["code"] == "Sidecar.BenchmarkInvalid"
+    assert "Unsupported benchmark_key" in payload["description"]
 
 
 def test_llm_benchmark_human_eval_without_opt_in_returns_safety_error() -> None:
@@ -276,10 +278,10 @@ def test_llm_benchmark_human_eval_without_opt_in_returns_safety_error() -> None:
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 400
     payload = response.json()
-    assert payload["overall_score"] is None
-    assert "allow_code_execution" in payload["error"]
+    assert payload["code"] == "Sidecar.BenchmarkInvalid"
+    assert "allow_code_execution" in payload["description"]
 
 
 def test_llm_benchmark_with_missing_judge_model_returns_validation_error() -> None:
@@ -319,9 +321,8 @@ def test_llm_benchmark_negative_n_problems_returns_validation_error() -> None:
 
 def test_llm_benchmark_n_problems_defaults_and_schema_accepts_zero() -> None:
     # n_problems defaults to 10 and accepts 0 (= run the full dataset).
-    # The request is validated without reaching a real model: an offline
-    # endpoint yields a structured error, which proves the schema accepted
-    # both the default and the explicit 0.
+    # The schema must accept both the default and the explicit 0; the start
+    # endpoint now returns 202 with a run handle instead of a result.
     for n_problems in (None, 0):
         body = {
             "benchmark_key": "gsm8k",
@@ -331,10 +332,13 @@ def test_llm_benchmark_n_problems_defaults_and_schema_accepts_zero() -> None:
             body["n_problems"] = n_problems
         response = client.post("/internal/tools/llm-benchmark", json=body)
 
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["overall_score"] is None
-        assert payload["error"] is not None
+        # 202 = accepted and dispatched; 409 = the single runner slot is held
+        # by a previous test's run. Both prove the schema accepted the value.
+        assert response.status_code in (202, 409)
+        if response.status_code == 202:
+            payload = response.json()
+            assert payload["run_id"]
+            assert payload["status_path"]
 
 
 def test_llm_benchmark_with_anthropic_judge_returns_structured_error() -> None:
@@ -353,18 +357,16 @@ def test_llm_benchmark_with_anthropic_judge_returns_structured_error() -> None:
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 400
     payload = response.json()
-    assert payload["overall_score"] is None
-    assert payload["task_count"] == 0
-    assert "Unsupported judge provider" in payload["error"]
+    assert payload["code"] == "Sidecar.BenchmarkInvalid"
+    assert "Unsupported judge provider" in payload["description"]
 
 
 def test_llm_benchmark_schema_accepts_api_key_in_judge_model() -> None:
     # WS5: the judge model carries the stored key value in `api_key`. The
-    # request is validated without reaching a real model: an offline
-    # endpoint yields a structured error, which proves the schema accepted
-    # the field.
+    # schema must accept the field; the start endpoint returns 202 with a
+    # handle (or 409 when the single runner slot is held).
     response = client.post(
         "/internal/tools/llm-benchmark",
         json={
@@ -378,10 +380,10 @@ def test_llm_benchmark_schema_accepts_api_key_in_judge_model() -> None:
         },
     )
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["overall_score"] is None
-    assert payload["error"] is not None
+    assert response.status_code in (202, 409)
+    if response.status_code == 202:
+        payload = response.json()
+        assert payload["run_id"]
 
 
 def test_llm_benchmark_hosted_openai_without_api_key_returns_structured_error() -> None:
@@ -408,3 +410,95 @@ def test_llm_benchmark_hosted_openai_without_api_key_returns_structured_error() 
         raised = "api_key" in str(error)
 
     assert raised
+
+
+# ---------------------------------------------------------------------------
+# WS1 runner-process contract (D-R1/D-R2/D-R3, D-R5, D-R6)
+# ---------------------------------------------------------------------------
+
+
+def test_llm_benchmark_unknown_task_names_hard_fail() -> None:
+    # AC4/D-R5: unknown task names must fail with the offending names listed.
+    # No silent fallback to the full default task set.
+    from app.schemas import SidecarJudgeModelConfig, SidecarLlmBenchmarkRequest
+    from app.tools.deepeval_llm_benchmarks import (
+        BenchmarkValidationError,
+        _resolve_tasks,
+    )
+
+    request = SidecarLlmBenchmarkRequest(
+        benchmark_key="mmlu",
+        judge_model=SidecarJudgeModelConfig(provider="ollama", model_name="llama3.1"),
+        tasks=["not_a_task"],
+    )
+
+    try:
+        _resolve_tasks("mmlu", request.tasks)
+        raised = ""
+    except BenchmarkValidationError as error:
+        raised = str(error)
+
+    assert "not_a_task" in raised
+    assert "Unknown tasks" in raised
+
+
+def test_llm_benchmark_resolve_tasks_returns_none_when_not_requested() -> None:
+    # No task filter means the full default task set; the resolver returns None.
+    from app.tools.deepeval_llm_benchmarks import _resolve_tasks
+
+    assert _resolve_tasks("mmlu", None) is None
+    assert _resolve_tasks("mmlu", []) is None
+
+
+def test_llm_benchmark_generate_samples_returns_plain_list() -> None:
+    # AC6/D-R6: deepeval expects list[str], not a (completions, cost) tuple.
+    from app.schemas import SidecarJudgeModelConfig
+    from app.tools.deepeval_llm_benchmarks import _SidecarJudgeLLM
+
+    judge = _SidecarJudgeLLM(
+        SidecarJudgeModelConfig(
+            provider="ollama", model_name="llama3.1", base_url="http://localhost:1"
+        )
+    )
+    # The model's call closure binds judge._call at build time, so stub the
+    # transport on the judge before building.
+    judge._call = lambda prompt: "completion"  # type: ignore[assignment]
+    model = judge.build()
+
+    samples = model.generate_samples("prompt", 3, 0.0)
+
+    assert isinstance(samples, list)
+    assert samples == ["completion", "completion", "completion"]
+
+
+def test_llm_benchmark_status_endpoint_returns_404_for_unknown_run() -> None:
+    # AC3: the status endpoint reports unknown run ids as 404.
+    response = client.get(f"/internal/benchmarks/{uuid.uuid4()}/status")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "Sidecar.BenchmarkRunNotFound"
+
+
+def test_llm_benchmark_busy_slot_returns_409() -> None:
+    # AC2/D-R2: a second start while the single runner slot is held returns 409.
+    from app.tools import deepeval_llm_benchmarks as bench
+
+    original = bench._last_status_path
+    try:
+        bench._last_status_path = "does-not-exist.json"
+        # A missing status file is treated as a free slot, so force the held
+        # state directly to exercise the 409 mapping without spawning a runner.
+        bench._slot_held = lambda: True  # type: ignore[assignment]
+        response = client.post(
+            "/internal/tools/llm-benchmark",
+            json={
+                "benchmark_key": "gsm8k",
+                "judge_model": _judge_model_payload(),
+            },
+        )
+
+        assert response.status_code == 409
+        assert response.json()["code"] == "Sidecar.BenchmarkBusy"
+    finally:
+        bench._last_status_path = original
+        importlib.reload(bench)

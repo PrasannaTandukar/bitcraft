@@ -338,6 +338,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("InteractionModelId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("LastProgressUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
 
@@ -356,6 +359,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Property<double?>("OverallScore")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("ProgressStage")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("QueuedUtc")
                         .HasColumnType("timestamp with time zone");
@@ -803,9 +810,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ApiKeySecretRef")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                    b.Property<string>("ApiKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("ApiKeySecretRef");
 
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("uuid");

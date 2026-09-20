@@ -15,11 +15,18 @@ public class StandardBenchmarkRunRepository(AppDbContext db) : IStandardBenchmar
 
     public Task<StandardBenchmarkRun?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         db.Set<StandardBenchmarkRun>()
+            .AsNoTracking()
+            .Include(x => x.InteractionModel)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public Task<StandardBenchmarkRun?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        db.Set<StandardBenchmarkRun>()
             .Include(x => x.InteractionModel)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public Task<List<StandardBenchmarkRun>> ListByModelAsync(Guid interactionModelId, CancellationToken cancellationToken = default) =>
         db.Set<StandardBenchmarkRun>()
+            .AsNoTracking()
             .Where(x => x.InteractionModelId == interactionModelId)
             .Include(x => x.InteractionModel)
             .OrderByDescending(x => x.QueuedUtc)
@@ -27,6 +34,7 @@ public class StandardBenchmarkRunRepository(AppDbContext db) : IStandardBenchmar
 
     public Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, CancellationToken cancellationToken = default) =>
         db.Set<StandardBenchmarkRun>()
+            .AsNoTracking()
             .Include(x => x.InteractionModel)
             .OrderByDescending(x => x.QueuedUtc)
             .Take(limit)

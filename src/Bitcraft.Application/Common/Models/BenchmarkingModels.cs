@@ -70,13 +70,27 @@ public sealed record StandardLlmBenchmarkRequest(
     int NProblems = 10,
     bool AllowCodeExecution = false);
 
-public sealed record StandardLlmBenchmarkResult(
-    string BenchmarkKey,
+/// <summary>Handle for a started standardized benchmark run. The caller polls it for status.</summary>
+public sealed record StandardBenchmarkHandle(string RunId);
+
+/// <summary>Per-task score reported by a task-based standardized benchmark.</summary>
+public sealed record StandardBenchmarkTaskScore(string Task, double Score);
+
+/// <summary>Terminal or in-flight status of a standardized benchmark run.</summary>
+public sealed record StandardBenchmarkStatus(
+    string State,
+    string? Stage,
     double? OverallScore,
+    IReadOnlyList<StandardBenchmarkTaskScore>? TaskScores,
     int TaskCount,
     string EngineVersion,
     string Notes,
-    string? Error);
+    string? Error)
+{
+    public const string StateRunning = "running";
+    public const string StateCompleted = "completed";
+    public const string StateFailed = "failed";
+}
 
 public sealed record ArduinoBenchmarkCaseInput(
     string CaseId,

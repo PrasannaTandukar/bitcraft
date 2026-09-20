@@ -1,13 +1,15 @@
 import { PlusOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Col, Descriptions, Empty, Flex, Form, InputNumber, Radio, Row, Select, Space, Spin, Steps, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { getApiErrorDescription } from "../api/client.js";
 import BenchmarkCaseEditor from "./BenchmarkCaseEditor.jsx";
 import { createBenchmarkRun, createStandardBenchmarkRun, listBenchmarkTemplates, listInteractionModelsForAdmin, listStandardBenchmarkSuites, listTutorRevisions } from "./benchmarkingApi.js";
 import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus } from "./benchmarkingUtils.js";
 import { ARDUINO_PRESET_CASES } from "./presetBenchmarks.js";
+import { STANDARD_BENCHMARK_TASKS } from "./standardBenchmarkTasks.js";
 
-const STEP_LABELS = ["Target & Revision", "Benchmark Suite & Configuration", "Test Cases", "Review & Launch"];
+const STEP_LABELS = ["Tutor Selection", "Benchmark Selection", "Review & Launch"];
 
 export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError, initialTutorId, initialRevisionId, onSelectionChange, onConfigureTutor, onOpenTemplates, onCreated }) {
   const [benchmarkType, setBenchmarkType] = useState("rag"); // "rag" | "standard" | "arduino"
@@ -26,6 +28,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [topK, setTopK] = useState(5);
   const [consistencyRuns, setConsistencyRuns] = useState(1);
   const [selectedStandardBenchmark, setSelectedStandardBenchmark] = useState("mmlu");
+  const [selectedTasks, setSelectedTasks] = useState([]);
   const [nShots, setNShots] = useState(0);
   const [nProblems, setNProblems] = useState(10);
   const [standardModelId, setStandardModelId] = useState("");
@@ -38,6 +41,9 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [validationError, setValidationError] = useState("");
   const [launchError, setLaunchError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const { roles = [] } = useSelector((state) => state.auth);
+  const isAdmin = roles.includes("Admin");
 
   const selectedTutor = tutors.find((tutor) => tutor.id === tutorId);
   const selectedRevision = revisions.find((revision) => revision.id === revisionId);
@@ -79,7 +85,10 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     return () => controller.abort();
   }, []);
 
+  // The interaction-model list is Admin-only on the backend. Fetch it only for
+  // admins so Editors do not trigger a guaranteed 403 on page load.
   useEffect(() => {
+    if (!isAdmin) return undefined;
     const controller = new AbortController();
     listInteractionModelsForAdmin(controller.signal)
       .then((data) => {
@@ -93,7 +102,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         if (!controller.signal.aborted) setInteractionModelsLoading(false);
       });
     return () => controller.abort();
-  }, []);
+  }, [isAdmin]);
 
   const selectedStandardSuite = standardSuites.find((suite) => suite.key === selectedStandardBenchmark);
   const selectedStandardModel = interactionModels.find((model) => model.id === standardModelId);
@@ -132,17 +141,36 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
   const selectBenchmarkCategory = (nextCategory) => {
     setBenchmarkType(nextCategory);
-    setStep(1);
     if (nextCategory === "arduino") {
       setCases(ARDUINO_PRESET_CASES);
       setAutomatic(true);
     }
     // Standard runs no longer use preset cases: they execute against the real
     // DeepEval dataset via the sidecar, so no case editing applies.
+    // The stage-1 target form depends on the category. If the new category needs
+    // a target the user has not chosen, return to stage 1 so the matching target
+    // form is completed before benchmark configuration. Stage-2 selections are
+    // preserved and the user returns here after fixing the target.
+    const targetMissing = nextCategory === "standard"
+      ? !standardModelId
+      : !tutorId || !revisionId;
+    if (targetMissing) {
+      setValidationError(nextCategory === "standard"
+        ? "Standardized benchmarks evaluate an interaction model directly. Select one to continue."
+        : "Tutor benchmarks evaluate a tutor revision. Select a tutor and revision to continue.");
+      setStep(1);
+    }
   };
 
   const selectStandardBenchmark = (nextKey) => {
     setSelectedStandardBenchmark(nextKey);
+    // Task names are suite-specific; a stale selection would hard-fail on launch.
+    setSelectedTasks([]);
+    // Clamp shots to the new suite's ceiling (e.g. BBH max 3).
+    const nextSuite = standardSuites.find((bench) => bench.key === nextKey);
+    if (nextSuite?.maxShots !== undefined) {
+      setNShots((current) => Math.min(current, nextSuite.maxShots));
+    }
   };
 
   const validateStep = (stepNumber) => {
@@ -154,13 +182,13 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     if (stepNumber === 1 && benchmarkType === "standard") {
       if (!standardModelId) return "Select an interaction model to evaluate.";
     }
-    if (stepNumber === 2 && benchmarkType === "rag" && !selectedTemplate) {
-      return "Select an enabled benchmark template.";
-    }
-    if (stepNumber === 2 && benchmarkType === "standard" && !selectedStandardBenchmark) {
-      return "Select a standardized benchmark suite.";
-    }
-    if (stepNumber === 3 || stepNumber === 4) {
+    if (stepNumber === 2) {
+      if (benchmarkType === "rag" && !selectedTemplate) {
+        return "Select an enabled benchmark template.";
+      }
+      if (benchmarkType === "standard" && !selectedStandardBenchmark) {
+        return "Select a standardized benchmark suite.";
+      }
       if (benchmarkType === "standard") return "";
       if (!cases.length) return "Add at least one test case.";
       if (cases.some((runCase) => !runCase.inputText.trim())) return "Every case requires a question or input prompt.";
@@ -181,12 +209,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     const nextError = validateStep(step);
     setValidationError(nextError);
     if (nextError) return;
-    // Standard runs have no case editing: jump from configuration straight to review.
-    if (benchmarkType === "standard" && step === 2) {
-      setStep(4);
-      return;
-    }
-    setStep((current) => Math.min(4, current + 1));
+    setStep((current) => Math.min(3, current + 1));
   };
 
   const updateCase = (index, value) => setCases((current) => current.map((runCase, position) => position === index ? value : runCase));
@@ -206,7 +229,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   };
 
   const launch = async () => {
-    const errors = [1, 2, 3, 4].map(validateStep).filter(Boolean);
+    const errors = [1, 2, 3].map(validateStep).filter(Boolean);
     if (errors.length || submitting) {
       setValidationError(errors[0] ?? "");
       return;
@@ -218,7 +241,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         const created = await createStandardBenchmarkRun({
           interactionModelId: standardModelId,
           benchmarkKey: selectedStandardBenchmark,
-          tasks: null,
+          tasks: selectedTasks.length ? selectedTasks : null,
           nShots,
           nProblems,
         });
@@ -321,55 +344,55 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
       {step === 2 ? (
         <Space orientation="vertical" size={16} style={{ width: "100%" }}>
-          <Card title="1. Select Benchmark Category">
-            <Radio.Group
-              value={benchmarkType}
-              onChange={(e) => selectBenchmarkCategory(e.target.value)}
-              style={{ width: "100%" }}
-            >
-              <Row gutter={[16, 16]}>
-                <Col xs={24} md={8}>
-                  <Card
-                    size="small"
-                    hoverable
-                    onClick={() => selectBenchmarkCategory("rag")}
-                    style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "rag" ? "#1677ff" : undefined }}
-                  >
-                    <Radio value="rag"><Typography.Text strong>Tutor RAG & Task Evaluation</Typography.Text></Radio>
-                    <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
-                      Evaluate tutor answers, retrieval grounding, hallucination, and correctness against configured templates.
-                    </Typography.Paragraph>
-                  </Card>
-                </Col>
-                <Col xs={24} md={8}>
-                  <Card
-                    size="small"
-                    hoverable
-                    onClick={() => selectBenchmarkCategory("standard")}
-                    style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "standard" ? "#1677ff" : undefined }}
-                  >
-                    <Radio value="standard"><Typography.Text strong>Standard LLM Benchmarks</Typography.Text></Radio>
-                    <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
-                      Zero-sandbox standardized datasets (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA) for raw model reasoning.
-                    </Typography.Paragraph>
-                  </Card>
-                </Col>
-                <Col xs={24} md={8}>
-                  <Card
-                    size="small"
-                    hoverable
-                    onClick={() => selectBenchmarkCategory("arduino")}
-                    style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "arduino" ? "#1677ff" : undefined }}
-                  >
-                    <Radio value="arduino"><Typography.Text strong>Custom Hardware / STEM Diagnostics</Typography.Text></Radio>
-                    <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
-                      Multi-modal visual circuit diagnostic suite (Arduino board schematics + code + Socratic guidance quality).
-                    </Typography.Paragraph>
-                  </Card>
-                </Col>
-              </Row>
-            </Radio.Group>
-          </Card>
+        <Card title="1. Select Benchmark Category">
+          <Radio.Group
+            value={benchmarkType}
+            onChange={(e) => selectBenchmarkCategory(e.target.value)}
+            style={{ width: "100%" }}
+          >
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={8}>
+                <Card
+                  size="small"
+                  hoverable
+                  onClick={() => selectBenchmarkCategory("rag")}
+                  style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "rag" ? "#1677ff" : undefined }}
+                >
+                  <Radio value="rag"><Typography.Text strong>Tutor RAG & Task Evaluation</Typography.Text></Radio>
+                  <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
+                    Evaluate tutor answers, retrieval grounding, hallucination, and correctness against configured templates.
+                  </Typography.Paragraph>
+                </Card>
+              </Col>
+              <Col xs={24} md={8}>
+                <Card
+                  size="small"
+                  hoverable={isAdmin}
+                  onClick={() => isAdmin && selectBenchmarkCategory("standard")}
+                  style={{ height: "100%", cursor: isAdmin ? "pointer" : "not-allowed", opacity: isAdmin ? 1 : 0.55, borderColor: benchmarkType === "standard" ? "#1677ff" : undefined }}
+                >
+                  <Radio value="standard" disabled={!isAdmin}><Typography.Text strong>Standard LLM Benchmarks</Typography.Text>{!isAdmin ? <Tag color="default" style={{ marginLeft: 8 }}>Admin only</Tag> : null}</Radio>
+                  <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
+                    Zero-sandbox standardized datasets (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA) for raw model reasoning.
+                  </Typography.Paragraph>
+                </Card>
+              </Col>
+              <Col xs={24} md={8}>
+                <Card
+                  size="small"
+                  hoverable
+                  onClick={() => selectBenchmarkCategory("arduino")}
+                  style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "arduino" ? "#1677ff" : undefined }}
+                >
+                  <Radio value="arduino"><Typography.Text strong>Custom Hardware / STEM Diagnostics</Typography.Text></Radio>
+                  <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
+                    Multi-modal visual circuit diagnostic suite (Arduino board schematics + code + Socratic guidance quality).
+                  </Typography.Paragraph>
+                </Card>
+              </Col>
+            </Row>
+          </Radio.Group>
+        </Card>
 
           {benchmarkType === "rag" ? (
             <Card title="2. Evaluation Template & Metrics">
@@ -443,9 +466,9 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
                   <Col xs={24} md={8}>
                     <Form.Item
                       label="Few-shot examples (n_shots)"
-                      extra={selectedStandardSuite && !selectedStandardSuite.supportsShots ? "Not supported by this suite; value is ignored." : "0 = zero-shot."}
+                      extra={selectedStandardSuite && !selectedStandardSuite.supportsShots ? "Not supported by this suite; value is ignored." : `0 = zero-shot. Maximum ${selectedStandardSuite?.maxShots ?? 5} for this suite.`}
                     >
-                      <InputNumber min={0} max={5} value={nShots} onChange={setNShots} disabled={selectedStandardSuite ? !selectedStandardSuite.supportsShots : false} />
+                      <InputNumber min={0} max={selectedStandardSuite?.maxShots ?? 5} value={nShots} onChange={setNShots} disabled={selectedStandardSuite ? !selectedStandardSuite.supportsShots : false} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={8}>
@@ -458,6 +481,25 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
                       <InputNumber min={0} max={10000} value={nProblems} onChange={setNProblems} disabled={selectedStandardSuite ? !selectedStandardSuite.supportsProblemCap : false} />
                     </Form.Item>
                   </Col>
+                  {selectedStandardSuite?.supportsTasks ? (
+                    <Col xs={24}>
+                      <Form.Item
+                        label="Tasks"
+                        extra="Optional. Leave empty to run the full default task set. Unknown names are rejected by the sidecar."
+                      >
+                        <Select
+                          mode="multiple"
+                          allowClear
+                          showSearch
+                          placeholder="All tasks (default)"
+                          value={selectedTasks}
+                          onChange={setSelectedTasks}
+                          maxTagCount="responsive"
+                          options={(STANDARD_BENCHMARK_TASKS[selectedStandardBenchmark] ?? []).map((task) => ({ value: task, label: task }))}
+                        />
+                      </Form.Item>
+                    </Col>
+                  ) : null}
                 </Row>
                 {nProblems === 0 ? <Alert type="warning" title="A problem cap of 0 runs the full default dataset. This can issue thousands of model calls and take hours." showIcon /> : null}
               </Form>
@@ -475,36 +517,36 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
               </Descriptions>
             </Card>
           ) : null}
+
+          {benchmarkType !== "standard" ? (
+            <>
+              <Card title="3. Test cases and execution">
+                <Form layout="vertical">
+                  <Form.Item label="Answer source">
+                    <Radio.Group value={automatic} onChange={(event) => setGenerationMode(event.target.value)}>
+                      <Space orientation="vertical">
+                        <Radio value>Generate tutor answers automatically</Radio>
+                        <Radio value={false}>Evaluate existing answers (advanced)</Radio>
+                      </Space>
+                    </Radio.Group>
+                  </Form.Item>
+                  <Alert type="info" title="Expected answers enable correctness scoring. Automatic answers use the activated tutor prompt, models, parameters, and knowledge scope." showIcon style={{ marginBottom: 16 }} />
+                  <Row gutter={16}>
+                    <Col xs={24} md={8}><Form.Item label="Tutor knowledge"><Typography.Text>Activated configuration</Typography.Text></Form.Item></Col>
+                    <Col xs={12} md={8}><Form.Item label="Retrieval Top K"><InputNumber min={1} max={10} value={topK} onChange={setTopK} style={{ width: "100%" }} /></Form.Item></Col>
+                    <Col xs={12} md={8}><Form.Item label="Consistency runs"><InputNumber min={1} max={10} value={consistencyRuns} onChange={setConsistencyRuns} disabled={!automatic} style={{ width: "100%" }} /></Form.Item></Col>
+                  </Row>
+                </Form>
+                {automatic && consistencyRuns > 1 ? <Alert type="warning" title={`${cases.length} questions × ${consistencyRuns} repeats = ${totalOutputs} evaluated outputs.`} showIcon /> : null}
+              </Card>
+              {cases.map((runCase, index) => <BenchmarkCaseEditor key={index} runCase={runCase} index={index} total={cases.length} automatic={automatic} onChange={updateCase} onRemove={removeCase} onDuplicate={duplicateCase} onMove={moveCase} />)}
+              <Button icon={<PlusOutlined />} onClick={() => setCases((current) => [...current, emptyBenchmarkCase()])} disabled={cases.length >= 200}>Add case</Button>
+            </>
+          ) : null}
         </Space>
       ) : null}
 
       {step === 3 ? (
-        <Space orientation="vertical" size={16} style={{ width: "100%" }}>
-          <Card title="Test cases and execution">
-            <Form layout="vertical">
-              <Form.Item label="Answer source">
-                <Radio.Group value={automatic} onChange={(event) => setGenerationMode(event.target.value)}>
-                  <Space orientation="vertical">
-                    <Radio value>Generate tutor answers automatically</Radio>
-                    <Radio value={false}>Evaluate existing answers (advanced)</Radio>
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-              <Alert type="info" title="Expected answers enable correctness scoring. Automatic answers use the activated tutor prompt, models, parameters, and knowledge scope." showIcon style={{ marginBottom: 16 }} />
-              <Row gutter={16}>
-                <Col xs={24} md={8}><Form.Item label="Tutor knowledge"><Typography.Text>Activated configuration</Typography.Text></Form.Item></Col>
-                <Col xs={12} md={8}><Form.Item label="Retrieval Top K"><InputNumber min={1} max={10} value={topK} onChange={setTopK} style={{ width: "100%" }} /></Form.Item></Col>
-                <Col xs={12} md={8}><Form.Item label="Consistency runs"><InputNumber min={1} max={10} value={consistencyRuns} onChange={setConsistencyRuns} disabled={!automatic} style={{ width: "100%" }} /></Form.Item></Col>
-              </Row>
-            </Form>
-            {automatic && consistencyRuns > 1 ? <Alert type="warning" title={`${cases.length} questions × ${consistencyRuns} repeats = ${totalOutputs} evaluated outputs.`} showIcon /> : null}
-          </Card>
-          {cases.map((runCase, index) => <BenchmarkCaseEditor key={index} runCase={runCase} index={index} total={cases.length} automatic={automatic} onChange={updateCase} onRemove={removeCase} onDuplicate={duplicateCase} onMove={moveCase} />)}
-          <Button icon={<PlusOutlined />} onClick={() => setCases((current) => [...current, emptyBenchmarkCase()])} disabled={cases.length >= 200}>Add case</Button>
-        </Space>
-      ) : null}
-
-      {step === 4 ? (
         <Card title="Review and launch">
           {benchmarkType === "standard" ? (
             <Descriptions bordered column={{ xs: 1, sm: 2 }}>
@@ -513,6 +555,9 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
               <Descriptions.Item label="Suite">{selectedStandardSuite?.displayName || selectedStandardBenchmark}</Descriptions.Item>
               <Descriptions.Item label="Few-shot examples">{nShots}</Descriptions.Item>
               <Descriptions.Item label="Problem cap">{nProblems === 0 ? "None (full dataset)" : `${nProblems} per task`}</Descriptions.Item>
+              {selectedStandardSuite?.supportsTasks ? (
+                <Descriptions.Item label="Tasks">{selectedTasks.length ? `${selectedTasks.length} selected` : "All (default set)"}</Descriptions.Item>
+              ) : null}
               <Descriptions.Item label="Execution">Runs asynchronously against the model's runtime engine.</Descriptions.Item>
             </Descriptions>
           ) : (
@@ -533,10 +578,10 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       {validationError ? <Alert type="warning" title={validationError} showIcon /> : null}
       {launchError ? <Alert type="error" title={launchError} showIcon /> : null}
       <Flex justify="space-between">
-        <Button onClick={() => { setValidationError(""); setStep((current) => benchmarkType === "standard" && current === 4 ? 2 : Math.max(1, current - 1)); }} disabled={step === 1 || submitting}>Back</Button>
-        {step < 4
+        <Button onClick={() => { setValidationError(""); setStep((current) => Math.max(1, current - 1)); }} disabled={step === 1 || submitting}>Back</Button>
+        {step < 3
           ? <Button type="primary" onClick={goNext}>Continue</Button>
-          : <Button type="primary" onClick={launch} loading={submitting} disabled={Boolean(validateStep(4))}>Launch benchmark</Button>}
+          : <Button type="primary" onClick={launch} loading={submitting} disabled={Boolean(validateStep(3))}>Launch benchmark</Button>}
       </Flex>
     </div>
   );

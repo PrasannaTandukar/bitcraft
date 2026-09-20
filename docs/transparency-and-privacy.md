@@ -81,6 +81,8 @@ Bitcraft is intended to be deployable in a self-hosted posture. Operators should
 
 The current codebase does not configure first-party product analytics or telemetry collectors. If deployment-specific telemetry is added later, it should be documented in this file and in the relevant deployment instructions.
 
+DeepEval 4.2.x posts usage telemetry to PostHog on every benchmark evaluation unless opted out. The benchmark sidecar sets `DEEPEVAL_TELEMETRY_OPT_OUT=1` (Dockerfile and both compose files), so no deepeval telemetry leaves the deployment by default.
+
 ### Operator Responsibility
 
 If an operator points Bitcraft at external hosted inference or evaluation services, prompts, source documents, benchmark inputs, or outputs may leave local infrastructure. That is a deployment decision and should be documented in the operator's environment-specific runbook or privacy documentation.
