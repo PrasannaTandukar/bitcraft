@@ -359,7 +359,7 @@ public class StandardBenchmarkFeaturesTests
         engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
             new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
                 Bitcraft.Application.Common.Models.StandardBenchmarkStatus.StateCompleted,
-                "finalizing",
+                "scoring",
                 0.9,
                 [new Bitcraft.Application.Common.Models.StandardBenchmarkTaskScore("abstract_algebra", 0.75)],
                 1,
@@ -484,7 +484,7 @@ public class StandardBenchmarkFeaturesTests
         engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
             new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
                 Bitcraft.Application.Common.Models.StandardBenchmarkStatus.StateCompleted,
-                "finalizing",
+                "scoring",
                 0.75,
                 null,
                 4,
@@ -781,5 +781,387 @@ public class StandardBenchmarkFeaturesTests
             ProbeCalled = true;
             return Task.FromResult(false);
         }
+    }
+
+    // ----- Cancel (WS3) -----
+
+    private static StandardBenchmarkFeatures.CancelStandardBenchmarkRunHandler CancelHandler(
+        FakeStandardBenchmarkRunRepository runs,
+        FakeBenchmarkEngine engine,
+        FakeCurrentUserContext user) =>
+        new(runs, engine, user, TimeProvider.System);
+
+    [Fact]
+    public async Task Cancel_QueuedRun_MarksItCancelled()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = CancelHandler(runs, engine, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.CancelStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BenchmarkRunStatus.Cancelled, run.Status);
+        Assert.NotNull(run.CancelledUtc);
+        Assert.Null(run.FailureCode);
+        // A queued run has no engine id, so no engine call is made.
+        Assert.Empty(engine.CancelledRunIds);
+    }
+
+    [Fact]
+    public async Task Cancel_RunningRun_SignalsTheEngine()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running,
+            EngineRunId = "engine-run-123"
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = CancelHandler(runs, engine, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.CancelStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BenchmarkRunStatus.Cancelled, run.Status);
+        Assert.Equal(["engine-run-123"], engine.CancelledRunIds);
+    }
+
+    [Fact]
+    public async Task Cancel_CompletedRun_FailsWithNotCancellable()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = CancelHandler(runs, engine, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.CancelStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotCancellable", result.Error.Code);
+        Assert.Equal(BenchmarkRunStatus.Completed, run.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_NonAdmin_IsForbidden()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = CancelHandler(runs, engine, NonAdmin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.CancelStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+        Assert.Equal(BenchmarkRunStatus.Queued, run.Status);
+    }
+
+    [Fact]
+    public async Task Cancel_MissingRun_FailsWithNotFound()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+
+        var handler = CancelHandler(runs, engine, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.CancelStandardBenchmarkRunCommand(Guid.NewGuid()), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotFound", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Process_EngineReportsCancelled_MarksRunCancelled()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
+            new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
+                Bitcraft.Application.Common.Models.StandardBenchmarkStatus.StateCancelled,
+                null,
+                null,
+                null,
+                0,
+                null,
+                null,
+                "deepeval-fake",
+                "",
+                null)));
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = ProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BenchmarkRunStatus.Cancelled, run.Status);
+        Assert.NotNull(run.CancelledUtc);
+    }
+
+    // ----- Delete (WS4) -----
+
+    private static StandardBenchmarkFeatures.DeleteStandardBenchmarkRunHandler DeleteHandler(
+        FakeStandardBenchmarkRunRepository runs,
+        FakeCurrentUserContext user) => new(runs, user);
+
+    [Fact]
+    public async Task Delete_SettledRun_RemovesIt()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = DeleteHandler(runs, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.DeleteStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(runs.Runs);
+        Assert.Equal(1, runs.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task Delete_RunningRun_FailsWithNotDeletable()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = DeleteHandler(runs, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.DeleteStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotDeletable", result.Error.Code);
+        Assert.Single(runs.Runs);
+    }
+
+    [Fact]
+    public async Task Delete_NonAdmin_IsForbidden()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = DeleteHandler(runs, NonAdmin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.DeleteStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+        Assert.Single(runs.Runs);
+    }
+
+    // ----- Requeue (WS4) -----
+
+    private static StandardBenchmarkFeatures.RequeueStandardBenchmarkRunHandler RequeueHandler(
+        FakeStandardBenchmarkRunRepository runs,
+        FakeStandardBenchmarkRunQueue queue,
+        FakeCurrentUserContext user) => new(runs, queue, user);
+
+    [Fact]
+    public async Task Requeue_FailedRun_CreatesNewQueuedRun()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+        var source = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "gsm8k",
+            NShots = 2,
+            NProblems = 5,
+            Status = BenchmarkRunStatus.Failed
+        };
+        runs.Runs[source.Id] = source;
+
+        var handler = RequeueHandler(runs, queue, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.RequeueStandardBenchmarkRunCommand(source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var clone = result.Value;
+        Assert.NotEqual(source.Id, clone.Id);
+        Assert.Equal(BenchmarkRunStatus.Queued, clone.Status);
+        Assert.Equal("gsm8k", clone.BenchmarkKey);
+        Assert.Equal(2, clone.NShots);
+        Assert.Equal(5, clone.NProblems);
+        Assert.Equal([clone.Id], queue.QueuedRunIds);
+        // The original row is immutable history and must survive.
+        Assert.Equal(BenchmarkRunStatus.Failed, source.Status);
+        Assert.Equal(2, runs.Runs.Count);
+    }
+
+    [Fact]
+    public async Task Requeue_CompletedRun_FailsWithNotRequeueable()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+        var source = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed
+        };
+        runs.Runs[source.Id] = source;
+
+        var handler = RequeueHandler(runs, queue, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.RequeueStandardBenchmarkRunCommand(source.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotRequeueable", result.Error.Code);
+        Assert.Empty(queue.QueuedRunIds);
+    }
+
+    [Fact]
+    public async Task Requeue_CancelledRun_IsAllowed()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+        var source = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Cancelled
+        };
+        runs.Runs[source.Id] = source;
+
+        var handler = RequeueHandler(runs, queue, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.RequeueStandardBenchmarkRunCommand(source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(queue.QueuedRunIds);
+    }
+
+    // ----- Priority (WS4, DR-5) -----
+
+    private static StandardBenchmarkFeatures.SetStandardBenchmarkRunPriorityHandler PriorityHandler(
+        FakeStandardBenchmarkRunRepository runs,
+        FakeCurrentUserContext user) => new(runs, user);
+
+    [Fact]
+    public async Task SetPriority_QueuedRun_UpdatesPriority()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = PriorityHandler(runs, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.SetStandardBenchmarkRunPriorityCommand(run.Id, -1), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(-1, run.Priority);
+    }
+
+    [Fact]
+    public async Task SetPriority_RunningRun_FailsWithNotReprioritizable()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = PriorityHandler(runs, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.SetStandardBenchmarkRunPriorityCommand(run.Id, -1), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotReprioritizable", result.Error.Code);
+        Assert.Equal(0, run.Priority);
+    }
+
+    [Fact]
+    public async Task ListQueuedOrdered_ReturnsLowestPriorityFirst()
+    {
+        // DR-5: lower priority values run first, then age.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var older = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Queued,
+            Priority = 0,
+            QueuedUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        var highPriority = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "gsm8k",
+            Status = BenchmarkRunStatus.Queued,
+            Priority = -1,
+            QueuedUtc = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        runs.Runs[older.Id] = older;
+        runs.Runs[highPriority.Id] = highPriority;
+
+        var ordered = await runs.ListQueuedOrderedAsync(CancellationToken.None);
+
+        Assert.Equal([highPriority.Id, older.Id], ordered.Select(x => x.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task ListQueuedOrdered_ExcludesCancelledRuns()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var cancelled = new StandardBenchmarkRun
+        {
+            InteractionModelId = Guid.NewGuid(),
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Cancelled,
+            Priority = -5
+        };
+        runs.Runs[cancelled.Id] = cancelled;
+
+        var ordered = await runs.ListQueuedOrderedAsync(CancellationToken.None);
+
+        Assert.Empty(ordered);
     }
 }

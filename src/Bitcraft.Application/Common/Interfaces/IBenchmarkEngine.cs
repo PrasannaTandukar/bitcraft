@@ -11,4 +11,13 @@ public interface IBenchmarkEngine
 
     /// <summary>Reads the current status of a started standardized benchmark run.</summary>
     Task<Result<StandardBenchmarkStatus>> GetStandardLlmBenchmarkStatusAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Requests cancellation of a running standardized benchmark. Cancel is process-level:
+    /// it cannot stop the engine mid-problem, so the run may take up to one problem to end.
+    /// </summary>
+    Task<Result<bool>> CancelStandardLlmBenchmarkAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default);
+
+    /// <summary>Reads the scrubbed, capped runner log for a standardized benchmark run.</summary>
+    Task<Result<string?>> GetStandardLlmBenchmarkLogAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default);
 }

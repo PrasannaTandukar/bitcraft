@@ -21,22 +21,38 @@ public sealed class StandardBenchmarkRunWorker(
     // StandardBenchmark.SidecarBusy, which drops a queued run instead of running it.
     // Stall protection comes from ReapStalledRunsAsync and the per-run timeout, not
     // from concurrency.
-    private const int MaxParallelLanes = 1;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await RecoverPersistedRunsAsync(stoppingToken);
 
-        var parallelOptions = new ParallelOptions
+        // The channel is FIFO and cannot be reordered in place (DR-5). Each queued id
+        // is a wake-up signal: the worker then picks the highest-priority queued run
+        // from the database. A run cancelled while queued is no longer Queued, so the
+        // query skips it without a separate check.
+        await foreach (var _ in queue.ReadAllAsync(stoppingToken))
         {
-            MaxDegreeOfParallelism = MaxParallelLanes,
-            CancellationToken = stoppingToken
-        };
+            await ProcessNextByPriorityAsync(stoppingToken);
+        }
+    }
 
-        await Parallel.ForEachAsync(queue.ReadAllAsync(stoppingToken), parallelOptions, async (runId, token) =>
+    private async Task ProcessNextByPriorityAsync(CancellationToken stoppingToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var runs = scope.ServiceProvider.GetRequiredService<IStandardBenchmarkRunRepository>();
+        var queued = await runs.ListQueuedOrderedAsync(stoppingToken);
+
+        foreach (var candidate in queued)
         {
-            await ProcessRunAsync(runId, token);
-        });
+            if (candidate.Status != BenchmarkRunStatus.Queued)
+            {
+                continue;
+            }
+
+            await ProcessRunAsync(candidate.Id, stoppingToken);
+            // One runner slot: process a single run per wake-up.
+            return;
+        }
     }
 
     private async Task RecoverPersistedRunsAsync(CancellationToken stoppingToken)

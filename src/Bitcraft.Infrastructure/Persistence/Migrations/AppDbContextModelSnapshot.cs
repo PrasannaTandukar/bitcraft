@@ -310,6 +310,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<DateTime?>("CancelledUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("CompletedTasks")
                         .HasColumnType("integer");
 
@@ -325,6 +328,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<string>("EngineName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EngineRunId")
+                        .HasColumnType("text");
 
                     b.Property<string>("EngineVersion")
                         .HasMaxLength(60)
@@ -362,6 +368,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Property<double?>("OverallScore")
                         .HasColumnType("double precision");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
 
                     b.Property<double?>("ProgressPercent")
                         .HasColumnType("double precision");

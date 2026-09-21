@@ -7,6 +7,7 @@ internal sealed class FakeStandardBenchmarkRunRepository : IStandardBenchmarkRun
 {
     public Dictionary<Guid, StandardBenchmarkRun> Runs { get; } = new();
     public int UpdateCalls { get; private set; }
+    public int DeleteCalls { get; private set; }
 
     public Task<StandardBenchmarkRun> AddAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default)
     {
@@ -38,6 +39,20 @@ internal sealed class FakeStandardBenchmarkRunRepository : IStandardBenchmarkRun
             .OrderBy(x => x.QueuedUtc)
             .Select(x => x.Id)
             .ToList());
+
+    public Task<List<StandardBenchmarkRun>> ListQueuedOrderedAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Runs.Values
+            .Where(x => x.Status == BenchmarkRunStatus.Queued)
+            .OrderBy(x => x.Priority)
+            .ThenBy(x => x.QueuedUtc)
+            .ToList());
+
+    public Task DeleteAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default)
+    {
+        Runs.Remove(run.Id);
+        DeleteCalls++;
+        return Task.CompletedTask;
+    }
 
     public Task UpdateAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default)
     {

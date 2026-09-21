@@ -109,6 +109,9 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
     public Result<BenchmarkEngineResult>? ResultToReturn { get; set; }
     public Result<StandardBenchmarkHandle>? StartResultToReturn { get; set; }
     public Queue<Result<StandardBenchmarkStatus>> StatusResults { get; } = new();
+    public Result<bool>? CancelResultToReturn { get; set; }
+    public List<string> CancelledRunIds { get; } = [];
+    public string? LogToReturn { get; set; }
 
     public Task<Result<BenchmarkEngineResult>> EvaluateAsync(BenchmarkEngineRequest request, CancellationToken cancellationToken = default)
     {
@@ -129,7 +132,7 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
             ? StatusResults.Dequeue()
             : Result.Success(new StandardBenchmarkStatus(
                 StandardBenchmarkStatus.StateCompleted,
-                "finalizing",
+                "scoring",
                 0.85,
                 null,
                 1,
@@ -139,6 +142,17 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
                 "Fake benchmark completed.",
                 null));
         return Task.FromResult(status);
+    }
+
+    public Task<Result<bool>> CancelStandardLlmBenchmarkAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
+    {
+        CancelledRunIds.Add(handle.RunId);
+        return Task.FromResult(CancelResultToReturn ?? Result.Success(true));
+    }
+
+    public Task<Result<string?>> GetStandardLlmBenchmarkLogAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Result.Success<string?>(LogToReturn));
     }
 }
 

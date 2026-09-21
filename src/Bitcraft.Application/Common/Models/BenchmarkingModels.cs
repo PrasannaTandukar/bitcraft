@@ -92,6 +92,7 @@ public sealed record StandardBenchmarkStatus(
     public const string StateRunning = "running";
     public const string StateCompleted = "completed";
     public const string StateFailed = "failed";
+    public const string StateCancelled = "cancelled";
 }
 
 public sealed record ArduinoBenchmarkCaseInput(

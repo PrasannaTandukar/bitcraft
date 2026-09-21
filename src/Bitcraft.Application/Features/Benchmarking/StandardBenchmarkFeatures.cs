@@ -280,6 +280,39 @@ public static class StandardBenchmarkFeatures
         }
     }
 
+    // ----- Log -----
+
+    public sealed record GetStandardBenchmarkRunLogQuery(Guid RunId) : IRequest<Result<string?>>;
+
+    public sealed class GetStandardBenchmarkRunLogHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        IBenchmarkEngine benchmarkEngine,
+        ICurrentUserContext currentUser) : IRequestHandler<GetStandardBenchmarkRunLogQuery, Result<string?>>
+    {
+        public async Task<Result<string?>> Handle(GetStandardBenchmarkRunLogQuery request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin) && !currentUser.IsInRole(AppRoles.Auditor))
+            {
+                return Result.Failure<string?>(new Error("StandardBenchmark.Forbidden", "Only administrators and auditors can view standardized benchmark run logs."));
+            }
+
+            var run = await runRepository.GetByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<string?>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (string.IsNullOrWhiteSpace(run.EngineRunId))
+            {
+                return Result.Success<string?>(null);
+            }
+
+            return await benchmarkEngine.GetStandardLlmBenchmarkLogAsync(
+                new StandardBenchmarkHandle(run.EngineRunId),
+                cancellationToken);
+        }
+    }
+
     // ----- Process (worker) -----
 
     public sealed record ProcessQueuedStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<bool>>;
@@ -352,6 +385,10 @@ public static class StandardBenchmarkFeatures
                 return await MarkFailedAsync(run, runRepository, started.Error.Code, started.Error.Description);
             }
 
+            // Persist the engine run id so a cancel can reach the live runner later.
+            run.EngineRunId = started.Value.RunId;
+            await runRepository.UpdateAsync(run, cancellationToken);
+
             return await PollUntilTerminalAsync(run, started.Value, cancellationToken);
         }
 
@@ -398,6 +435,13 @@ public static class StandardBenchmarkFeatures
                         runRepository,
                         "StandardBenchmark.EngineError",
                         status.Error ?? "The benchmark runner reported a failure without an error description.");
+                }
+
+                // A cancel terminates the runner process group. The engine reports the
+                // cancelled state; mark it terminal so the poll loop exits immediately.
+                if (status.State == StandardBenchmarkStatus.StateCancelled)
+                {
+                    return await MarkCancelledAsync(run, runRepository, cancellationToken);
                 }
 
                 // Fail fast on an unrecognized state instead of polling for the whole
@@ -505,6 +549,20 @@ public static class StandardBenchmarkFeatures
             _ => providerType.ToString(),
         };
 
+        private async Task<Result<bool>> MarkCancelledAsync(
+            StandardBenchmarkRun run,
+            IStandardBenchmarkRunRepository runRepository,
+            CancellationToken cancellationToken)
+        {
+            run.Status = BenchmarkRunStatus.Cancelled;
+            run.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            run.CancelledUtc = run.CompletedUtc;
+            run.FailureCode = null;
+            run.FailureDescription = "Cancelled by request.";
+            await runRepository.UpdateAsync(run, cancellationToken);
+            return Result.Success(true);
+        }
+
         private static IReadOnlyList<string>? ParseTasks(string? tasksJson)
         {
             if (string.IsNullOrWhiteSpace(tasksJson))
@@ -520,6 +578,176 @@ public static class StandardBenchmarkFeatures
             {
                 return null;
             }
+        }
+    }
+
+    // ----- Cancel -----
+
+    public sealed record CancelStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<bool>>;
+
+    public sealed class CancelStandardBenchmarkRunHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        IBenchmarkEngine benchmarkEngine,
+        ICurrentUserContext currentUser,
+        TimeProvider timeProvider) : IRequestHandler<CancelStandardBenchmarkRunCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(CancelStandardBenchmarkRunCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can cancel standardized benchmark runs."));
+            }
+
+            var run = await runRepository.GetTrackedByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (run.Status is BenchmarkRunStatus.Completed or BenchmarkRunStatus.Failed or BenchmarkRunStatus.Cancelled)
+            {
+                return Result.Failure<bool>(new Error(
+                    "StandardBenchmark.NotCancellable",
+                    $"Run '{request.RunId}' has already finished with status '{run.Status}'."));
+            }
+
+            // Signal the engine first so the runner stops doing work, then mark the
+            // row terminal. A queued run has no engine id yet, so the engine call is
+            // skipped and the worker skips the row on dequeue.
+            if (!string.IsNullOrWhiteSpace(run.EngineRunId))
+            {
+                var cancelled = await benchmarkEngine.CancelStandardLlmBenchmarkAsync(
+                    new StandardBenchmarkHandle(run.EngineRunId),
+                    cancellationToken);
+                if (cancelled.IsFailure)
+                {
+                    return Result.Failure<bool>(cancelled.Error);
+                }
+            }
+
+            run.Status = BenchmarkRunStatus.Cancelled;
+            run.CompletedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            run.CancelledUtc = run.CompletedUtc;
+            run.FailureCode = null;
+            run.FailureDescription = "Cancelled by request.";
+            await runRepository.UpdateAsync(run, cancellationToken);
+            return Result.Success(true);
+        }
+    }
+
+    // ----- Delete -----
+
+    public sealed record DeleteStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<bool>>;
+
+    public sealed class DeleteStandardBenchmarkRunHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        ICurrentUserContext currentUser) : IRequestHandler<DeleteStandardBenchmarkRunCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(DeleteStandardBenchmarkRunCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can delete standardized benchmark runs."));
+            }
+
+            var run = await runRepository.GetTrackedByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (run.Status is BenchmarkRunStatus.Running)
+            {
+                return Result.Failure<bool>(new Error(
+                    "StandardBenchmark.NotDeletable",
+                    "Cancel the run before deleting it."));
+            }
+
+            await runRepository.DeleteAsync(run, cancellationToken);
+            return Result.Success(true);
+        }
+    }
+
+    // ----- Requeue -----
+
+    public sealed record RequeueStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<StandardBenchmarkRun>>;
+
+    public sealed class RequeueStandardBenchmarkRunHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        IStandardBenchmarkRunQueue queue,
+        ICurrentUserContext currentUser) : IRequestHandler<RequeueStandardBenchmarkRunCommand, Result<StandardBenchmarkRun>>
+    {
+        public async Task<Result<StandardBenchmarkRun>> Handle(RequeueStandardBenchmarkRunCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<StandardBenchmarkRun>(new Error("StandardBenchmark.Forbidden", "Only administrators can requeue standardized benchmark runs."));
+            }
+
+            var source = await runRepository.GetByIdAsync(request.RunId, cancellationToken);
+            if (source is null)
+            {
+                return Result.Failure<StandardBenchmarkRun>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (source.Status is not (BenchmarkRunStatus.Failed or BenchmarkRunStatus.Cancelled))
+            {
+                return Result.Failure<StandardBenchmarkRun>(new Error(
+                    "StandardBenchmark.NotRequeueable",
+                    $"Only failed or cancelled runs can be requeued. Run '{request.RunId}' has status '{source.Status}'."));
+            }
+
+            // The original row is immutable history. The clone carries the same
+            // parameters so the user does not refill the wizard.
+            var clone = new StandardBenchmarkRun
+            {
+                InteractionModelId = source.InteractionModelId,
+                BenchmarkKey = source.BenchmarkKey,
+                TasksJson = source.TasksJson,
+                NShots = source.NShots,
+                NProblems = source.NProblems,
+                Priority = source.Priority,
+                Status = BenchmarkRunStatus.Queued,
+                QueuedUtc = DateTime.UtcNow
+            };
+
+            var created = await runRepository.AddAsync(clone, cancellationToken);
+            await queue.QueueAsync(created.Id, cancellationToken);
+            return Result.Success(created);
+        }
+    }
+
+    // ----- Priority -----
+
+    public sealed record SetStandardBenchmarkRunPriorityCommand(Guid RunId, int Priority) : IRequest<Result<bool>>;
+
+    public sealed class SetStandardBenchmarkRunPriorityHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        ICurrentUserContext currentUser) : IRequestHandler<SetStandardBenchmarkRunPriorityCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(SetStandardBenchmarkRunPriorityCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can change standardized benchmark run priority."));
+            }
+
+            var run = await runRepository.GetTrackedByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (run.Status is not BenchmarkRunStatus.Queued)
+            {
+                return Result.Failure<bool>(new Error(
+                    "StandardBenchmark.NotReprioritizable",
+                    $"Only queued runs can be reprioritized. Run '{request.RunId}' has status '{run.Status}'."));
+            }
+
+            run.Priority = request.Priority;
+            await runRepository.UpdateAsync(run, cancellationToken);
+            return Result.Success(true);
         }
     }
 }

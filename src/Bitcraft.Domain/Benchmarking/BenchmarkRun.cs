@@ -74,5 +74,7 @@ public enum BenchmarkRunStatus
     Queued = 0,
     Running = 1,
     Completed = 2,
-    Failed = 3
+    Failed = 3,
+    /// <summary>Terminated by request. Terminal and one-way (DR-4): a cancelled run never resumes.</summary>
+    Cancelled = 4
 }

@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AiTutorPage from "./aiTutor/AiTutorPage.jsx";
 import BenchmarkingPage from "./BenchmarkingPage.jsx";
+import StandardBenchmarkRunPage from "./benchmarking/StandardBenchmarkRunPage.jsx";
 import Dashboard from "./Dashboard.jsx";
 import DocumentUploadPage from "./DocumentUploadPage.jsx";
 import EmbeddingModels from "./EmbeddingModels.jsx";
@@ -38,6 +39,7 @@ function AppContent() {
         <Route path="tutors" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorsPage /></RoleRoute>} />
         <Route path="tutors/:tutorId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorDetailsPage /></RoleRoute>} />
         <Route path="benchmarking" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><BenchmarkingPage /></RoleRoute>} />
+        <Route path="benchmarking/runs/:runId" element={<RoleRoute allowedRoles={["Auditor", "Admin"]}><StandardBenchmarkRunPage /></RoleRoute>} />
         <Route path="tutor-setup" element={<Navigate to="/tutors" replace />} />
         <Route path="admin/roles" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
         <Route path="admin/embedding-models" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><EmbeddingModels /></RoleRoute>} />

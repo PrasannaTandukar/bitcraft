@@ -15,7 +15,9 @@ from app.tools.deepeval_benchmark import DeepEvalBenchmarkTool
 from app.tools.deepeval_llm_benchmarks import (
     BenchmarkBusyError,
     BenchmarkValidationError,
+    cancel_benchmark_run,
     get_benchmark_run_status,
+    read_run_log,
     start_benchmark_run,
 )
 
@@ -73,6 +75,44 @@ async def start_llm_benchmark(request: SidecarLlmBenchmarkRequest):
             status_code=400,
             content={"code": "Sidecar.BenchmarkInvalid", "description": str(error)},
         )
+
+
+@app.post("/internal/benchmarks/{run_id}/cancel")
+async def cancel_llm_benchmark(run_id: str):
+    """Cancel a running benchmark (Constraint G).
+
+    Terminates the runner process group and writes a `cancelled` terminal state.
+    Cancel cannot stop `evaluate()` mid-problem, so the process may take up to
+    one problem to exit. Returns 404 when no live runner exists for the id.
+    """
+    if not cancel_benchmark_run(run_id):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "code": "Sidecar.BenchmarkRunNotFound",
+                "description": f"No live runner found for benchmark run '{run_id}'.",
+            },
+        )
+    return {"run_id": run_id, "state": "cancelled"}
+
+
+@app.get("/internal/benchmarks/{run_id}/log")
+async def get_llm_benchmark_log(run_id: str):
+    """Return the scrubbed, capped runner log for a benchmark run.
+
+    The log holds the runner's stdout and stderr. The judge API key is removed
+    before the text leaves the sidecar. Returns 404 when no log exists.
+    """
+    log = read_run_log(run_id)
+    if log is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "code": "Sidecar.BenchmarkLogNotFound",
+                "description": f"No log found for benchmark run '{run_id}'.",
+            },
+        )
+    return {"run_id": run_id, "log": log}
 
 
 @app.get("/internal/benchmarks/{run_id}/status")

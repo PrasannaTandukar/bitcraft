@@ -71,7 +71,12 @@ internal sealed record SidecarStandardBenchmarkStartRequest(
 
 internal sealed record SidecarStandardBenchmarkStartResponse(
     [property: JsonPropertyName("run_id")] string RunId,
-    [property: JsonPropertyName("status_path")] string StatusPath);
+    [property: JsonPropertyName("status_path")] string StatusPath,
+    [property: JsonPropertyName("log_path")] string? LogPath = null);
+
+internal sealed record SidecarStandardBenchmarkLogResponse(
+    [property: JsonPropertyName("run_id")] string RunId,
+    [property: JsonPropertyName("log")] string Log);
 
 internal sealed record SidecarTaskScorePayload(
     [property: JsonPropertyName("task")] string Task,
@@ -96,6 +101,7 @@ internal sealed record SidecarStandardBenchmarkStatusResponse(
 [JsonSerializable(typeof(SidecarStandardBenchmarkStartRequest))]
 [JsonSerializable(typeof(SidecarStandardBenchmarkStartResponse))]
 [JsonSerializable(typeof(SidecarStandardBenchmarkStatusResponse))]
+[JsonSerializable(typeof(SidecarStandardBenchmarkLogResponse))]
 internal partial class DeepEvalBenchmarkJsonContext : JsonSerializerContext
 {
 }

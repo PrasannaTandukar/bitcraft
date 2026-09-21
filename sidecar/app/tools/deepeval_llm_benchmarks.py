@@ -4,8 +4,10 @@ import importlib
 import inspect
 import logging
 import os
+import signal
 import subprocess
 import sys
+import time
 import uuid
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -108,6 +110,13 @@ _RUNS_DIR = Path(os.getenv("BENCHMARK_RUNS_DIR", "/var/run/bitcraft/runs"))
 _last_status_path: str | None = None
 _SLOT_FILE = _RUNS_DIR / "last_status_path.txt"
 
+# Live runner subprocess pids keyed by run id, so a cancel can terminate the
+# process group (Constraint G). The pid is dropped when the run is cancelled.
+_RUNNER_PIDS: dict[str, int] = {}
+
+# Maximum runner log size. The log is truncated in place when it exceeds this.
+_LOG_MAX_BYTES = 2 * 1024 * 1024
+
 
 def _persist_last_status_path(path: str) -> None:
     """Write the slot marker to disk so a restart can recover it."""
@@ -153,7 +162,7 @@ class _SidecarJudgeLLM:
         self._config = config
         self._base = DeepEvalBaseLLM
 
-    def build(self):
+    def build(self, on_prediction=None):
         base = self._base
         config = self._config
         call = self._call
@@ -166,16 +175,25 @@ class _SidecarJudgeLLM:
                 return f"{config.provider}:{config.model_name}"
 
             def generate(self, prompt: str) -> str:
-                return call(prompt)
+                result = call(prompt)
+                if on_prediction is not None:
+                    on_prediction()
+                return result
 
             async def a_generate(self, prompt: str) -> str:
-                return call(prompt)
+                result = call(prompt)
+                if on_prediction is not None:
+                    on_prediction()
+                return result
 
             def generate_samples(self, prompt: str, n: int, temperature: float):
                 # Best-effort HumanEval support: request `n` independent
                 # completions of the same prompt for the pass@k metric.
                 # deepeval expects a plain list of strings (decision D-R6).
-                return [call(prompt) for _ in range(n)]
+                results = [call(prompt) for _ in range(n)]
+                if on_prediction is not None:
+                    on_prediction()
+                return results
 
         return _Model()
 
@@ -330,32 +348,127 @@ def start_benchmark_run(
     _RUNS_DIR.mkdir(parents=True, exist_ok=True)
     status_path = _RUNS_DIR / f"{run_id}.json"
     request_path = _RUNS_DIR / f"{run_id}.request.json"
+    log_path = _RUNS_DIR / f"{run_id}.log"
 
-    write_status(status_path, {**base_status("running", "starting")})
+    write_status(
+        status_path,
+        {**base_status("running", "starting"), "log_path": str(log_path)},
+    )
     request_path.write_text(request.model_dump_json(), encoding="utf-8")
 
-    subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "app.runner",
-            "--request-file",
-            str(request_path),
-            "--status-file",
-            str(status_path),
-        ],
-        cwd=str(Path(__file__).resolve().parents[2]),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        stdin=subprocess.DEVNULL,
-        start_new_session=True,
-    )
+    # DR-6: capture runner output to a file instead of DEVNULL so the UI can show
+    # a filtered log. The handle stays open only long enough to spawn the child.
+    with open(log_path, "w", encoding="utf-8") as log_handle:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "app.runner",
+                "--request-file",
+                str(request_path),
+                "--status-file",
+                str(status_path),
+            ],
+            cwd=str(Path(__file__).resolve().parents[2]),
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+    # Constraint G: retain the pid so a cancel can terminate the process group.
+    _RUNNER_PIDS[str(run_id)] = process.pid
 
     _last_status_path = str(status_path)
     _persist_last_status_path(_last_status_path)
     return SidecarLlmBenchmarkStartResponse(
-        run_id=str(run_id), status_path=str(status_path)
+        run_id=str(run_id), status_path=str(status_path), log_path=str(log_path)
     )
+
+
+def _scrub_secrets(text: str, secret: str | None) -> str:
+    """Remove the judge API key from a log line (DR-6).
+
+    The key transits the local socket and the request file only. A traceback or
+    an echoed request must never leak it into the log the UI renders.
+    """
+    if not secret or len(secret) < 8:
+        return text
+    return text.replace(secret, "[REDACTED]")
+
+
+def _cap_log(log_path: Path, secret: str | None = None) -> None:
+    """Truncate the runner log to the newest half when it exceeds the cap (DR-6).
+
+    Reads and rewrites the file in one pass. A run that writes 3 MB ends with a
+    file under the 2 MB cap holding the most recent half.
+    """
+    try:
+        if not log_path.exists():
+            return
+        size = log_path.stat().st_size
+        if size <= _LOG_MAX_BYTES:
+            return
+        raw = log_path.read_text(encoding="utf-8", errors="replace")
+        keep_from = len(raw) // 2
+        kept = raw[keep_from:]
+        marker = "... [log truncated]\n"
+        log_path.write_text(marker + _scrub_secrets(kept, secret), encoding="utf-8")
+    except OSError:
+        # A log that cannot be capped must not fail the run.
+        pass
+
+
+def read_run_log(run_id: str, secret: str | None = None) -> str | None:
+    """Return the scrubbed runner log for a run, or None when absent.
+
+    The log is capped before it is returned so a large run cannot flood the API
+    response or the UI.
+    """
+    if not run_id or "/" in run_id or ".." in run_id:
+        return None
+    log_path = _RUNS_DIR / f"{run_id}.log"
+    _cap_log(log_path, secret)
+    try:
+        return _scrub_secrets(
+            log_path.read_text(encoding="utf-8", errors="replace"), secret
+        )
+    except OSError:
+        return None
+
+
+def cancel_benchmark_run(run_id: str) -> bool:
+    """Terminate the runner process group for a run (Constraint G).
+
+    Returns True when a live runner was signalled. Cancel cannot stop
+    `evaluate()` mid-problem, so the run may take up to one problem to end.
+    """
+    if not run_id or "/" in run_id or ".." in run_id:
+        return False
+
+    pid = _RUNNER_PIDS.pop(run_id, None)
+    if pid is None:
+        return False
+
+    # killpg and getpgid are Unix-only. On Windows they raise AttributeError, so
+    # fall back to killing the single pid.
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGTERM)
+    except (AttributeError, ProcessLookupError, PermissionError, OSError):
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            return False
+
+    status_path = _RUNS_DIR / f"{run_id}.json"
+    try:
+        write_status(
+            status_path,
+            {**base_status("cancelled", None), "notes": "Cancelled by request."},
+        )
+    except OSError:
+        pass
+    return True
 
 
 def _slot_held() -> bool:
@@ -393,7 +506,7 @@ def execute_benchmark(
     """Execute one benchmark synchronously. Called only by the runner subprocess.
 
     `stage_writer` receives coarse stage names (loading-dataset, evaluating,
-    finalizing). deepeval 4.2.3 exposes no per-problem callback, so stages are
+    scoring). deepeval 4.2.3 exposes no per-problem callback, so stages are
     honest coarse markers, not fabricated percentages (decision D-R8).
     """
     engine_version = _resolve_engine_version()
@@ -443,17 +556,25 @@ def execute_benchmark(
                 n_problems_forwarded = request.n_problems
 
         benchmark = benchmark_cls(**kwargs)
-        model = _SidecarJudgeLLM(request.judge_model).build()
+
+        # DR-1: the total comes from the constructed benchmark, so a run with no
+        # task filter reports the suite's real task count (57 for MMLU), not 1.
+        total_tasks = _estimate_total_tasks(
+            benchmark, resolved_tasks, n_problems_forwarded
+        )
+
+        progress = _ProgressTracker(stage_writer, total_tasks)
+        model = _SidecarJudgeLLM(request.judge_model).build(on_prediction=progress.tick)
 
         evaluate_params = set(inspect.signature(benchmark.evaluate).parameters)
         evaluate_kwargs: dict = {"model": model}
         if key == "human_eval" and "k" in evaluate_params:
             evaluate_kwargs["k"] = min(5, max(1, request.n_shots or 1))
 
-        total_tasks = _estimate_total_tasks(resolved_tasks, n_problems_forwarded)
         if stage_writer:
             stage_writer("evaluating", {"total_tasks": total_tasks})
         evaluate_result = benchmark.evaluate(**evaluate_kwargs)
+        progress.flush()
         completed_tasks = _count_completed_tasks(benchmark, total_tasks)
         # An uncapped run has no pre-evaluation estimate. Reconcile the total with the
         # completed count so a finished run always reports a full progress bar.
@@ -461,7 +582,7 @@ def execute_benchmark(
             total_tasks = completed_tasks
         if stage_writer:
             stage_writer(
-                "finalizing",
+                "scoring",
                 {"completed_tasks": completed_tasks, "total_tasks": total_tasks},
             )
 
@@ -518,18 +639,75 @@ def execute_benchmark(
         )
 
 
-def _estimate_total_tasks(resolved_tasks, n_problems_forwarded: int) -> int | None:
+class _ProgressTracker:
+    """Counts predictions and writes throttled progress during evaluate() (DR-3).
+
+    deepeval's evaluate() is one blocking call with no per-problem callback, so
+    the status file would otherwise sit at a null count for the whole run. This
+    writes at most once per second and always flushes the final count, so a
+    1319-problem GSM8K run does not hammer the shared volume.
+    """
+
+    def __init__(self, stage_writer, total_tasks: int | None, interval: float = 1.0):
+        self._stage_writer = stage_writer
+        self._total_tasks = total_tasks
+        self._interval = interval
+        self._count = 0
+        self._last_write = 0.0
+
+    @property
+    def count(self) -> int:
+        return self._count
+
+    def tick(self) -> None:
+        self._count += 1
+        if self._stage_writer is None:
+            return
+        now = time.monotonic()
+        if now - self._last_write >= self._interval:
+            self._write(now)
+
+    def flush(self) -> None:
+        if self._stage_writer is None or self._count == 0:
+            return
+        self._write(time.monotonic())
+
+    def _write(self, now: float) -> None:
+        self._last_write = now
+        self._stage_writer(
+            "evaluating",
+            {"completed_tasks": self._count, "total_tasks": self._total_tasks},
+        )
+
+
+def _effective_task_count(benchmark, resolved_tasks) -> int:
+    """Task count the benchmark will actually run (DR-1).
+
+    The count must come from the constructed benchmark, never from the request.
+    When `tasks` is null deepeval defaults to the suite's full task enum, so a
+    request-derived count reports 1 instead of 57 for MMLU.
+    """
+    tasks = getattr(benchmark, "tasks", None)
+    if tasks is not None and hasattr(tasks, "__len__"):
+        try:
+            return max(1, int(len(tasks)))
+        except (TypeError, ValueError):
+            pass
+    return len(resolved_tasks) if resolved_tasks else 1
+
+
+def _estimate_total_tasks(
+    benchmark, resolved_tasks, n_problems_forwarded: int
+) -> int | None:
     """Best-effort total problem count for progress reporting.
 
-    deepeval's evaluate() is a single blocking call, so the exact total is only
-    known after it finishes. This estimate (task count x per-task cap) is used
-    to seed the progress bar before evaluation starts. Returns None when the
-    total cannot be estimated.
+    Returns the task count multiplied by the per-task cap when a cap was
+    forwarded, else None because the uncapped dataset size is unknown until
+    evaluation finishes.
     """
     if n_problems_forwarded <= 0:
         return None
-    task_count = len(resolved_tasks) if resolved_tasks else 1
-    return task_count * n_problems_forwarded
+    return _effective_task_count(benchmark, resolved_tasks) * n_problems_forwarded
 
 
 def _count_completed_tasks(benchmark, total_tasks: int | None) -> int | None:

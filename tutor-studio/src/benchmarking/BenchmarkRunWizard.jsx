@@ -1,5 +1,5 @@
 import { PlusOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Col, Descriptions, Empty, Flex, Form, InputNumber, Radio, Row, Select, Space, Spin, Steps, Tag, Typography } from "antd";
+import { Alert, Button, Card, Col, Descriptions, Empty, Flex, Form, InputNumber, Modal, Radio, Row, Select, Space, Spin, Steps, Tag, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { getApiErrorDescription } from "../api/client.js";
@@ -37,6 +37,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [validationError, setValidationError] = useState("");
   const [launchError, setLaunchError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [launchConfirmOpen, setLaunchConfirmOpen] = useState(false);
 
   const { roles = [] } = useSelector((state) => state.auth);
   const isAdmin = roles.includes("Admin");
@@ -189,12 +190,25 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     if (!generate) setConsistencyRuns(1);
   };
 
-  const launch = async () => {
+  const launch = () => {
     const errors = [1, 2, 3].map(validateStep).filter(Boolean);
     if (errors.length || submitting) {
       setValidationError(errors[0] ?? "");
       return;
     }
+    setValidationError("");
+    setLaunchError("");
+    setLaunchConfirmOpen(true);
+  };
+
+  const resetWizard = () => {
+    setStep(1);
+    setSelectedTasks([]);
+    setNShots(0);
+    setNProblems(10);
+  };
+
+  const confirmLaunch = async () => {
     setSubmitting(true);
     setLaunchError("");
     try {
@@ -206,6 +220,8 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
           nShots,
           nProblems,
         });
+        setLaunchConfirmOpen(false);
+        resetWizard();
         onCreated(tutorId, created.id);
         return;
       }
@@ -227,6 +243,8 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
           metadataJson: runCase.metadataJson.trim() || null,
         })),
       });
+      setLaunchConfirmOpen(false);
+      resetWizard();
       onCreated(tutorId, created.id);
     } catch (error) {
       setLaunchError(getApiErrorDescription(error, "Could not launch the benchmark run."));
@@ -503,6 +521,32 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
           ? <Button type="primary" onClick={goNext}>Continue</Button>
           : <Button type="primary" onClick={launch} loading={submitting} disabled={Boolean(validateStep(3))}>Launch benchmark</Button>}
       </Flex>
+
+      <Modal
+        title="Confirm benchmark launch"
+        open={launchConfirmOpen}
+        onCancel={() => setLaunchConfirmOpen(false)}
+        okText="Launch"
+        cancelText="Cancel"
+        confirmLoading={submitting}
+        onOk={confirmLaunch}
+        destroyOnHidden
+      >
+        <Descriptions column={1} size="small">
+          <Descriptions.Item label="Suite">{benchmarkType === "standard" ? selectedStandardBenchmark : "Tutor RAG Evaluation"}</Descriptions.Item>
+          <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
+          {benchmarkType === "standard" ? (
+            <>
+              <Descriptions.Item label="Tasks">{selectedTasks.length ? selectedTasks.join(", ") : "All tasks in the suite"}</Descriptions.Item>
+              <Descriptions.Item label="Few-shot examples">{nShots}</Descriptions.Item>
+              <Descriptions.Item label="Problem cap">{nProblems === 0 ? "None (full dataset)" : nProblems}</Descriptions.Item>
+            </>
+          ) : (
+            <Descriptions.Item label="Template">{selectedTemplate?.name || "None"}</Descriptions.Item>
+          )}
+        </Descriptions>
+        {launchError ? <Alert type="error" title={launchError} showIcon style={{ marginTop: 12 }} /> : null}
+      </Modal>
     </div>
   );
 }

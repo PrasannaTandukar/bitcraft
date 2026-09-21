@@ -122,3 +122,6 @@ class SidecarLlmBenchmarkStartResponse(BaseModel):
 
     run_id: str
     status_path: str
+    # Runner stdout/stderr capture (DR-6). None only for responses produced
+    # before log capture existed.
+    log_path: str | None = None

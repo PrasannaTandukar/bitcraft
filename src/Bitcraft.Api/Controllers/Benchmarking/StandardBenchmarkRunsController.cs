@@ -101,4 +101,105 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
 
         return AcceptedAtAction(nameof(GetById), new { runId = result.Value.Id }, result.Value.ToResponse());
     }
+
+    /// <summary>Cancels a queued or running standardized benchmark run.</summary>
+    /// <remarks>Requires the Admin role. Cancel is process-level and may take up to one problem to take effect.</remarks>
+    [HttpPost("{runId:guid}/cancel")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Cancel(Guid runId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.CancelStandardBenchmarkRunCommand(runId), cancellationToken);
+        return result.IsSuccess
+            ? Ok()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Deletes a standardized benchmark run. Running runs must be cancelled first.</summary>
+    /// <remarks>Requires the Admin role. Deletion is hard.</remarks>
+    [HttpDelete("{runId:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(Guid runId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.DeleteStandardBenchmarkRunCommand(runId), cancellationToken);
+        return result.IsSuccess
+            ? NoContent()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Requeues a failed or cancelled run with the same parameters.</summary>
+    /// <remarks>Requires the Admin role. The original run row is preserved.</remarks>
+    [HttpPost("{runId:guid}/requeue")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(typeof(StandardBenchmarkRunResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StandardBenchmarkRunResponse>> Requeue(Guid runId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.RequeueStandardBenchmarkRunCommand(runId), cancellationToken);
+        return result.IsSuccess
+            ? AcceptedAtAction(nameof(GetById), new { runId = result.Value.Id }, result.Value.ToResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Sets the queue priority of a queued run. Lower values run first.</summary>
+    /// <remarks>Requires the Admin role.</remarks>
+    [HttpPut("{runId:guid}/priority")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> SetPriority(
+        Guid runId,
+        [FromBody] SetStandardBenchmarkRunPriorityRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new ApiError("StandardBenchmark.InvalidRequest", "A priority value is required."));
+        }
+
+        var result = await sender.Send(new StandardBenchmarkFeatures.SetStandardBenchmarkRunPriorityCommand(runId, request.Priority), cancellationToken);
+        return result.IsSuccess
+            ? Ok()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Returns the scrubbed runner log for a standardized benchmark run.</summary>
+    [HttpGet("{runId:guid}/log")]
+    [ProducesResponseType(typeof(StandardBenchmarkRunLogResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StandardBenchmarkRunLogResponse>> GetLog(Guid runId, CancellationToken cancellationToken)
+    {
+        var run = await sender.Send(new StandardBenchmarkFeatures.GetStandardBenchmarkRunQuery(runId), cancellationToken);
+        if (run.IsFailure)
+        {
+            return TutoringMapping.ToActionResult(run.Error);
+        }
+
+        if (string.IsNullOrWhiteSpace(run.Value.EngineRunId))
+        {
+            return NotFound(new ApiError("StandardBenchmark.LogUnavailable", "This run has no runner log."));
+        }
+
+        var log = await sender.Send(new StandardBenchmarkFeatures.GetStandardBenchmarkRunLogQuery(runId), cancellationToken);
+        return log.IsSuccess
+            ? Ok(new StandardBenchmarkRunLogResponse(runId, log.Value ?? string.Empty))
+            : TutoringMapping.ToActionResult(log.Error);
+    }
 }

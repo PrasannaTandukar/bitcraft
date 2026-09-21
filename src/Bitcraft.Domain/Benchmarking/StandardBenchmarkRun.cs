@@ -31,7 +31,7 @@ public class StandardBenchmarkRun : BaseModel
     public DateTime? StartedUtc { get; set; }
     public DateTime? CompletedUtc { get; set; }
 
-    /// <summary>Coarse execution stage reported by the engine (loading-dataset, evaluating, finalizing).</summary>
+    /// <summary>Coarse execution stage reported by the engine (loading-dataset, evaluating, scoring).</summary>
     public string? ProgressStage { get; set; }
 
     /// <summary>Number of problems completed so far, as reported by the engine. Null until the engine reports counts.</summary>
@@ -45,6 +45,18 @@ public class StandardBenchmarkRun : BaseModel
 
     /// <summary>Timestamp of the last progress update received from the engine.</summary>
     public DateTime? LastProgressUtc { get; set; }
+
+    /// <summary>
+    /// Engine-side run id returned when the run started. Required to cancel or read the
+    /// log of a run that is already executing. Null while the run is queued.
+    /// </summary>
+    public string? EngineRunId { get; set; }
+
+    /// <summary>Timestamp when the run was cancelled. Null unless the status is Cancelled.</summary>
+    public DateTime? CancelledUtc { get; set; }
+
+    /// <summary>Queue priority. Lower values run first (DR-5). Zero is normal.</summary>
+    public int Priority { get; set; }
 
     public string? EngineName { get; set; }
     public string? EngineVersion { get; set; }

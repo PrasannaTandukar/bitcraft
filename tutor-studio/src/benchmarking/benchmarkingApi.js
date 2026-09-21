@@ -42,3 +42,20 @@ export const getStandardBenchmarkRunProgress = (runId, signal) =>
 
 export const createStandardBenchmarkRun = (payload) =>
   apiFetch("/api/standard-benchmark-runs", { method: "POST", json: payload });
+
+// ----- Run controls (WS3-WS5) -----
+
+export const cancelStandardBenchmarkRun = (runId) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}/cancel`, { method: "POST", parse: "none" });
+
+export const deleteStandardBenchmarkRun = (runId) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}`, { method: "DELETE", parse: "none" });
+
+export const requeueStandardBenchmarkRun = (runId) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}/requeue`, { method: "POST", json: {} });
+
+export const setStandardBenchmarkRunPriority = (runId, priority) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}/priority`, { method: "PUT", json: { priority } });
+
+export const getStandardBenchmarkRunLog = (runId, signal) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}/log`, { signal });

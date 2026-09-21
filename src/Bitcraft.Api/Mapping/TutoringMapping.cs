@@ -439,7 +439,9 @@ internal static class TutoringMapping
         run.ProgressPercent,
         run.LastProgressUtc,
         run.FailureCode,
-        run.FailureDescription);
+        run.FailureDescription,
+        run.Priority,
+        run.CancelledUtc);
 
     public static StandardBenchmarkSuiteResponse ToResponse(this StandardBenchmarkSuiteRegistry.SuiteInfo suite) => new(
         suite.Key,

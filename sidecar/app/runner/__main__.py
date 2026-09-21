@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     write_status(
         status_path,
         {
-            **base_status("completed", "finalizing"),
+            **base_status("completed", None),
             "overall_score": result.overall_score,
             "task_scores": result.task_scores,
             "task_count": result.task_count,

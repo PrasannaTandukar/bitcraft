@@ -53,6 +53,19 @@ public class StandardBenchmarkRunRepository(AppDbContext db) : IStandardBenchmar
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
+    public Task<List<StandardBenchmarkRun>> ListQueuedOrderedAsync(CancellationToken cancellationToken = default) =>
+        db.Set<StandardBenchmarkRun>()
+            .Where(x => x.Status == BenchmarkRunStatus.Queued)
+            .OrderBy(x => x.Priority)
+            .ThenBy(x => x.QueuedUtc)
+            .ToListAsync(cancellationToken);
+
+    public Task DeleteAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default)
+    {
+        db.Set<StandardBenchmarkRun>().Remove(run);
+        return db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task UpdateAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default)
     {
         db.Set<StandardBenchmarkRun>().Update(run);

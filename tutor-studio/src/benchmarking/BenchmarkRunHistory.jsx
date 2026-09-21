@@ -3,11 +3,11 @@ import { Alert, Button, Empty, Flex, Form, Select, Space, Table, Typography } fr
 import InfoTooltip from "../components/InfoTooltip.jsx";
 import BenchmarkingHelp from "./BenchmarkingHelp.jsx";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getApiErrorDescription } from "../api/client.js";
 import StatusTag from "../components/StatusTag.jsx";
 import BenchmarkRunDetails from "./BenchmarkRunDetails.jsx";
-import { StandardBenchmarkRunDrawer } from "./StandardBenchmarkHistory.jsx";
-import { getStandardBenchmarkRun, getStandardBenchmarkRunProgress, listBenchmarkRuns, listStandardBenchmarkRuns } from "./benchmarkingApi.js";
+import { listBenchmarkRuns, listStandardBenchmarkRuns } from "./benchmarkingApi.js";
 import { formatDateTime, formatPercent, toHistoryRow } from "./benchmarkingUtils.js";
 
 const POLL_INTERVAL_MS = 10_000;
@@ -19,7 +19,7 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [standardDetail, setStandardDetail] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,41 +57,6 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
 
   const selectedRow = rows.find((row) => row.id === selectedRunId) ?? null;
 
-  // While a standard run is open, load its detail and poll the lightweight
-  // progress endpoint while active. Refetch the full run once it settles so
-  // the drawer shows the per-task score table.
-  const standardOpen = selectedRow?.kind === "standard";
-  useEffect(() => {
-    if (!standardOpen || !selectedRunId) return undefined;
-    const controller = new AbortController();
-    getStandardBenchmarkRun(selectedRunId, controller.signal)
-      .then((data) => setStandardDetail(data))
-      .catch(() => { /* keep the row data on failure */ });
-    return () => controller.abort();
-  }, [standardOpen, selectedRunId]);
-
-  const standardActive = standardDetail !== null && isActiveStatus(standardDetail.status);
-  useEffect(() => {
-    if (!standardOpen || !standardActive) return undefined;
-    const timer = setInterval(() => {
-      const controller = new AbortController();
-      getStandardBenchmarkRunProgress(selectedRunId, controller.signal)
-        .then((progress) => setStandardDetail((current) => (current ? { ...current, ...progress } : current)))
-        .catch(() => { /* transient poll failure; next tick retries */ });
-    }, POLL_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [standardOpen, standardActive, selectedRunId]);
-
-  const standardSettled = standardDetail !== null && !isActiveStatus(standardDetail.status);
-  useEffect(() => {
-    if (!standardOpen || !standardSettled || standardDetail.taskScoresJson) return undefined;
-    const controller = new AbortController();
-    getStandardBenchmarkRun(selectedRunId, controller.signal)
-      .then((data) => setStandardDetail((current) => (current ? { ...current, ...data } : current)))
-      .catch(() => { /* keep the progress-derived detail on failure */ });
-    return () => controller.abort();
-  }, [standardOpen, standardSettled, standardDetail?.taskScoresJson, selectedRunId]);
-
   const selectTutor = (value) => {
     setRuns([]);
     setError("");
@@ -105,9 +70,17 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
   };
 
   const closeRun = () => {
-    setStandardDetail(null);
     refresh();
     onCloseRun();
+  };
+
+  // Standard runs drill down to their own page (D-2). Tutor runs keep the drawer.
+  const openRow = (row) => {
+    if (row.kind === "standard") {
+      navigate(`/benchmarking/runs/${row.id}`);
+      return;
+    }
+    onOpenRun(row.id);
   };
 
   if (selectedRow?.kind === "tutor" && selectedTutorId) return <BenchmarkRunDetails tutorId={selectedTutorId} runId={selectedRunId} initialRun={selectedRow.raw} onBack={closeRun} />;
@@ -188,7 +161,7 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
       key: "action",
       fixed: "right",
       width: 90,
-      render: (_, row) => <Button type="link" size="small" onClick={() => onOpenRun(row.id)}>View run</Button>,
+      render: (_, row) => <Button type="link" size="small" onClick={() => openRow(row)}>View run</Button>,
     },
   ];
 
@@ -221,9 +194,8 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
         size="middle"
         pagination={{ pageSize: 10, showSizeChanger: true }}
         locale={{ emptyText: <Empty description={selectedTutorId ? "No benchmark runs for this tutor" : "Select a tutor to view its runs. Standard runs appear without a tutor filter."} /> }}
-        onRow={(row) => ({ onDoubleClick: () => onOpenRun(row.id) })}
+        onRow={(row) => ({ onDoubleClick: () => openRow(row) })}
       />
-      <StandardBenchmarkRunDrawer detail={standardDetail} open={standardOpen} onClose={closeRun} />
     </div>
   );
 }

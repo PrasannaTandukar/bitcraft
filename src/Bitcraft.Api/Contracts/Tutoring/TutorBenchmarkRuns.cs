@@ -131,7 +131,9 @@ public sealed record StandardBenchmarkRunResponse(
     double? ProgressPercent,
     DateTime? LastProgressUtc,
     string? FailureCode,
-    string? FailureDescription);
+    string? FailureDescription,
+    int Priority,
+    DateTime? CancelledUtc);
 
 /// <summary>Lightweight standardized benchmark run progress response for polling UI state.</summary>
 public sealed record StandardBenchmarkRunProgressResponse(
@@ -161,3 +163,9 @@ public sealed record StandardBenchmarkSuiteResponse(
     int MaxShots,
     bool Enabled,
     string Modality);
+
+/// <summary>Sets the queue priority of a standardized benchmark run. Lower values run first.</summary>
+public sealed record SetStandardBenchmarkRunPriorityRequest(int Priority);
+
+/// <summary>Scrubbed, capped runner log for one standardized benchmark run.</summary>
+public sealed record StandardBenchmarkRunLogResponse(Guid RunId, string Log);

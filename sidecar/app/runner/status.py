@@ -33,6 +33,7 @@ def base_status(state: str, stage: str | None) -> dict:
         "engine_version": "",
         "notes": "",
         "error": None,
+        "log_path": None,
     }
 
 

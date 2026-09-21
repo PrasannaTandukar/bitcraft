@@ -162,6 +162,83 @@ public sealed class DeepEvalBenchmarkEngine(
         }
     }
 
+    public async Task<Result<bool>> CancelStandardLlmBenchmarkAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var lease = ResolveClient();
+            var client = lease.Client;
+            using var response = await client.PostAsync($"/internal/benchmarks/{Uri.EscapeDataString(handle.RunId)}/cancel", null, cancellationToken);
+
+            // 404 means no live runner is held. The caller still marks the run
+            // cancelled, so an already-finished run is not an error here.
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return Result.Success(false);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync(
+                    DeepEvalBenchmarkJsonContext.Default.SidecarError,
+                    cancellationToken);
+                return Result.Failure<bool>(new Error(
+                    error?.Code ?? "Benchmark.StandardLlmCancelFailed",
+                    error?.Description ?? $"Standard LLM benchmark cancel failed with status {(int)response.StatusCode}."));
+            }
+
+            return Result.Success(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Cancelling DeepEval standard LLM benchmark through sidecar failed.");
+            return Result.Failure<bool>(new Error("Benchmark.SidecarException", SafeSidecarFailureDescription));
+        }
+    }
+
+    public async Task<Result<string?>> GetStandardLlmBenchmarkLogAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var lease = ResolveClient();
+            var client = lease.Client;
+            using var response = await client.GetAsync($"/internal/benchmarks/{Uri.EscapeDataString(handle.RunId)}/log", cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return Result.Success<string?>(null);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync(
+                    DeepEvalBenchmarkJsonContext.Default.SidecarError,
+                    cancellationToken);
+                return Result.Failure<string?>(new Error(
+                    error?.Code ?? "Benchmark.StandardLlmLogFailed",
+                    error?.Description ?? $"Standard LLM benchmark log call failed with status {(int)response.StatusCode}."));
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync(
+                DeepEvalBenchmarkJsonContext.Default.SidecarStandardBenchmarkLogResponse,
+                cancellationToken);
+            return Result.Success<string?>(payload?.Log);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Reading DeepEval standard LLM benchmark log through sidecar failed.");
+            return Result.Failure<string?>(new Error("Benchmark.SidecarException", SafeSidecarFailureDescription));
+        }
+    }
+
     public async Task<Result<StandardBenchmarkStatus>> GetStandardLlmBenchmarkStatusAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default)
     {
         try
