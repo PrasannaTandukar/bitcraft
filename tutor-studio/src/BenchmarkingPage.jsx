@@ -6,7 +6,6 @@ import { getApiErrorDescription } from "./api/client.js";
 import BenchmarkRunHistory from "./benchmarking/BenchmarkRunHistory.jsx";
 import BenchmarkRunWizard from "./benchmarking/BenchmarkRunWizard.jsx";
 import BenchmarkTemplatesPanel from "./benchmarking/BenchmarkTemplatesPanel.jsx";
-import StandardBenchmarkHistory from "./benchmarking/StandardBenchmarkHistory.jsx";
 import { listTutors } from "./benchmarking/benchmarkingApi.js";
 import PageHeader from "./components/PageHeader.jsx";
 import "./benchmarking/Benchmarking.css";
@@ -18,7 +17,7 @@ export default function BenchmarkingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") || (canManage ? "new" : "history");
   const tab = !canManage && requestedTab !== "history" ? "history" : requestedTab;
-  const validTab = ["new", "history", "standard", "templates"].includes(tab) ? tab : canManage ? "new" : "history";
+  const validTab = ["new", "history", "templates"].includes(tab) ? tab : canManage ? "new" : "history";
   const selectedTutorId = searchParams.get("tutorId") || searchParams.get("tutor") || "";
   const selectedRevisionId = searchParams.get("revisionId") || searchParams.get("revision") || "";
   const selectedRunId = searchParams.get("run") || "";
@@ -56,14 +55,10 @@ export default function BenchmarkingPage() {
     setSearchParams(next);
   };
 
-  const updateHistoryLocation = (tutorId, runId = "", kind = "tutor") => {
+  const updateHistoryLocation = (tutorId, runId = "") => {
     const next = new URLSearchParams(searchParams);
-    next.set("tab", kind === "standard" ? "standard" : "history");
-    if (kind !== "standard") {
-      if (tutorId) next.set("tutorId", tutorId); else next.delete("tutorId");
-    } else {
-      next.delete("tutorId");
-    }
+    next.set("tab", "history");
+    if (tutorId) next.set("tutorId", tutorId); else next.delete("tutorId");
     if (runId) next.set("run", runId); else next.delete("run");
     setSearchParams(next);
   };
@@ -86,22 +81,8 @@ export default function BenchmarkingPage() {
     } : null,
     {
       key: "history",
-      label: "Run history",
+      label: "Evaluations",
       children: <BenchmarkRunHistory tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} selectedTutorId={selectedTutorId} selectedRunId={selectedRunId} onSelectTutor={(tutorId) => updateHistoryLocation(tutorId)} onOpenRun={(runId) => updateHistoryLocation(selectedTutorId, runId)} onCloseRun={() => updateHistoryLocation(selectedTutorId)} />,
-    },
-    {
-      key: "standard",
-      label: "Standard benchmarks",
-      children: <StandardBenchmarkHistory selectedRunId={selectedRunId} onOpenRun={(runId) => {
-        const next = new URLSearchParams(searchParams);
-        next.set("tab", "standard");
-        next.set("run", runId);
-        setSearchParams(next);
-      }} onCloseRun={() => {
-        const next = new URLSearchParams(searchParams);
-        next.delete("run");
-        setSearchParams(next);
-      }} />,
     },
     canManage ? { key: "templates", label: "Templates", children: <BenchmarkTemplatesPanel /> } : null,
   ].filter(Boolean);

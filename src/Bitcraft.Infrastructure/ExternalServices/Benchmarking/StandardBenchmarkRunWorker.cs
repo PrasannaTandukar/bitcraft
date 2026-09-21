@@ -16,14 +16,27 @@ public sealed class StandardBenchmarkRunWorker(
     private const string WorkerFailureCode = "StandardBenchmark.WorkerException";
     private const string WorkerFailureDescription = "Standardized benchmark worker failed while processing the run.";
 
+    // The sidecar enforces exactly one runner slot (decision D-R2). The worker must
+    // match that: starting a second run in parallel makes it hit 409 and fail as
+    // StandardBenchmark.SidecarBusy, which drops a queued run instead of running it.
+    // Stall protection comes from ReapStalledRunsAsync and the per-run timeout, not
+    // from concurrency.
+    private const int MaxParallelLanes = 1;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await RecoverPersistedRunsAsync(stoppingToken);
 
-        await foreach (var runId in queue.ReadAllAsync(stoppingToken))
+        var parallelOptions = new ParallelOptions
         {
-            await ProcessRunAsync(runId, stoppingToken);
-        }
+            MaxDegreeOfParallelism = MaxParallelLanes,
+            CancellationToken = stoppingToken
+        };
+
+        await Parallel.ForEachAsync(queue.ReadAllAsync(stoppingToken), parallelOptions, async (runId, token) =>
+        {
+            await ProcessRunAsync(runId, token);
+        });
     }
 
     private async Task RecoverPersistedRunsAsync(CancellationToken stoppingToken)

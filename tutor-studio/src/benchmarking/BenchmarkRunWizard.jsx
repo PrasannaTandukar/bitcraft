@@ -4,15 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { getApiErrorDescription } from "../api/client.js";
 import BenchmarkCaseEditor from "./BenchmarkCaseEditor.jsx";
-import { createBenchmarkRun, createStandardBenchmarkRun, listBenchmarkTemplates, listInteractionModelsForAdmin, listStandardBenchmarkSuites, listTutorRevisions } from "./benchmarkingApi.js";
+import { createBenchmarkRun, createStandardBenchmarkRun, listBenchmarkTemplates, listStandardBenchmarkSuites, listTutorRevisions } from "./benchmarkingApi.js";
 import { emptyBenchmarkCase, formatPercent, isUsableRevision, METRIC_DETAILS, metricName, parseMetrics, revisionStatus } from "./benchmarkingUtils.js";
-import { ARDUINO_PRESET_CASES } from "./presetBenchmarks.js";
+import BenchmarkingHelp from "./BenchmarkingHelp.jsx";
 import { STANDARD_BENCHMARK_TASKS } from "./standardBenchmarkTasks.js";
 
 const STEP_LABELS = ["Tutor Selection", "Benchmark Selection", "Review & Launch"];
 
 export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError, initialTutorId, initialRevisionId, onSelectionChange, onConfigureTutor, onOpenTemplates, onCreated }) {
-  const [benchmarkType, setBenchmarkType] = useState("rag"); // "rag" | "standard" | "arduino"
+  const [benchmarkType, setBenchmarkType] = useState("rag"); // "rag" | "standard"
   const [step, setStep] = useState(1);
   const [tutorId, setTutorId] = useState(initialTutorId || "");
   const [revisions, setRevisions] = useState([]);
@@ -31,13 +31,9 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [nShots, setNShots] = useState(0);
   const [nProblems, setNProblems] = useState(10);
-  const [standardModelId, setStandardModelId] = useState("");
   const [standardSuites, setStandardSuites] = useState([]);
   const [standardSuitesLoading, setStandardSuitesLoading] = useState(true);
   const [standardSuitesError, setStandardSuitesError] = useState("");
-  const [interactionModels, setInteractionModels] = useState([]);
-  const [interactionModelsLoading, setInteractionModelsLoading] = useState(true);
-  const [interactionModelsError, setInteractionModelsError] = useState("");
   const [validationError, setValidationError] = useState("");
   const [launchError, setLaunchError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -85,27 +81,7 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     return () => controller.abort();
   }, []);
 
-  // The interaction-model list is Admin-only on the backend. Fetch it only for
-  // admins so Editors do not trigger a guaranteed 403 on page load.
-  useEffect(() => {
-    if (!isAdmin) return undefined;
-    const controller = new AbortController();
-    listInteractionModelsForAdmin(controller.signal)
-      .then((data) => {
-        setInteractionModels(data ?? []);
-        setInteractionModelsError("");
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError") setInteractionModelsError(getApiErrorDescription(error, "Could not load interaction models."));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setInteractionModelsLoading(false);
-      });
-    return () => controller.abort();
-  }, [isAdmin]);
-
   const selectedStandardSuite = standardSuites.find((suite) => suite.key === selectedStandardBenchmark);
-  const selectedStandardModel = interactionModels.find((model) => model.id === standardModelId);
 
   useEffect(() => {
     if (!tutorId) return undefined;
@@ -141,23 +117,11 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
 
   const selectBenchmarkCategory = (nextCategory) => {
     setBenchmarkType(nextCategory);
-    if (nextCategory === "arduino") {
-      setCases(ARDUINO_PRESET_CASES);
-      setAutomatic(true);
-    }
-    // Standard runs no longer use preset cases: they execute against the real
-    // DeepEval dataset via the sidecar, so no case editing applies.
-    // The stage-1 target form depends on the category. If the new category needs
-    // a target the user has not chosen, return to stage 1 so the matching target
-    // form is completed before benchmark configuration. Stage-2 selections are
-    // preserved and the user returns here after fixing the target.
-    const targetMissing = nextCategory === "standard"
-      ? !standardModelId
-      : !tutorId || !revisionId;
+    // Every category needs a tutor and a revision. Return to step 1 when either
+    // is missing; step-2 selections stay and the user returns here after fixing.
+    const targetMissing = !tutorId || !revisionId;
     if (targetMissing) {
-      setValidationError(nextCategory === "standard"
-        ? "Standardized benchmarks evaluate an interaction model directly. Select one to continue."
-        : "Tutor benchmarks evaluate a tutor revision. Select a tutor and revision to continue.");
+      setValidationError("Tutor benchmarks evaluate a tutor revision. Select a tutor and revision to continue.");
       setStep(1);
     }
   };
@@ -174,13 +138,10 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
   };
 
   const validateStep = (stepNumber) => {
-    if (stepNumber === 1 && benchmarkType !== "standard") {
+    if (stepNumber === 1) {
       if (!selectedTutor) return "Select a tutor.";
       if (!selectedRevision) return "Select a tutor revision.";
       if (!isUsableRevision(selectedRevision)) return "This revision is not benchmark-ready. Activate a configured revision so its immutable snapshot can be captured.";
-    }
-    if (stepNumber === 1 && benchmarkType === "standard") {
-      if (!standardModelId) return "Select an interaction model to evaluate.";
     }
     if (stepNumber === 2) {
       if (benchmarkType === "rag" && !selectedTemplate) {
@@ -239,13 +200,13 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
     try {
       if (benchmarkType === "standard") {
         const created = await createStandardBenchmarkRun({
-          interactionModelId: standardModelId,
+          interactionModelId: selectedRevision?.interactionModelId ?? null,
           benchmarkKey: selectedStandardBenchmark,
           tasks: selectedTasks.length ? selectedTasks : null,
           nShots,
           nProblems,
         });
-        onCreated(null, created.id, "standard");
+        onCreated(tutorId, created.id);
         return;
       }
       const created = await createBenchmarkRun(tutorId, {
@@ -279,34 +240,18 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
       <Steps current={step - 1} items={STEP_LABELS.map((title) => ({ title }))} responsive style={{ marginBottom: 20 }} />
 
       {step === 1 ? (
-        benchmarkType === "standard" ? (
-          <Card title="Select target interaction model">
-            <Typography.Paragraph type="secondary">Standardized benchmarks evaluate a model directly against public datasets. Tutor prompts and knowledge are not involved.</Typography.Paragraph>
-            {interactionModelsError ? <Alert type="error" title={interactionModelsError} showIcon style={{ marginBottom: 16 }} /> : null}
-            <Form layout="vertical" requiredMark={false}>
-              <Form.Item label="Interaction model" required>
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  value={standardModelId || undefined}
-                  onChange={setStandardModelId}
-                  loading={interactionModelsLoading}
-                  placeholder="Select an interaction model"
-                  options={interactionModels.map((model) => ({ value: model.id, label: `${model.name} · ${model.providerModelName || "Provider model not specified"}` }))}
-                />
-              </Form.Item>
-            </Form>
-            {selectedStandardModel ? (
-              <Descriptions className="benchmark-selection-summary" bordered size="small" column={{ xs: 1, sm: 2 }}>
-                <Descriptions.Item label="Model">{selectedStandardModel.name}</Descriptions.Item>
-                <Descriptions.Item label="Provider model">{selectedStandardModel.providerModelName || "Not specified"}</Descriptions.Item>
-                <Descriptions.Item label="Runtime engine">{selectedStandardModel.runtimeEngineName || "—"}</Descriptions.Item>
-              </Descriptions>
-            ) : null}
-          </Card>
-        ) : (
         <Card title="Select target tutor and revision">
           <Typography.Paragraph type="secondary">Choose the exact tutor configuration to evaluate with this run.</Typography.Paragraph>
+          <BenchmarkingHelp
+            title="How to start a run"
+            steps={[
+              "Select a tutor.",
+              "Select a published or active revision.",
+              "Choose a benchmark category on the next step.",
+              "Review the summary, then launch the run.",
+            ]}
+            note="A revision needs a prompt, an enabled model, and an activation snapshot before you can benchmark it."
+          />
           {tutorsError ? <Alert type="error" title={tutorsError} showIcon style={{ marginBottom: 16 }} /> : null}
           <Form layout="vertical" requiredMark={false}>
             <Form.Item label="Tutor" required extra={selectedTutor?.description}>
@@ -339,7 +284,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
           ) : null}
           {selectedRevision && !isUsableRevision(selectedRevision) ? <Alert type="warning" title="This revision needs a valid prompt, an enabled interaction model, and an activation snapshot before it can be benchmarked." showIcon style={{ marginTop: 16 }} /> : null}
         </Card>
-        )
       ) : null}
 
       {step === 2 ? (
@@ -374,19 +318,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
                   <Radio value="standard" disabled={!isAdmin}><Typography.Text strong>Standard LLM Benchmarks</Typography.Text>{!isAdmin ? <Tag color="default" style={{ marginLeft: 8 }}>Admin only</Tag> : null}</Radio>
                   <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
                     Zero-sandbox standardized datasets (MMLU, GSM8K, BBH, HellaSwag, DROP, TruthfulQA) for raw model reasoning.
-                  </Typography.Paragraph>
-                </Card>
-              </Col>
-              <Col xs={24} md={8}>
-                <Card
-                  size="small"
-                  hoverable
-                  onClick={() => selectBenchmarkCategory("arduino")}
-                  style={{ height: "100%", cursor: "pointer", borderColor: benchmarkType === "arduino" ? "#1677ff" : undefined }}
-                >
-                  <Radio value="arduino"><Typography.Text strong>Custom Hardware / STEM Diagnostics</Typography.Text></Radio>
-                  <Typography.Paragraph type="secondary" style={{ margin: "8px 0 0 24px", fontSize: 13 }}>
-                    Multi-modal visual circuit diagnostic suite (Arduino board schematics + code + Socratic guidance quality).
                   </Typography.Paragraph>
                 </Card>
               </Col>
@@ -506,18 +437,6 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
             </Card>
           ) : null}
 
-          {benchmarkType === "arduino" ? (
-            <Card title="2. Arduino Hardware Diagnostic Suite (Skeleton)">
-              <Typography.Paragraph type="secondary">Multimodal evaluation covering visual pinout detection, circuit comprehension, and pedagogical guidance quality.</Typography.Paragraph>
-              <Alert type="info" title="4-Stage Weighted Evaluation: Detail Detection (20%), Circuit Comprehension (30%), Solution Reasoning (30%), Guidance Pedagogy (20%)." showIcon style={{ marginBottom: 16 }} />
-              <Descriptions bordered size="small" column={1}>
-                <Descriptions.Item label="Target Domain">Arduino Uno / Nano STEM Troubleshooting</Descriptions.Item>
-                <Descriptions.Item label="Input Modality">Image (schematic/breadboard) + Prompt + C++ Code</Descriptions.Item>
-                <Descriptions.Item label="Minor Safety Guardrails">COPPA/GDPR-K Child Safety + Socratic Non-Leaking Guidance</Descriptions.Item>
-              </Descriptions>
-            </Card>
-          ) : null}
-
           {benchmarkType !== "standard" ? (
             <>
               <Card title="3. Test cases and execution">
@@ -550,7 +469,8 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
         <Card title="Review and launch">
           {benchmarkType === "standard" ? (
             <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-              <Descriptions.Item label="Model">{selectedStandardModel ? `${selectedStandardModel.name} · ${selectedStandardModel.providerModelName || "Provider model not specified"}` : "—"}</Descriptions.Item>
+              <Descriptions.Item label="Revision">Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</Descriptions.Item>
+              <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
               <Descriptions.Item label="Category">Standard LLM Benchmark</Descriptions.Item>
               <Descriptions.Item label="Suite">{selectedStandardSuite?.displayName || selectedStandardBenchmark}</Descriptions.Item>
               <Descriptions.Item label="Few-shot examples">{nShots}</Descriptions.Item>
@@ -565,9 +485,9 @@ export default function BenchmarkRunWizard({ tutors, tutorsLoading, tutorsError,
               <Descriptions.Item label="Tutor">{selectedTutor?.name}</Descriptions.Item>
               <Descriptions.Item label="Revision">Revision {selectedRevision?.versionNumber} · {revisionStatus(selectedRevision?.status)}</Descriptions.Item>
               <Descriptions.Item label="Model">{selectedRevision?.providerModelName || selectedRevision?.interactionModelName || "Configured model"}</Descriptions.Item>
-              <Descriptions.Item label="Category">{benchmarkType === "rag" ? "Tutor RAG Evaluation" : "Arduino Diagnostic"}</Descriptions.Item>
-              <Descriptions.Item label="Template / Suite">{benchmarkType === "rag" ? (selectedTemplate?.name || "None") : "Arduino 15-Question Suite"}</Descriptions.Item>
-              <Descriptions.Item label="Metrics">{benchmarkType === "rag" ? (selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "Default quality metrics") : "Standard dataset scoring"}</Descriptions.Item>
+              <Descriptions.Item label="Category">Tutor RAG Evaluation</Descriptions.Item>
+              <Descriptions.Item label="Template / Suite">{selectedTemplate?.name || "None"}</Descriptions.Item>
+              <Descriptions.Item label="Metrics">{selectedMetrics.map((metric) => metricName(metric.key)).join(", ") || "Default quality metrics"}</Descriptions.Item>
               <Descriptions.Item label="Logical questions">{cases.length}</Descriptions.Item>
               <Descriptions.Item label="Consistency runs">{consistencyRuns}</Descriptions.Item>
             </Descriptions>

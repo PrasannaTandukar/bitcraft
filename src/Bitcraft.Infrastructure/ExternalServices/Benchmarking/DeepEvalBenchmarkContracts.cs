@@ -83,6 +83,8 @@ internal sealed record SidecarStandardBenchmarkStatusResponse(
     [property: JsonPropertyName("overall_score")] double? OverallScore,
     [property: JsonPropertyName("task_scores")] IReadOnlyList<SidecarTaskScorePayload>? TaskScores,
     [property: JsonPropertyName("task_count")] int TaskCount,
+    [property: JsonPropertyName("completed_tasks")] int? CompletedTasks,
+    [property: JsonPropertyName("total_tasks")] int? TotalTasks,
     [property: JsonPropertyName("engine_version")] string EngineVersion,
     [property: JsonPropertyName("notes")] string Notes,
     [property: JsonPropertyName("error")] string? Error,

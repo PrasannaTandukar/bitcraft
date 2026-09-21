@@ -194,6 +194,8 @@ public sealed class DeepEvalBenchmarkEngine(
                 status.OverallScore,
                 status.TaskScores?.Select(x => new StandardBenchmarkTaskScore(x.Task, x.Score)).ToList(),
                 status.TaskCount,
+                status.CompletedTasks,
+                status.TotalTasks,
                 status.EngineVersion,
                 status.Notes,
                 status.Error));

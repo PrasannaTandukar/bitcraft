@@ -1,0 +1,41 @@
+[
+  {
+    "input": "My LED connected to Pin 13 is not blinking even though the sketch uploaded successfully. Here is the sketch: void setup() { pinMode(13, OUTPUT); } void loop() { digitalWrite(13, HIGH); }",
+    "expected_output": "The LED needs to be toggled with a delay (LOW then HIGH) to blink. Also check if the cathode is connected to GND with an appropriate current-limiting resistor.",
+    "context": [
+      "Arduino Uno digital output pins provide 5V. LEDs require a current-limiting resistor (e.g. 220 ohm) in series to ground. Blinking requires state toggling with delay()."
+    ],
+    "metadata": {
+      "category": "arduino_visual_diagnostic",
+      "difficulty": "beginner",
+      "circuitFlaw": "Missing delay and state toggle in loop; verify GND path",
+      "targetComponent": "LED / Pin 13"
+    }
+  },
+  {
+    "input": "I have a push button connected to Pin 2, but digitalRead(2) keeps returning random HIGH and LOW values when not pressed.",
+    "expected_output": "The pin is floating because there is no pull-up or pull-down resistor. Use pinMode(2, INPUT_PULLUP) to enable the internal pull-up resistor.",
+    "context": [
+      "Digital input pins on ATmega328P are high-impedance. A floating pin picks up electromagnetic noise unless tied to VCC or GND via a pull-up/down resistor or internal pull-up."
+    ],
+    "metadata": {
+      "category": "arduino_visual_diagnostic",
+      "difficulty": "intermediate",
+      "circuitFlaw": "Floating input pin without pull-up/down reference",
+      "targetComponent": "Push Button / Pin 2"
+    }
+  },
+  {
+    "input": "My I2C OLED display (SSD1306) is not showing anything on Arduino Uno. Connected SDA to Pin 4 and SCL to Pin 5.",
+    "expected_output": "On an Arduino Uno, hardware I2C pins are A4 (SDA) and A5 (SCL), not digital pins 4 and 5. Reconnect SDA to A4 and SCL to A5.",
+    "context": [
+      "Arduino Uno (ATmega328P) dedicated TWI/I2C pins are mapped to Analog pins A4 (SDA) and A5 (SCL). Digital pins 4 and 5 cannot be used for standard Wire library hardware I2C."
+    ],
+    "metadata": {
+      "category": "arduino_visual_diagnostic",
+      "difficulty": "intermediate",
+      "circuitFlaw": "Incorrect I2C bus wiring on Uno (Digital 4/5 instead of A4/A5)",
+      "targetComponent": "SSD1306 OLED / I2C Bus"
+    }
+  }
+]

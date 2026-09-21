@@ -34,6 +34,15 @@ public class StandardBenchmarkRun : BaseModel
     /// <summary>Coarse execution stage reported by the engine (loading-dataset, evaluating, finalizing).</summary>
     public string? ProgressStage { get; set; }
 
+    /// <summary>Number of problems completed so far, as reported by the engine. Null until the engine reports counts.</summary>
+    public int? CompletedTasks { get; set; }
+
+    /// <summary>Total number of problems to evaluate, as reported by the engine. Null until the engine reports counts.</summary>
+    public int? TotalTasks { get; set; }
+
+    /// <summary>Progress percentage (0-100) derived from completed/total. Null until the engine reports counts.</summary>
+    public double? ProgressPercent { get; set; }
+
     /// <summary>Timestamp of the last progress update received from the engine.</summary>
     public DateTime? LastProgressUtc { get; set; }
 

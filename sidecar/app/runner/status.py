@@ -28,6 +28,8 @@ def base_status(state: str, stage: str | None) -> dict:
         "overall_score": None,
         "task_scores": None,
         "task_count": 0,
+        "completed_tasks": None,
+        "total_tasks": None,
         "engine_version": "",
         "notes": "",
         "error": None,

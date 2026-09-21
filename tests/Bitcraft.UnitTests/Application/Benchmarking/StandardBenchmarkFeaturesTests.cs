@@ -1,3 +1,5 @@
+using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Benchmarking;
 using Bitcraft.Domain.Benchmarking;
 using Bitcraft.Domain.Modeling;
@@ -361,6 +363,8 @@ public class StandardBenchmarkFeaturesTests
                 0.9,
                 [new Bitcraft.Application.Common.Models.StandardBenchmarkTaskScore("abstract_algebra", 0.75)],
                 1,
+                2,
+                2,
                 "deepeval-fake",
                 "done",
                 null)));
@@ -385,6 +389,131 @@ public class StandardBenchmarkFeaturesTests
     }
 
     [Fact]
+    public async Task Process_ReapsStalledRun_BeforeStartingNewRun()
+    {
+        // WS3: a run stuck in Running with stale progress is reaped so it cannot
+        // hold the single sidecar slot and block later runs.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        var stalled = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running,
+            StartedUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            LastProgressUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        runs.Runs[stalled.Id] = stalled;
+
+        var current = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "gsm8k",
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[current.Id] = current;
+
+        var handler = StalledProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(current.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BenchmarkRunStatus.Failed, stalled.Status);
+        Assert.Equal("StandardBenchmark.Stalled", stalled.FailureCode);
+        Assert.Equal(BenchmarkRunStatus.Completed, current.Status);
+    }
+
+    [Fact]
+    public async Task Process_DoesNotReapFreshRunningRun()
+    {
+        // A run with recent progress must not be reaped.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        var fresh = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running,
+            StartedUtc = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+            LastProgressUtc = new DateTime(2026, 6, 1, 0, 5, 0, DateTimeKind.Utc)
+        };
+        runs.Runs[fresh.Id] = fresh;
+
+        var current = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "gsm8k",
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[current.Id] = current;
+
+        var handler = StalledProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(current.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BenchmarkRunStatus.Running, fresh.Status);
+        Assert.Null(fresh.FailureCode);
+    }
+
+    private static StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunHandler StalledProcessHandler(
+        FakeStandardBenchmarkRunRepository runs,
+        FakeModelRepository models,
+        FakeBenchmarkEngine engine) =>
+        new(
+            runs,
+            models,
+            engine,
+            Options.Create(new StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions { StalledAfterSeconds = 3600 }),
+            new Bitcraft.UnitTests.Application.Chat.FakeAttachmentTimeProvider(new DateTimeOffset(2026, 6, 1, 1, 0, 0, TimeSpan.Zero)));
+
+    [Fact]
+    public async Task Process_CompletedRun_PersistsProgressFields()
+    {
+        // WS2: engine-reported completed/total counts round-trip onto the run and
+        // ProgressPercent is derived from them.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine();
+        engine.StatusResults.Enqueue(Bitcraft.Application.Common.Models.Result.Success(
+            new Bitcraft.Application.Common.Models.StandardBenchmarkStatus(
+                Bitcraft.Application.Common.Models.StandardBenchmarkStatus.StateCompleted,
+                "finalizing",
+                0.75,
+                null,
+                4,
+                3,
+                4,
+                "deepeval-fake",
+                "done",
+                null)));
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "mmlu",
+            NProblems = 4,
+            Status = BenchmarkRunStatus.Queued
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = ProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, run.CompletedTasks);
+        Assert.Equal(4, run.TotalTasks);
+        Assert.Equal(75.0, run.ProgressPercent);
+    }
+
+    [Fact]
     public async Task Process_WithUnknownRunnerState_MarksRunFailed()
     {
         // An unrecognized state must fail fast instead of polling for the whole budget.
@@ -398,6 +527,8 @@ public class StandardBenchmarkFeaturesTests
                 null,
                 null,
                 0,
+                null,
+                null,
                 "deepeval-fake",
                 "",
                 null)));
@@ -459,6 +590,8 @@ public class StandardBenchmarkFeaturesTests
                 null,
                 null,
                 0,
+                null,
+                null,
                 "deepeval-fake",
                 "",
                 "model unavailable")));
@@ -508,12 +641,145 @@ public class StandardBenchmarkFeaturesTests
     // ----- Suite registry -----
 
     [Fact]
-    public void SuiteRegistry_ContainsSevenSuites_WithHumanEvalDisabled()
+    public void SuiteRegistry_ContainsEightSuites_WithHumanEvalDisabled()
     {
-        Assert.Equal(7, StandardBenchmarkSuiteRegistry.Suites.Count);
+        // WS5: the Arduino custom benchmark joins the seven deepeval suites.
+        Assert.Equal(8, StandardBenchmarkSuiteRegistry.Suites.Count);
         Assert.True(StandardBenchmarkSuiteRegistry.Find("human_eval") is { Enabled: false });
         Assert.True(StandardBenchmarkSuiteRegistry.IsEnabled("mmlu"));
+        Assert.True(StandardBenchmarkSuiteRegistry.IsEnabled("arduino"));
         Assert.True(StandardBenchmarkSuiteRegistry.Find("gsm8k")!.SupportsProblemCap);
         Assert.False(StandardBenchmarkSuiteRegistry.Find("truthful_qa")!.SupportsShots);
+    }
+
+    [Fact]
+    public void SuiteRegistry_AllSuites_DefaultToTextModality()
+    {
+        // WS0: every shipped suite is text-only. Image suites arrive with WS5.
+        Assert.All(StandardBenchmarkSuiteRegistry.Suites, s =>
+            Assert.Equal(BenchmarkInputModality.Text, s.Modality));
+    }
+
+    // ----- Modality preflight (WS0) -----
+
+    [Fact]
+    public async Task Create_ImageSuite_WithNoImageSupport_FailsBeforeQueue()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        var handler = new NoImageSupportHandler(runs, models, new FakeStandardBenchmarkRunQueue(), Admin());
+        var cmd = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunCommand(model.Id, "mmlu", null, 0, 10);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.ModalityUnsupported", result.Error.Code);
+        Assert.Empty(runs.Runs);
+    }
+
+    [Fact]
+    public async Task Create_ImageSuite_WithImageSupport_PassesPreflight()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        var handler = new ImageSupportHandler(runs, models, new FakeStandardBenchmarkRunQueue(), Admin());
+        var cmd = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunCommand(model.Id, "mmlu", null, 0, 10);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(runs.Runs);
+    }
+
+    [Fact]
+    public async Task Create_TextSuite_SkipsImageProbe()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+
+        // A text suite must not probe even when the model cannot accept images.
+        var handler = new TextSuiteProbeTracker(runs, models, new FakeStandardBenchmarkRunQueue(), Admin());
+        var cmd = new StandardBenchmarkFeatures.CreateStandardBenchmarkRunCommand(model.Id, "mmlu", null, 0, 10);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(handler.ProbeCalled);
+    }
+
+    private sealed class NoImageSupportHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        IModelRepository modelRepository,
+        IStandardBenchmarkRunQueue queue,
+        ICurrentUserContext currentUser)
+        : StandardBenchmarkFeatures.CreateStandardBenchmarkRunHandler(runRepository, modelRepository, queue, currentUser)
+    {
+        public bool ProbeCalled { get; private set; }
+
+        protected internal override Task<Error?> CheckModalitySupportAsync(
+            StandardBenchmarkSuiteRegistry.SuiteInfo suite,
+            InteractionModel model,
+            CancellationToken cancellationToken)
+        {
+            // Force the image branch so the preflight is exercised without an Image suite in the registry.
+            var imageSuite = new StandardBenchmarkSuiteRegistry.SuiteInfo(
+                suite.Key, suite.DisplayName, suite.Description,
+                suite.SupportsTasks, suite.SupportsShots, suite.SupportsProblemCap,
+                suite.MaxShots, suite.Enabled, BenchmarkInputModality.Image);
+            return base.CheckModalitySupportAsync(imageSuite, model, cancellationToken);
+        }
+
+        internal override Task<bool> ProbeImageSupportAsync(InteractionModel model, CancellationToken cancellationToken)
+        {
+            ProbeCalled = true;
+            return Task.FromResult(false);
+        }
+    }
+
+    private sealed class ImageSupportHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        IModelRepository modelRepository,
+        IStandardBenchmarkRunQueue queue,
+        ICurrentUserContext currentUser)
+        : StandardBenchmarkFeatures.CreateStandardBenchmarkRunHandler(runRepository, modelRepository, queue, currentUser)
+    {
+        protected internal override Task<Error?> CheckModalitySupportAsync(
+            StandardBenchmarkSuiteRegistry.SuiteInfo suite,
+            InteractionModel model,
+            CancellationToken cancellationToken)
+        {
+            var imageSuite = new StandardBenchmarkSuiteRegistry.SuiteInfo(
+                suite.Key, suite.DisplayName, suite.Description,
+                suite.SupportsTasks, suite.SupportsShots, suite.SupportsProblemCap,
+                suite.MaxShots, suite.Enabled, BenchmarkInputModality.Image);
+            return base.CheckModalitySupportAsync(imageSuite, model, cancellationToken);
+        }
+
+        internal override Task<bool> ProbeImageSupportAsync(InteractionModel model, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
+    }
+
+    private sealed class TextSuiteProbeTracker(
+        IStandardBenchmarkRunRepository runRepository,
+        IModelRepository modelRepository,
+        IStandardBenchmarkRunQueue queue,
+        ICurrentUserContext currentUser)
+        : StandardBenchmarkFeatures.CreateStandardBenchmarkRunHandler(runRepository, modelRepository, queue, currentUser)
+    {
+        public bool ProbeCalled { get; private set; }
+
+        internal override Task<bool> ProbeImageSupportAsync(InteractionModel model, CancellationToken cancellationToken)
+        {
+            ProbeCalled = true;
+            return Task.FromResult(false);
+        }
     }
 }

@@ -310,6 +310,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<int?>("CompletedTasks")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("CompletedUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -360,6 +363,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Property<double?>("OverallScore")
                         .HasColumnType("double precision");
 
+                    b.Property<double?>("ProgressPercent")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("ProgressStage")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -381,6 +387,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("TasksJson")
                         .HasColumnType("jsonb");
+
+                    b.Property<int?>("TotalTasks")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

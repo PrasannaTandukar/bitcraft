@@ -26,6 +26,12 @@ internal sealed class FakeStandardBenchmarkRunRepository : IStandardBenchmarkRun
     public Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, CancellationToken cancellationToken = default) =>
         Task.FromResult(Runs.Values.OrderByDescending(x => x.QueuedUtc).Take(limit).ToList());
 
+    public Task<List<StandardBenchmarkRun>> ListRunningAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Runs.Values
+            .Where(x => x.Status == BenchmarkRunStatus.Running)
+            .OrderBy(x => x.QueuedUtc)
+            .ToList());
+
     public Task<List<Guid>> ListRecoverableRunIdsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(Runs.Values
             .Where(x => x.Status is BenchmarkRunStatus.Queued or BenchmarkRunStatus.Running)

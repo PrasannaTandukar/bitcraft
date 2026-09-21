@@ -97,6 +97,13 @@ class SidecarLlmBenchmarkResponse(BaseModel):
     engine_version: str
     notes: str
     error: str | None = None
+    # Per-task scores for task-based benchmarks (decision D-R7). The runner
+    # reads this field to write the terminal status; it must exist or the
+    # runner raises AttributeError after evaluate() and never settles.
+    task_scores: list[SidecarTaskScore] | None = None
+    # Progress counts (WS2). Null when the engine could not report them.
+    completed_tasks: int | None = None
+    total_tasks: int | None = None
 
 
 class SidecarTaskScore(BaseModel):

@@ -219,6 +219,68 @@ public class OllamaGenerationProvider(
         return null;
     }
 
+    // 1x1 transparent PNG used by the image-input probe.
+    private const string ProbeImageBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    public async Task<Result<bool>> ProbeImageInputSupportAsync(
+        string endpoint,
+        string model,
+        string? apiKey,
+        string? providerType,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var baseUri) ||
+            (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
+        {
+            return Result.Success(false);
+        }
+
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return Result.Success(false);
+        }
+
+        var client = httpClientFactory.CreateClient(nameof(OllamaGenerationProvider));
+        client.Timeout = TimeSpan.FromSeconds(15);
+
+        var request = new GenerateRequest(
+            model.Trim(),
+            "Describe this image in one word.",
+            Stream: false,
+            Think: false,
+            new GenerateOptions(null, null, 8),
+            Images: new[] { ProbeImageBase64 });
+
+        try
+        {
+            using var response = await client.PostAsJsonAsync(new Uri(baseUri, "/api/generate"), request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return Result.Success(true);
+            }
+
+            // A text-only model rejects the image request with 400/415/422.
+            if ((int)response.StatusCode is 400 or 415 or 422)
+            {
+                logger?.LogInformation("Image probe rejected by provider. Model={Model}, StatusCode={StatusCode}", model, (int)response.StatusCode);
+                return Result.Success(false);
+            }
+
+            logger?.LogWarning("Image probe failed. Model={Model}, StatusCode={StatusCode}", model, (int)response.StatusCode);
+            return Result.Success(false);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or HttpRequestException)
+        {
+            logger?.LogWarning("Image probe could not reach the provider. Model={Model}", model);
+            return Result.Success(false);
+        }
+    }
+
     private sealed record GenerateRequest(
         string Model,
         string Prompt,

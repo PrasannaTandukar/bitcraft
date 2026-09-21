@@ -66,6 +66,24 @@ public class CompositeLlmGenerationProvider(
             _ => Task.FromResult<IReadOnlyList<string>?>(null)
         };
     }
+
+    public Task<Result<bool>> ProbeImageInputSupportAsync(
+        string endpoint,
+        string model,
+        string? apiKey,
+        string? providerType,
+        CancellationToken cancellationToken = default)
+    {
+        // Fail closed: an unparseable provider type reports no image support (OD-8).
+        var dialect = CompositeProviderTypeParser.Parse(providerType)?.ToLlmDialect();
+
+        return dialect switch
+        {
+            LlmDialect.OpenAI => openAiProvider.ProbeImageInputSupportAsync(endpoint, model, apiKey, providerType, cancellationToken),
+            LlmDialect.Ollama => ollamaProvider.ProbeImageInputSupportAsync(endpoint, model, apiKey, providerType, cancellationToken),
+            _ => Task.FromResult(Result.Success(false))
+        };
+    }
 }
 
 public class CompositeEmbeddingProvider(

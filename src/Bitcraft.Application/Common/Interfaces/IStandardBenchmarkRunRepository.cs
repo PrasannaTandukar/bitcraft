@@ -12,6 +12,10 @@ public interface IStandardBenchmarkRunRepository
 
     Task<List<StandardBenchmarkRun>> ListByModelAsync(Guid interactionModelId, CancellationToken cancellationToken = default);
     Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Tracked fetch of runs currently in Running, for stall reclamation.</summary>
+    Task<List<StandardBenchmarkRun>> ListRunningAsync(CancellationToken cancellationToken = default);
+
     Task<List<Guid>> ListRecoverableRunIdsAsync(CancellationToken cancellationToken = default);
     Task UpdateAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default);
 }

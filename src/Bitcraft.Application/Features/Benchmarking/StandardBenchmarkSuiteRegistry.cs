@@ -1,3 +1,5 @@
+using Bitcraft.Domain.Benchmarking;
+
 namespace Bitcraft.Application.Features.Benchmarking;
 
 /// <summary>
@@ -17,7 +19,8 @@ public static class StandardBenchmarkSuiteRegistry
         bool SupportsShots,
         bool SupportsProblemCap,
         int MaxShots,
-        bool Enabled);
+        bool Enabled,
+        BenchmarkInputModality Modality = BenchmarkInputModality.Text);
 
     public static readonly IReadOnlyList<SuiteInfo> Suites = new SuiteInfo[]
     {
@@ -29,6 +32,9 @@ public static class StandardBenchmarkSuiteRegistry
         new("truthful_qa", "TruthfulQA", "Truthfulness, myth avoidance, and hallucination resistance.", SupportsTasks: true, SupportsShots: false, SupportsProblemCap: true, MaxShots: 0, Enabled: true),
         // Locked decision: HumanEval requires local code execution (sandbox) and is deferred post-PoC.
         new("human_eval", "HumanEval", "Python docstring-to-code synthesis scored by unit tests. Requires a code-execution sandbox; deferred.", SupportsTasks: true, SupportsShots: false, SupportsProblemCap: false, MaxShots: 0, Enabled: false),
+        // WS5: Bitcraft custom benchmark shipped with the sidecar (decision D-2, read-only).
+        // Text-only this iteration; the image path is built and ships with the next dataset.
+        new("arduino", "Arduino Diagnostics", "Arduino fault detection and repair guidance: detail detection, circuit comprehension, solution reasoning, and pedagogy.", SupportsTasks: false, SupportsShots: false, SupportsProblemCap: false, MaxShots: 0, Enabled: true),
     };
 
     public static SuiteInfo? Find(string key) =>

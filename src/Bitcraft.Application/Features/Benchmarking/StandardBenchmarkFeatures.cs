@@ -29,6 +29,13 @@ public static class StandardBenchmarkFeatures
 
         [System.ComponentModel.DataAnnotations.Range(60, 86_400)]
         public int StandardTimeoutSeconds { get; set; } = 21_600;
+
+        /// <summary>
+        /// A run whose LastProgressUtc is older than this is reaped as stalled before a
+        /// new run starts. Prevents a run stuck in Running from blocking the queue.
+        /// </summary>
+        [System.ComponentModel.DataAnnotations.Range(60, 86_400)]
+        public int StalledAfterSeconds { get; set; } = 3_600;
     }
 
     // ----- Create -----
@@ -40,11 +47,12 @@ public static class StandardBenchmarkFeatures
         int NShots,
         int NProblems) : IRequest<Result<StandardBenchmarkRun>>;
 
-    public sealed class CreateStandardBenchmarkRunHandler(
+    public class CreateStandardBenchmarkRunHandler(
         IStandardBenchmarkRunRepository runRepository,
         IModelRepository modelRepository,
         IStandardBenchmarkRunQueue queue,
-        ICurrentUserContext currentUser)
+        ICurrentUserContext currentUser,
+        ILlmGenerationProvider? generationProvider = null)
         : IRequestHandler<CreateStandardBenchmarkRunCommand, Result<StandardBenchmarkRun>>
     {
         private const int MaxProblems = 10_000;
@@ -111,6 +119,12 @@ public static class StandardBenchmarkFeatures
                     "Standardized benchmarks currently support Ollama and OpenAI runtime engines only."));
             }
 
+            var modalityError = await CheckModalitySupportAsync(suite, model, cancellationToken);
+            if (modalityError is not null)
+            {
+                return Result.Failure<StandardBenchmarkRun>(modalityError);
+            }
+
             var run = new StandardBenchmarkRun
             {
                 InteractionModelId = model.Id,
@@ -125,6 +139,61 @@ public static class StandardBenchmarkFeatures
             var created = await runRepository.AddAsync(run, cancellationToken);
             await queue.QueueAsync(created.Id, cancellationToken);
             return Result.Success(created);
+        }
+
+        /// <summary>
+        /// Fails the run before it starts when the suite requires image input and the
+        /// model cannot accept it. Returns null when the modality is satisfied.
+        /// </summary>
+        protected internal virtual async Task<Error?> CheckModalitySupportAsync(
+            StandardBenchmarkSuiteRegistry.SuiteInfo suite,
+            InteractionModel model,
+            CancellationToken cancellationToken)
+        {
+            if (suite.Modality != BenchmarkInputModality.Image)
+            {
+                return null;
+            }
+
+            var supported = await ProbeImageSupportAsync(model, cancellationToken);
+            return supported
+                ? null
+                : new Error(
+                    "StandardBenchmark.ModalityUnsupported",
+                    $"The model '{model.Name}' cannot accept image input required by benchmark '{suite.Key}'.");
+        }
+
+        /// <summary>
+        /// Internal seam so unit tests can stub the probe without a live provider.
+        /// </summary>
+        internal virtual Task<bool> ProbeImageSupportAsync(InteractionModel model, CancellationToken cancellationToken)
+        {
+            if (generationProvider is null)
+            {
+                return Task.FromResult(false);
+            }
+
+            return ProbeViaProviderAsync(generationProvider, model, cancellationToken);
+        }
+
+        private static async Task<bool> ProbeViaProviderAsync(
+            ILlmGenerationProvider generationProvider,
+            InteractionModel model,
+            CancellationToken cancellationToken)
+        {
+            var engine = model.RuntimeEngine;
+            if (engine is null || string.IsNullOrWhiteSpace(model.ProviderModelName))
+            {
+                return false;
+            }
+
+            var probe = await generationProvider.ProbeImageInputSupportAsync(
+                engine.Endpoint,
+                model.ProviderModelName,
+                engine.ApiKey,
+                engine.ProviderType.ToString(),
+                cancellationToken);
+            return probe.IsSuccess && probe.Value;
         }
     }
 
@@ -245,6 +314,11 @@ public static class StandardBenchmarkFeatures
                 return Result.Success(true);
             }
 
+            // WS3: reap any other run stuck in Running with stale progress before starting.
+            // A single sidecar slot means only one run can execute; a stalled run would
+            // otherwise block this one (and every later one) behind it.
+            await ReapStalledRunsAsync(run, cancellationToken);
+
             var model = await modelRepository.GetInteractionModelByIdAsync(run.InteractionModelId, cancellationToken);
             if (model?.RuntimeEngine is null)
             {
@@ -300,6 +374,7 @@ public static class StandardBenchmarkFeatures
                 var status = statusResult.Value;
                 run.ProgressStage = status.Stage;
                 run.LastProgressUtc = timeProvider.GetUtcNow().UtcDateTime;
+                ApplyProgress(run, status.CompletedTasks, status.TotalTasks);
                 if (status.State == StandardBenchmarkStatus.StateCompleted)
                 {
                     run.Status = BenchmarkRunStatus.Completed;
@@ -348,6 +423,60 @@ public static class StandardBenchmarkFeatures
                 run.Status = BenchmarkRunStatus.Running;
                 await runRepository.UpdateAsync(run, cancellationToken);
                 await Task.Delay(TimeSpan.FromSeconds(processingOptions.Value.PollIntervalSeconds), cancellationToken);
+            }
+        }
+
+        /// <summary>
+        /// Marks any other Running run whose LastProgressUtc is older than
+        /// StalledAfterSeconds as Failed with StandardBenchmark.Stalled. The current run is
+        /// excluded so it is never reaped by itself.
+        /// </summary>
+        private async Task ReapStalledRunsAsync(StandardBenchmarkRun currentRun, CancellationToken cancellationToken)
+        {
+            var threshold = TimeSpan.FromSeconds(processingOptions.Value.StalledAfterSeconds);
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            var running = await runRepository.ListRunningAsync(cancellationToken);
+
+            foreach (var candidate in running)
+            {
+                if (candidate.Id == currentRun.Id)
+                {
+                    continue;
+                }
+
+                var lastProgress = candidate.LastProgressUtc ?? candidate.StartedUtc ?? candidate.QueuedUtc;
+                if (now - lastProgress > threshold)
+                {
+                    candidate.Status = BenchmarkRunStatus.Failed;
+                    candidate.CompletedUtc = now;
+                    candidate.FailureCode = "StandardBenchmark.Stalled";
+                    candidate.FailureDescription =
+                        $"No progress for over {processingOptions.Value.StalledAfterSeconds} seconds; the run was reaped.";
+                    await runRepository.UpdateAsync(candidate, cancellationToken);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Applies engine-reported progress counts to the run. ProgressPercent is derived
+        /// from completed/total and clamped to 0-100; null counts leave the fields untouched.
+        /// </summary>
+        private static void ApplyProgress(StandardBenchmarkRun run, int? completedTasks, int? totalTasks)
+        {
+            if (completedTasks is not null)
+            {
+                run.CompletedTasks = completedTasks;
+            }
+
+            if (totalTasks is not null)
+            {
+                run.TotalTasks = totalTasks;
+            }
+
+            if (run.CompletedTasks is { } completed && run.TotalTasks is { } total and > 0)
+            {
+                var clamped = Math.Clamp(completed, 0, total);
+                run.ProgressPercent = Math.Round((double)clamped / total * 100, 2);
             }
         }
 

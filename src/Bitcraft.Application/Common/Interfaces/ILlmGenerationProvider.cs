@@ -22,4 +22,17 @@ public interface ILlmGenerationProvider
         string? providerType,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<string>?>(null);
+
+    /// <summary>
+    /// Probes whether the model at the given endpoint accepts image input by sending a
+    /// minimal one-pixel image request. Returns true when the provider accepts the image.
+    /// The default fails closed (false) so providers without image support keep compiling.
+    /// </summary>
+    Task<Result<bool>> ProbeImageInputSupportAsync(
+        string endpoint,
+        string model,
+        string? apiKey,
+        string? providerType,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Success(false));
 }

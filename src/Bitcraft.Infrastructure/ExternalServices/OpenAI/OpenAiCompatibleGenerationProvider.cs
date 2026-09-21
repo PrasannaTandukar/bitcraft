@@ -272,6 +272,75 @@ public class OpenAiCompatibleGenerationProvider(
         return lastParsed;
     }
 
+    // 1x1 transparent PNG used by the image-input probe.
+    private const string ProbeImageBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    public async Task<Result<bool>> ProbeImageInputSupportAsync(
+        string endpoint,
+        string model,
+        string? apiKey,
+        string? providerType,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var baseUri) ||
+            (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
+        {
+            return Result.Success(false);
+        }
+
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return Result.Success(false);
+        }
+
+        var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleGenerationProvider));
+        client.Timeout = TimeSpan.FromSeconds(15);
+
+        var parts = new List<object>
+        {
+            new { type = "text", text = "Describe this image in one word." },
+            new { type = "image_url", image_url = new { url = $"data:image/png;base64,{ProbeImageBase64}" } }
+        };
+        var messages = new List<ChatMessagePayload> { new("user", parts) };
+        var requestBody = new ChatCompletionsRequest(model.Trim(), messages, null, null, 8, Stream: false);
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildChatCompletionsUri(baseUri));
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+        }
+        requestMessage.Content = JsonContent.Create(requestBody);
+
+        try
+        {
+            using var response = await client.SendAsync(requestMessage, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return Result.Success(true);
+            }
+
+            // A text-only model rejects the image request with 400/415/422.
+            if ((int)response.StatusCode is 400 or 415 or 422)
+            {
+                logger?.LogInformation("Image probe rejected by provider. Model={Model}, StatusCode={StatusCode}", model, (int)response.StatusCode);
+                return Result.Success(false);
+            }
+
+            logger?.LogWarning("Image probe failed. Model={Model}, StatusCode={StatusCode}", model, (int)response.StatusCode);
+            return Result.Success(false);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or HttpRequestException)
+        {
+            logger?.LogWarning("Image probe could not reach the provider. Model={Model}", model);
+            return Result.Success(false);
+        }
+    }
+
     private static Uri BuildChatCompletionsUri(Uri baseUri)
     {
         var raw = baseUri.ToString().TrimEnd('/');

@@ -83,6 +83,8 @@ public sealed record StandardBenchmarkStatus(
     double? OverallScore,
     IReadOnlyList<StandardBenchmarkTaskScore>? TaskScores,
     int TaskCount,
+    int? CompletedTasks,
+    int? TotalTasks,
     string EngineVersion,
     string Notes,
     string? Error)

@@ -126,6 +126,9 @@ public sealed record StandardBenchmarkRunResponse(
     string? TaskScoresJson,
     string? Notes,
     string? ProgressStage,
+    int? CompletedTasks,
+    int? TotalTasks,
+    double? ProgressPercent,
     DateTime? LastProgressUtc,
     string? FailureCode,
     string? FailureDescription);
@@ -137,6 +140,9 @@ public sealed record StandardBenchmarkRunProgressResponse(
     string? ProgressStage,
     double? OverallScore,
     int TaskCount,
+    int? CompletedTasks,
+    int? TotalTasks,
+    double? ProgressPercent,
     DateTime QueuedUtc,
     DateTime? StartedUtc,
     DateTime? CompletedUtc,
@@ -153,4 +159,5 @@ public sealed record StandardBenchmarkSuiteResponse(
     bool SupportsShots,
     bool SupportsProblemCap,
     int MaxShots,
-    bool Enabled);
+    bool Enabled,
+    string Modality);

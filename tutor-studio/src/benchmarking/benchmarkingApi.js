@@ -42,6 +42,3 @@ export const getStandardBenchmarkRunProgress = (runId, signal) =>
 
 export const createStandardBenchmarkRun = (payload) =>
   apiFetch("/api/standard-benchmark-runs", { method: "POST", json: payload });
-
-export const listInteractionModelsForAdmin = (signal) =>
-  apiFetch("/api/admin/interaction-models", { signal });

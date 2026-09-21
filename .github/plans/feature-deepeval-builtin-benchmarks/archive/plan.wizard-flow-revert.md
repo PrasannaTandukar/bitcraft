@@ -11,6 +11,10 @@ ai_gen: true
 > wizard: "plan change to revert Wizard flow: Tutor selection, Benchmark selection,
 > Review and Launch."
 
+**Status (2026-09-21):** The standard-category model-picker scope in this sub-plan is
+superseded by `plan.benchmarking-ux-consolidation.md`. Step 1 is revision-only for every
+category; the standalone interaction-model picker is removed.
+
 ## Goal
 
 Restore the Benchmarking "New run" wizard to the human-specified three-stage flow:

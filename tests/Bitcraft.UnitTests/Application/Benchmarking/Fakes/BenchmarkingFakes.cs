@@ -133,6 +133,8 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
                 0.85,
                 null,
                 1,
+                null,
+                null,
                 "deepeval-fake",
                 "Fake benchmark completed.",
                 null));

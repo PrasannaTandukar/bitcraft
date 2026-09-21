@@ -434,6 +434,9 @@ internal static class TutoringMapping
         run.TaskScoresJson,
         run.Notes,
         run.ProgressStage,
+        run.CompletedTasks,
+        run.TotalTasks,
+        run.ProgressPercent,
         run.LastProgressUtc,
         run.FailureCode,
         run.FailureDescription);
@@ -446,7 +449,8 @@ internal static class TutoringMapping
         suite.SupportsShots,
         suite.SupportsProblemCap,
         suite.MaxShots,
-        suite.Enabled);
+        suite.Enabled,
+        suite.Modality.ToString().ToLowerInvariant());
 
     public static StandardBenchmarkRunProgressResponse ToProgressResponse(this StandardBenchmarkRun run) => new(
         run.Id,
@@ -454,6 +458,9 @@ internal static class TutoringMapping
         run.ProgressStage,
         run.OverallScore,
         run.TaskCount,
+        run.CompletedTasks,
+        run.TotalTasks,
+        run.ProgressPercent,
         run.QueuedUtc,
         run.StartedUtc,
         run.CompletedUtc,

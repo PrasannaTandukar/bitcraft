@@ -81,8 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     write_status(status_path, {**base_status("running", "loading-dataset")})
     result = execute_benchmark(
         request,
-        stage_writer=lambda stage: write_status(
-            status_path, {**base_status("running", stage)}
+        stage_writer=lambda stage, progress=None: write_status(
+            status_path, {**base_status("running", stage), **(progress or {})}
         ),
     )
 
@@ -104,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
             "overall_score": result.overall_score,
             "task_scores": result.task_scores,
             "task_count": result.task_count,
+            "completed_tasks": result.completed_tasks,
+            "total_tasks": result.total_tasks,
             "engine_version": result.engine_version,
             "notes": result.notes,
         },

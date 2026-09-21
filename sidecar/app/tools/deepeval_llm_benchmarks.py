@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import logging
 import os
 import subprocess
 import sys
@@ -19,6 +20,8 @@ from app.schemas import (
     SidecarLlmBenchmarkStartResponse,
     SidecarTaskScore,
 )
+
+logger = logging.getLogger(__name__)
 
 # Standardized deepeval LLM benchmarks (BIG-Bench Hard, HellaSwag, MMLU, DROP,
 # TruthfulQA, HumanEval, GSM8K). This is a separate, opt-in capability from
@@ -72,6 +75,13 @@ _BENCHMARK_CLASS_NAMES = {
     "gsm8k": "GSM8K",
 }
 
+# WS5: Bitcraft custom benchmarks shipped with the sidecar image (decision D-2).
+# These are not part of `deepeval.benchmarks`, so they resolve through their own
+# module path. Read-only: no user authoring.
+_CUSTOM_BENCHMARK_PATHS = {
+    "arduino": ("app.tools.custom_benchmarks.arduino_benchmark", "ArduinoBenchmark"),
+}
+
 # Per-suite few-shot ceiling (decision D-R4). deepeval's BigBenchHard asserts
 # n_shots <= 3; the other shot-capable suites accept up to 5. Suites without
 # shot support report 0.
@@ -83,6 +93,7 @@ _SUITE_MAX_SHOTS = {
     "gsm8k": 5,
     "truthful_qa": 0,
     "human_eval": 0,
+    "arduino": 0,
 }
 
 # Shared volume directory for run artifacts (status + request files). The
@@ -91,7 +102,30 @@ _RUNS_DIR = Path(os.getenv("BENCHMARK_RUNS_DIR", "/var/run/bitcraft/runs"))
 
 # Path of the most recently started run's status file. The single runner
 # slot (decision D-R2) is derived from this file's terminal state.
+# WS3: the path is also persisted to disk so the slot survives a sidecar
+# restart. Without this, a restart loses the slot while the DB row stays
+# Running, and the next run is accepted against a live runner subprocess.
 _last_status_path: str | None = None
+_SLOT_FILE = _RUNS_DIR / "last_status_path.txt"
+
+
+def _persist_last_status_path(path: str) -> None:
+    """Write the slot marker to disk so a restart can recover it."""
+    try:
+        _RUNS_DIR.mkdir(parents=True, exist_ok=True)
+        _SLOT_FILE.write_text(path, encoding="utf-8")
+    except OSError:
+        # A read-only or missing volume must not block a run start.
+        pass
+
+
+def _load_last_status_path() -> str | None:
+    """Read the persisted slot marker, or None when absent or unreadable."""
+    try:
+        value = _SLOT_FILE.read_text(encoding="utf-8").strip()
+        return value or None
+    except OSError:
+        return None
 
 
 class BenchmarkBusyError(Exception):
@@ -244,9 +278,10 @@ def _validate_request(request: SidecarLlmBenchmarkRequest) -> str:
     Returns the normalized benchmark key. Raises BenchmarkValidationError.
     """
     key = request.benchmark_key.strip().lower()
-    if key not in _BENCHMARK_CLASS_NAMES:
+    supported = sorted(_BENCHMARK_CLASS_NAMES) + sorted(_CUSTOM_BENCHMARK_PATHS)
+    if key not in _BENCHMARK_CLASS_NAMES and key not in _CUSTOM_BENCHMARK_PATHS:
         raise BenchmarkValidationError(
-            f"Unsupported benchmark_key '{key}'. Supported: {sorted(_BENCHMARK_CLASS_NAMES)}."
+            f"Unsupported benchmark_key '{key}'. Supported: {supported}."
         )
 
     if key == "human_eval" and not request.allow_code_execution:
@@ -317,6 +352,7 @@ def start_benchmark_run(
     )
 
     _last_status_path = str(status_path)
+    _persist_last_status_path(_last_status_path)
     return SidecarLlmBenchmarkStartResponse(
         run_id=str(run_id), status_path=str(status_path)
     )
@@ -328,7 +364,13 @@ def _slot_held() -> bool:
     The single runner slot (decision D-R2) is derived from the latest run's
     status file: held while it exists and its state is not completed/failed.
     A missing or unreadable file is treated as free.
+
+    WS3: the in-process global is recovered from the persisted slot file on
+    first use, so a sidecar restart does not lose the slot.
     """
+    global _last_status_path
+    if _last_status_path is None:
+        _last_status_path = _load_last_status_path()
     if _last_status_path is None:
         return False
     status = read_status(Path(_last_status_path))
@@ -356,10 +398,15 @@ def execute_benchmark(
     """
     engine_version = _resolve_engine_version()
     key = request.benchmark_key.strip().lower()
-    class_name = _BENCHMARK_CLASS_NAMES[key]
+
+    custom = _CUSTOM_BENCHMARK_PATHS.get(key)
+    if custom is not None:
+        module_name, class_name = custom
+    else:
+        module_name, class_name = _BENCHMARK_MODULE, _BENCHMARK_CLASS_NAMES[key]
 
     try:
-        module = importlib.import_module(_BENCHMARK_MODULE)
+        module = importlib.import_module(module_name)
         benchmark_cls = getattr(module, class_name)
     except (ImportError, AttributeError) as error:
         return SidecarLlmBenchmarkResponse(
@@ -368,7 +415,7 @@ def execute_benchmark(
             task_count=0,
             engine_version=engine_version,
             notes="",
-            error=f"deepeval.benchmarks.{class_name} is unavailable in the installed deepeval version: {error}",
+            error=f"{module_name}.{class_name} is unavailable in the installed deepeval version: {error}",
         )
 
     try:
@@ -403,13 +450,34 @@ def execute_benchmark(
         if key == "human_eval" and "k" in evaluate_params:
             evaluate_kwargs["k"] = min(5, max(1, request.n_shots or 1))
 
+        total_tasks = _estimate_total_tasks(resolved_tasks, n_problems_forwarded)
         if stage_writer:
-            stage_writer("evaluating")
-        benchmark.evaluate(**evaluate_kwargs)
+            stage_writer("evaluating", {"total_tasks": total_tasks})
+        evaluate_result = benchmark.evaluate(**evaluate_kwargs)
+        completed_tasks = _count_completed_tasks(benchmark, total_tasks)
+        # An uncapped run has no pre-evaluation estimate. Reconcile the total with the
+        # completed count so a finished run always reports a full progress bar.
+        if total_tasks is None:
+            total_tasks = completed_tasks
         if stage_writer:
-            stage_writer("finalizing")
+            stage_writer(
+                "finalizing",
+                {"completed_tasks": completed_tasks, "total_tasks": total_tasks},
+            )
 
-        overall_score = float(getattr(benchmark, "overall_score", 0.0) or 0.0)
+        # WS1 debug dump: record the concrete result attributes so a future
+        # deepeval version drift is visible in the runner log.
+        logger.info(
+            "Benchmark evaluated. key=%s, result_type=%s, overall_score=%r (%s), "
+            "task_scores_type=%s",
+            key,
+            type(evaluate_result).__name__,
+            getattr(benchmark, "overall_score", None),
+            type(getattr(benchmark, "overall_score", None)).__name__,
+            type(getattr(benchmark, "task_scores", None)).__name__,
+        )
+
+        overall_score = _read_overall_score(benchmark, evaluate_result)
         task_scores_raw = getattr(benchmark, "task_scores", None)
         task_scores = _normalize_task_scores(task_scores_raw)
         task_count = (
@@ -435,6 +503,9 @@ def execute_benchmark(
             engine_version=engine_version,
             notes=notes,
             error=None,
+            task_scores=task_scores,
+            completed_tasks=completed_tasks,
+            total_tasks=total_tasks,
         )
     except Exception as error:  # noqa: BLE001 - never crash the runner process on a benchmark failure.
         return SidecarLlmBenchmarkResponse(
@@ -447,23 +518,93 @@ def execute_benchmark(
         )
 
 
-def _normalize_task_scores(raw) -> list[SidecarTaskScore] | None:
-    """Convert deepeval's task_scores mapping into typed per-task scores.
+def _estimate_total_tasks(resolved_tasks, n_problems_forwarded: int) -> int | None:
+    """Best-effort total problem count for progress reporting.
 
-    deepeval 4.2.3 exposes `task_scores` as a dict-like mapping of task name
-    to score on task-based benchmarks; single-dataset benchmarks leave it
-    unset. Returns None when the engine reported nothing usable.
+    deepeval's evaluate() is a single blocking call, so the exact total is only
+    known after it finishes. This estimate (task count x per-task cap) is used
+    to seed the progress bar before evaluation starts. Returns None when the
+    total cannot be estimated.
+    """
+    if n_problems_forwarded <= 0:
+        return None
+    task_count = len(resolved_tasks) if resolved_tasks else 1
+    return task_count * n_problems_forwarded
+
+
+def _count_completed_tasks(benchmark, total_tasks: int | None) -> int | None:
+    """Completed problem count from the benchmark's predictions DataFrame.
+
+    deepeval 4.2.3 stores one row per evaluated problem in `benchmark.predictions`
+    (a pandas DataFrame). Falls back to the estimated total when the DataFrame
+    is absent, so a finished run always reports a complete progress bar.
+    """
+    predictions = getattr(benchmark, "predictions", None)
+    if predictions is not None and hasattr(predictions, "__len__"):
+        try:
+            return int(len(predictions))
+        except (TypeError, ValueError):
+            pass
+    return total_tasks
+
+
+def _read_overall_score(benchmark, evaluate_result) -> float:
+    """Read the overall accuracy from a deepeval benchmark result.
+
+    deepeval 4.2.3 sets `benchmark.overall_score` (a 0-1 float) on every
+    concrete benchmark and also returns a `DeepEvalBaseBenchmarkResult` whose
+    field is `overall_accuracy`. Prefer the instance attribute, fall back to
+    the returned result, then to 0.0. Verified against the installed 4.2.3
+    (mmlu.py:160, gsm8k.py:88, hellaswag.py:164, drop.py:168, truthful_qa.py:170,
+    big_bench_hard.py:193).
+    """
+    for candidate in (
+        getattr(benchmark, "overall_score", None),
+        getattr(evaluate_result, "overall_accuracy", None),
+        getattr(evaluate_result, "overall_score", None),
+    ):
+        if candidate is None:
+            continue
+        try:
+            return float(candidate)
+        except (TypeError, ValueError):
+            continue
+    return 0.0
+
+
+def _normalize_task_scores(raw) -> list[SidecarTaskScore] | None:
+    """Convert deepeval's task_scores into typed per-task scores.
+
+    deepeval 4.2.3 exposes `task_scores` as a pandas DataFrame with columns
+    `Task` and `Score` on task-based benchmarks; single-dataset benchmarks
+    leave it unset. A dict-like mapping is also accepted for forward
+    compatibility. Returns None when the engine reported nothing usable.
     """
     if raw is None:
         return None
-    try:
-        items = raw.items() if hasattr(raw, "items") else None
-    except Exception:  # noqa: BLE001 - defensive: shape varies across deepeval versions.
-        items = None
-    if items is None:
+
+    pairs: list[tuple[object, object]] | None = None
+    if hasattr(raw, "iterrows"):
+        # pandas DataFrame: rows of (Task, Score).
+        try:
+            pairs = [
+                (row["Task"], row["Score"])
+                for _, row in raw.iterrows()
+                if "Task" in raw.columns and "Score" in raw.columns
+            ]
+        except Exception:  # noqa: BLE001 - defensive: shape varies across deepeval versions.
+            pairs = None
+    elif hasattr(raw, "items"):
+        try:
+            pairs = list(raw.items())
+        except Exception:  # noqa: BLE001 - defensive: shape varies across deepeval versions.
+            pairs = None
+
+    if pairs is None:
         return None
+
     scores: list[SidecarTaskScore] = []
-    for task_name, score in items:
+    for task_name, score in pairs:
         try:
             scores.append(
                 SidecarTaskScore(task=str(task_name), score=round(float(score), 4))

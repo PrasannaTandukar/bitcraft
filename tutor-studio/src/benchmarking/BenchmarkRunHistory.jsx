@@ -1,34 +1,96 @@
 import { ReloadOutlined } from "@ant-design/icons";
 import { Alert, Button, Empty, Flex, Form, Select, Space, Table, Typography } from "antd";
+import InfoTooltip from "../components/InfoTooltip.jsx";
+import BenchmarkingHelp from "./BenchmarkingHelp.jsx";
 import { useEffect, useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
 import StatusTag from "../components/StatusTag.jsx";
 import BenchmarkRunDetails from "./BenchmarkRunDetails.jsx";
-import { listBenchmarkRuns } from "./benchmarkingApi.js";
-import { formatDateTime, formatPercent, runStatusLabel } from "./benchmarkingUtils.js";
+import { StandardBenchmarkRunDrawer } from "./StandardBenchmarkHistory.jsx";
+import { getStandardBenchmarkRun, getStandardBenchmarkRunProgress, listBenchmarkRuns, listStandardBenchmarkRuns } from "./benchmarkingApi.js";
+import { formatDateTime, formatPercent, toHistoryRow } from "./benchmarkingUtils.js";
+
+const POLL_INTERVAL_MS = 10_000;
+const isActiveStatus = (status) => status === "Queued" || status === "Running";
 
 export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError, selectedTutorId, selectedRunId, onSelectTutor, onOpenRun, onCloseRun }) {
   const [runs, setRuns] = useState([]);
-  const [loading, setLoading] = useState(Boolean(selectedTutorId));
+  const [standardRuns, setStandardRuns] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [standardDetail, setStandardDetail] = useState(null);
 
   useEffect(() => {
-    if (!selectedTutorId) return undefined;
     const controller = new AbortController();
-    listBenchmarkRuns(selectedTutorId, controller.signal)
-      .then((data) => {
-        setRuns(data ?? []);
-        setError("");
-      })
+    const standardRequest = listStandardBenchmarkRuns(null, controller.signal)
+      .then((data) => setStandardRuns(data ?? []))
       .catch((requestError) => {
-        if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "Could not load benchmark run history."));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "Could not load standardized benchmark runs."));
       });
+    const tutorRequest = selectedTutorId
+      ? listBenchmarkRuns(selectedTutorId, controller.signal)
+          .then((data) => setRuns(data ?? []))
+          .catch((requestError) => {
+            if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "Could not load benchmark run history."));
+          })
+      : Promise.resolve();
+    Promise.all([standardRequest, tutorRequest]).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
     return () => controller.abort();
   }, [refreshNonce, selectedTutorId]);
+
+  const rows = [
+    ...runs.map((run) => toHistoryRow(run, "tutor")),
+    ...standardRuns.map((run) => toHistoryRow(run, "standard")),
+  ].sort((a, b) => new Date(b.completedUtc || b.queuedUtc) - new Date(a.completedUtc || a.queuedUtc));
+
+  // Poll both lists while any run is queued or running so the table reflects
+  // stage transitions without a manual refresh. Stops when all runs settle.
+  const anyActive = rows.some((row) => isActiveStatus(row.status));
+  useEffect(() => {
+    if (!anyActive) return undefined;
+    const timer = setInterval(() => setRefreshNonce((value) => value + 1), POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [anyActive]);
+
+  const selectedRow = rows.find((row) => row.id === selectedRunId) ?? null;
+
+  // While a standard run is open, load its detail and poll the lightweight
+  // progress endpoint while active. Refetch the full run once it settles so
+  // the drawer shows the per-task score table.
+  const standardOpen = selectedRow?.kind === "standard";
+  useEffect(() => {
+    if (!standardOpen || !selectedRunId) return undefined;
+    const controller = new AbortController();
+    getStandardBenchmarkRun(selectedRunId, controller.signal)
+      .then((data) => setStandardDetail(data))
+      .catch(() => { /* keep the row data on failure */ });
+    return () => controller.abort();
+  }, [standardOpen, selectedRunId]);
+
+  const standardActive = standardDetail !== null && isActiveStatus(standardDetail.status);
+  useEffect(() => {
+    if (!standardOpen || !standardActive) return undefined;
+    const timer = setInterval(() => {
+      const controller = new AbortController();
+      getStandardBenchmarkRunProgress(selectedRunId, controller.signal)
+        .then((progress) => setStandardDetail((current) => (current ? { ...current, ...progress } : current)))
+        .catch(() => { /* transient poll failure; next tick retries */ });
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [standardOpen, standardActive, selectedRunId]);
+
+  const standardSettled = standardDetail !== null && !isActiveStatus(standardDetail.status);
+  useEffect(() => {
+    if (!standardOpen || !standardSettled || standardDetail.taskScoresJson) return undefined;
+    const controller = new AbortController();
+    getStandardBenchmarkRun(selectedRunId, controller.signal)
+      .then((data) => setStandardDetail((current) => (current ? { ...current, ...data } : current)))
+      .catch(() => { /* keep the progress-derived detail on failure */ });
+    return () => controller.abort();
+  }, [standardOpen, standardSettled, standardDetail?.taskScoresJson, selectedRunId]);
 
   const selectTutor = (value) => {
     setRuns([]);
@@ -43,60 +105,74 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
   };
 
   const closeRun = () => {
+    setStandardDetail(null);
     refresh();
     onCloseRun();
   };
 
-  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
-  if (selectedTutorId && selectedRunId) return <BenchmarkRunDetails tutorId={selectedTutorId} runId={selectedRunId} initialRun={selectedRun} onBack={closeRun} />;
+  if (selectedRow?.kind === "tutor" && selectedTutorId) return <BenchmarkRunDetails tutorId={selectedTutorId} runId={selectedRunId} initialRun={selectedRow.raw} onBack={closeRun} />;
 
   const columns = [
     {
       title: "Status",
       key: "status",
       width: 120,
-      render: (_, run) => (
+      render: (_, row) => (
         <div>
-          <StatusTag value={runStatusLabel(run)} />
-          {run.failureDescription ? <Typography.Text type="danger" ellipsis={{ tooltip: run.failureDescription }} className="benchmark-failure-cell">{run.failureDescription}</Typography.Text> : null}
+          <InfoTooltip title="Run progress" text={row.kind === "tutor" ? "Completed cases out of total cases. The stage name appears when the engine reports no counts." : "Completed problems out of total problems. The stage name appears when the engine reports no counts."}>
+            <StatusTag value={row.statusLabel} />
+          </InfoTooltip>
+          {row.failureDescription ? <Typography.Text type="danger" ellipsis={{ tooltip: row.failureDescription }} className="benchmark-failure-cell">{row.failureDescription}</Typography.Text> : null}
         </div>
       ),
+    },
+    {
+      title: "Type",
+      dataIndex: "kind",
+      width: 90,
+      render: (value) => (value === "standard" ? "Standard" : "Tutor"),
     },
     {
       title: "Revision",
       key: "revision",
       width: 110,
-      render: (_, run) => (run.tutorRevisionNumber ? `Rev ${run.tutorRevisionNumber}` : run.tutorRevisionId ? "Recorded" : "Legacy"),
+      render: (_, row) => (row.kind !== "tutor" ? "—" : row.raw.tutorRevisionNumber ? `Rev ${row.raw.tutorRevisionNumber}` : row.raw.tutorRevisionId ? "Recorded" : "Legacy"),
     },
     {
       title: "Model",
-      dataIndex: "modelAlias",
+      dataIndex: "model",
       width: 140,
       ellipsis: true,
       render: (value) => value || "—",
     },
     {
-      title: "Template",
-      dataIndex: "benchmarkTemplateName",
+      title: "Template / Suite",
+      dataIndex: "target",
       width: 150,
       ellipsis: true,
-      render: (value) => value || "Template",
+      render: (value) => value || "—",
     },
     {
       title: "Score",
       key: "score",
       width: 120,
-      render: (_, run) => (
+      render: (_, row) => (
         <Space size={4} split={<Typography.Text orientation="vertical" type="secondary" style={{ fontSize: 11 }}>/</Typography.Text>}>
-          <span orientation="horizontal" title="Average score">{formatPercent(run.averageScore)}</span>
-          <span style={{ color: "var(--bitcraft-color-text-secondary)", fontSize: 12 }} title="Pass rate">{formatPercent(run.passRate)} pass</span>
+          <InfoTooltip title="Average score" text={row.kind === "tutor" ? "Mean case score across all evaluated cases." : "Overall accuracy reported by the benchmark engine."}>
+            <span orientation="horizontal">{formatPercent(row.score)}</span>
+          </InfoTooltip>
+          {row.kind === "tutor" ? (
+            <InfoTooltip title="Pass rate" text="Share of cases whose score met or exceeded the template threshold.">
+              <span style={{ color: "var(--bitcraft-color-text-secondary)", fontSize: 12 }}>{formatPercent(row.raw.passRate)} pass</span>
+            </InfoTooltip>
+          ) : null}
         </Space>
       ),
     },
     {
-      title: "Cases",
-      dataIndex: "totalCaseCount",
-      width: 70,
+      title: "Cases / Tasks",
+      dataIndex: "count",
+      width: 90,
       align: "center",
       render: (val) => val ?? "—",
     },
@@ -105,24 +181,34 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
       dataIndex: "completedUtc",
       width: 150,
       sorter: (a, b) => new Date(a.completedUtc || a.queuedUtc) - new Date(b.completedUtc || b.queuedUtc),
-      render: (val, run) => formatDateTime(val || run.queuedUtc),
+      render: (val, row) => formatDateTime(val || row.queuedUtc),
     },
     {
       title: "",
       key: "action",
       fixed: "right",
       width: 90,
-      render: (_, run) => <Button type="link" size="small" onClick={() => onOpenRun(run.id)}>View run</Button>,
+      render: (_, row) => <Button type="link" size="small" onClick={() => onOpenRun(row.id)}>View run</Button>,
     },
   ];
 
   return (
     <div className="benchmark-panel-stack">
+      <BenchmarkingHelp
+        title="How evaluations work"
+        steps={[
+          "Launch a run from the New run tab.",
+          "The backend queues the run and starts it when the engine is free.",
+          "This table refreshes every 10 seconds while any run is active.",
+          "Double-click a row to open its detail drawer.",
+        ]}
+        note="Standard runs appear without a tutor filter. Select a tutor to add its tutor runs to this list."
+      />
       <Flex justify="space-between" align="flex-end" gap={16} wrap>
         <Form.Item label="Tutor" className="benchmark-tutor-filter">
           <Select showSearch optionFilterProp="label" value={selectedTutorId || undefined} onChange={selectTutor} loading={tutorsLoading} placeholder="Select a tutor" options={tutors.map((tutor) => ({ value: tutor.id, label: tutor.name }))} />
         </Form.Item>
-        <Button icon={<ReloadOutlined />} onClick={refresh} disabled={!selectedTutorId} loading={loading}>Refresh history</Button>
+        <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>Refresh evaluations</Button>
       </Flex>
       {tutorsError ? <Alert type="error" title={tutorsError} showIcon /> : null}
       {error ? <Alert type="error" title={error} showIcon /> : null}
@@ -130,13 +216,14 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
         className="workspace-table benchmark-run-history-table"
         rowKey="id"
         columns={columns}
-        dataSource={runs}
+        dataSource={rows}
         loading={loading}
         size="middle"
         pagination={{ pageSize: 10, showSizeChanger: true }}
-        locale={{ emptyText: <Empty description={selectedTutorId ? "This tutor has no benchmark runs" : "Select a tutor to view its runs"} /> }}
-        onRow={(run) => ({ onDoubleClick: () => onOpenRun(run.id) })}
+        locale={{ emptyText: <Empty description={selectedTutorId ? "No benchmark runs for this tutor" : "Select a tutor to view its runs. Standard runs appear without a tutor filter."} /> }}
+        onRow={(row) => ({ onDoubleClick: () => onOpenRun(row.id) })}
       />
+      <StandardBenchmarkRunDrawer detail={standardDetail} open={standardOpen} onClose={closeRun} />
     </div>
   );
 }

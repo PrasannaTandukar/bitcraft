@@ -229,6 +229,11 @@ New module `sidecar/app/runner/__init__.py` + `sidecar/app/runner/__main__.py`:
 
 ### WS6 — Frontend (H20)
 
+**Status (2026-09-21):** The wizard scope of WS6 (stage-1 target forms, category
+bounce-back, standard model selection) is superseded by
+`plan.benchmarking-ux-consolidation.md`. Step 1 is revision-only for every category.
+The polling and task-selection items remain as implemented.
+
 - `benchmarkingApi.js`: add `getStandardBenchmarkRunProgress(runId, signal)`.
 - `StandardBenchmarkHistory.jsx`: poll `listStandardBenchmarkRuns` every 10 s while any run is
   `Queued`/`Running` (interval cleanup on unmount; drawer shows `progressStage` and

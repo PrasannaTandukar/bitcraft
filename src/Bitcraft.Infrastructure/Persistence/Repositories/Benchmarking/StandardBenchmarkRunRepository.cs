@@ -40,6 +40,12 @@ public class StandardBenchmarkRunRepository(AppDbContext db) : IStandardBenchmar
             .Take(limit)
             .ToListAsync(cancellationToken);
 
+    public Task<List<StandardBenchmarkRun>> ListRunningAsync(CancellationToken cancellationToken = default) =>
+        db.Set<StandardBenchmarkRun>()
+            .Where(x => x.Status == BenchmarkRunStatus.Running)
+            .OrderBy(x => x.QueuedUtc)
+            .ToListAsync(cancellationToken);
+
     public Task<List<Guid>> ListRecoverableRunIdsAsync(CancellationToken cancellationToken = default) =>
         db.Set<StandardBenchmarkRun>()
             .Where(x => x.Status == BenchmarkRunStatus.Queued || x.Status == BenchmarkRunStatus.Running)
