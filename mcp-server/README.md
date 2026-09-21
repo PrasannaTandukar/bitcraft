@@ -28,6 +28,8 @@ Tools:
 - `read_doc_stack(stack_slug)` reads one `docs/dev/<stack-slug>/STACK.md` manifest and reports local source paths.
 - `list_agents()` lists custom agent slugs.
 - `read_roster()` reads `.github/agents/ROSTER.md`.
+- `list_skills()` lists skills under `.github/skills/` with slug, name, and description. Entry skills (`bitcraft-plan`, `bitcraft-develop`, `bitcraft-review`) are the Phase 1/2/3 workflow entrypoints.
+- `read_skill(slug)` reads one skill `SKILL.md` by folder slug.
 - `verify_architecture_readonly()` reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, and external package references in Application that are not in the in-server allow-list). Read-only spot check only; tests and CI remain the enforcement layer.
 
 ## Developer-Local Documentation Stacks
@@ -85,7 +87,7 @@ Adjust `command` to the absolute path of your virtualenv Python on Windows if VS
 ## Security
 
 - Read-only.
-- All file access constrained to `.github/governance/`, `.github/agents/`, `.github/inboxes/`, ignored `docs/dev/` stack manifests, and (for `verify_architecture_readonly` only) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`.
+- All file access constrained to `.github/governance/`, `.github/agents/`, `.github/skills/`, `.github/inboxes/`, ignored `docs/dev/` stack manifests, and (for `verify_architecture_readonly` only) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`.
 - Path traversal attempts raise `ValueError`.
 - No secrets, credentials, dataset paths, or external endpoints are read or returned.
 

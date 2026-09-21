@@ -1,22 +1,26 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-21
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 ---
 # Bitcraft Agentic Workflow Guide
 
 ## Standard Flow
 
-1. Secretary gets work overview, checks relevant inboxes, and surfaces active priorities or blockers. Secretary is **triage**, not orchestration, and also produces documentation and reports.
-2. Research runs as the `bitcraft-research` skill inside Secretary or Planner when the user needs discovery, external documentation, academic input, or model/tool comparison.
-3. Planner converts evidence and requirements into a technical plan with risks, impacted files, validation, and Change Impact Level.
-4. Lead Dev accepts development responsibility and implements directly — backend (.NET) and frontend (React/Vite) both live in this role.
-5. Lead Dev makes small validated edits and updates its inbox when work completes or blocks.
-6. Review is routed by Change Impact Level and domain: Lead Dev for ordinary code review, Sec Ops for security/privacy/deployment risk, and AI Ops for agentic stack risk.
-7. Secretary turns approved technical facts into presentable docs or audit reports when needed. Standalone AI-generated reports include the provenance line from `.github/governance/PROVENANCE.md`.
-8. Secretary or AI Ops captures metrics and queues follow-up work.
+The workflow has three phases with entry skills. Each phase ends by emitting a ready-to-paste prompt for the next phase. The human orchestrates the handoffs today; the prompts are shaped so automation can take over later.
+
+1. **Phase 1 — Planning and Research** (`bitcraft-plan` entry skill, Planner agent). A capable cloud model produces the plan. Underlying skills: `bitcraft-planning`, `bitcraft-research`, `bitcraft-ste`. The plan must be detailed enough for a weaker local model to execute: exact files, one imperative sentence per step, validation command and expected result per step, and the Phase 2 area skill named per step.
+2. **Phase 2 — Development** (`bitcraft-develop` entry skill, Lead Dev agent). A cheaper or local model executes the plan work step by work step. Underlying area skills: `bitcraft-backend-feature`, `bitcraft-api-endpoint`, `bitcraft-frontend-feature`, `bitcraft-python-sidecar`, `bitcraft-devops-release`, `bitcraft-test-hardening`, `bitcraft-version-upgrade`, `bitcraft-agentic-stack`. Drift stops the run and routes to Phase 3 or back to Phase 1.
+3. **Phase 3 — Review** (`bitcraft-review` entry skill, Lead Dev agent). Stage A checks drift against the original request and in-flight decisions, then removes stale code. Stage B runs the strict style and pattern review. Routing after review: in-place fixes, re-development with an exact drift prompt, re-planning after commit or new branch, or closeout.
+
+Supporting roles:
+
+- Secretary gets work overview, checks relevant inboxes, and surfaces active priorities or blockers. Secretary is **triage**, not orchestration, and also produces documentation and reports.
+- Review is routed by Change Impact Level and domain: Lead Dev for ordinary code review, Sec Ops for security/privacy/deployment risk, and AI Ops for agentic stack risk.
+- Secretary turns approved technical facts into presentable docs or audit reports when needed. Standalone AI-generated reports include the provenance line from `.github/governance/PROVENANCE.md`.
+- Secretary or AI Ops captures metrics and queues follow-up work.
 
 ## Inbox Use
 
@@ -59,7 +63,7 @@ Deep research is expected to run steps 1 through 3 when available and report loc
 - Sec Ops owns security, privacy, authorization, prompt-injection, model/tool approval, data governance risk, plus CI/CD, Docker, deployment, migrations, release mechanics, and branch policy proposals.
 - AI Ops owns `.github`, MCP specs, agents, skills, model-routing docs, and agentic metrics.
 - Secretary owns coordination, documentation, and reports.
-- Domain-specific how-to lives in skills, not agents: `bitcraft-backend-feature`, `bitcraft-frontend-feature`, `bitcraft-devops-release`, `bitcraft-security-review`, `bitcraft-doc-maintenance`.
+- Domain-specific how-to lives in skills, not agents: `bitcraft-backend-feature`, `bitcraft-api-endpoint`, `bitcraft-frontend-feature`, `bitcraft-python-sidecar`, `bitcraft-devops-release`, `bitcraft-security-review`, `bitcraft-doc-maintenance`.
 
 ## Review Routing By Impact
 

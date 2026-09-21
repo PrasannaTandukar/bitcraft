@@ -1,6 +1,6 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -44,3 +44,9 @@ Use this skill to write docs and reports that stay aligned with the code and AI 
 - Do not invent behavior or present plans as implemented state.
 - Do not write final external/legal/customer deliverable prose as if human-approved.
 - Do not leave root-level agentic AI research files as competing sources of truth.
+
+## Output
+
+- Docs changed, with paths.
+- Follow-up inbox items.
+- Next step: "Work accepted. Human commits, then clean up inboxes."

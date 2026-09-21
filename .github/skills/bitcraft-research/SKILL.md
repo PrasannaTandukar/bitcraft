@@ -1,6 +1,6 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -37,3 +37,4 @@ Use this skill when the user wants evidence before choosing a technical directio
 - Conflicts or uncertainty.
 - Recommendation or decision support.
 - Follow-up inbox items.
+- Next step: "Run the `bitcraft-plan` skill for <goal>. Research findings: <summary with sources>."

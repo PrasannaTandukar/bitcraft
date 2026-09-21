@@ -1,8 +1,8 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-21
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 ---
 
@@ -92,6 +92,7 @@ Even when running in autopilot or batch mode, agents must HALT and request human
 
 ## Workflow And Review
 
+- The workflow has three phases with entry skills: `bitcraft-plan` (Planning and Research), `bitcraft-develop` (Development), and `bitcraft-review` (Review). Each phase ends by emitting a ready-to-paste prompt for the next phase. See `.github/governance/DEVELOPER_GUIDE.md` Standard Flow.
 - Start with Secretary for work overview, the `bitcraft-research` skill for evidence discovery, or Planner for technical planning.
 - Development responsibility sits with Lead Dev (backend and frontend). Sec Ops owns integrity (security, privacy, CI/CD, deployment). AI Ops owns the agentic stack. Secretary owns coordination and documentation.
 - Before review, classify Change Impact Level from `.github/governance/METRICS.md`. Higher impact changes need broader expert review and stronger validation.

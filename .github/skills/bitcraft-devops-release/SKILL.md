@@ -1,6 +1,6 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -47,3 +47,4 @@ Use this skill for infrastructure, release, and operational integrity work. Runs
 - Branch/release implications.
 - CIL and review route.
 - Inbox updates.
+- Next step: "Run the `bitcraft-review` skill for branch `<branch>`. Scope: <changed files>."

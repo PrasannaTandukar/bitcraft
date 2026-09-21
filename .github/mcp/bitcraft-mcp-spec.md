@@ -1,8 +1,8 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-21
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 ---
 # Bitcraft MCP Specification
@@ -19,9 +19,10 @@ Status: **live**. Every tool listed in this section exists in `mcp-server/server
 - `list_active_plans(include_archived=False)`, `read_plan(branch_slug)` — active task plans under `.github/plans/<branch>/`. Archive and templates folders are excluded by default.
 - `list_doc_stacks`, `read_doc_stack(stack_slug)` for ignored developer-local docs under `docs/dev/`
 - `list_agents`, `read_roster`
+- `list_skills`, `read_skill(slug)` — skill catalog under `.github/skills/`. `list_skills` returns slug, name, and description for every skill so an agent can pick the right skill without reading every SKILL.md. Entry skills (`bitcraft-plan`, `bitcraft-develop`, `bitcraft-review`) are the Phase 1/2/3 workflow entrypoints.
 - `verify_architecture_readonly` — reports Clean Architecture rule violations in `Bitcraft.Domain` and `Bitcraft.Application` (forbidden project references, forbidden `using` statements, and external package references in Application that are not in the in-server allow-list, currently `MediatR` and `Microsoft.Extensions.DependencyInjection.Abstractions`). Read-only spot check; enforcement still belongs to tests and CI.
 
-The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/governance/`, `.github/config/`, `.github/agents/`, optional local `.github/inboxes/`, `.github/plans/` (active folders only), ignored `docs/dev/` stack manifests, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
+The server runs over stdio and is wired in `.vscode/mcp.json`. All file access is constrained to `.github/governance/`, `.github/config/`, `.github/agents/`, `.github/skills/`, optional local `.github/inboxes/`, `.github/plans/` (active folders only), ignored `docs/dev/` stack manifests, and (read-only, for `verify_architecture_readonly`) `src/Bitcraft.Domain/` and `src/Bitcraft.Application/`. No writes, no shell, no network.
 
 ## Third-Party MCP Servers Wired In `.vscode/mcp.json`
 

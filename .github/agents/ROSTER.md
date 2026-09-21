@@ -1,6 +1,6 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -11,6 +11,8 @@ ai_gen: true
 Custom agents live in this folder as `.agent.md` files. Use them when the task benefits from a stable role, tool policy, inbox ownership, and optional guided handoff.
 
 Five agents cover the plan → develop → review workflow. Capabilities without a dedicated agent (research, documentation, backend/frontend specialization, releases) live as skills under `.github/skills/` and run inside the owning agent.
+
+The workflow has three phases with entry skills: `bitcraft-plan` (Phase 1, Planner), `bitcraft-develop` (Phase 2, Lead Dev), and `bitcraft-review` (Phase 3, Lead Dev). Each phase ends by emitting a ready-to-paste prompt for the next phase. Area skills (backend, api-endpoint, frontend, python-sidecar, devops, tests, upgrades, agentic stack) run inside Phase 2. See `.github/governance/DEVELOPER_GUIDE.md` Standard Flow.
 
 ## Coordination
 

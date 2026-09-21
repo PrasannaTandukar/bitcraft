@@ -333,6 +333,44 @@ def read_roster() -> str:
 
 
 @mcp.tool()
+def list_skills() -> list[dict]:
+    """List Bitcraft skills under .github/skills/ with name and description.
+
+    Each entry carries the skill slug, its frontmatter ``name``, and
+    ``description`` so an agent can pick the right skill without reading
+    every SKILL.md. Entry skills (bitcraft-plan, bitcraft-develop,
+    bitcraft-review) are the workflow phase entrypoints.
+    """
+    if not SKILLS_DIR.is_dir():
+        return []
+    skills: list[dict] = []
+    for entry in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+        skill_file = entry / "SKILL.md"
+        if not skill_file.is_file():
+            continue
+        meta = _parse_frontmatter(skill_file.read_text(encoding="utf-8"))
+        skills.append(
+            {
+                "slug": entry.name,
+                "name": meta.get("name", entry.name),
+                "description": meta.get("description", ""),
+            }
+        )
+    return skills
+
+
+@mcp.tool()
+def read_skill(slug: str) -> str:
+    """Read one Bitcraft skill SKILL.md by folder slug (e.g. ``bitcraft-plan``).
+
+    Args:
+        slug: Folder name under ``.github/skills/``.
+    """
+    skill_dir = _safe_child_dir(SKILLS_DIR, slug)
+    return _safe_read(skill_dir, "SKILL")
+
+
+@mcp.tool()
 def list_active_plans(include_archived: bool = False) -> list[dict]:
     """List active plan branch folders under .github/plans/.
 

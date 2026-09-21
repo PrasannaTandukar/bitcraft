@@ -1,6 +1,6 @@
 ---
 created_at: 2026-09-17
-edited_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -11,7 +11,7 @@ argument-hint: "[task, feature, bug, architecture question, or research summary]
 
 # Bitcraft Planning
 
-Use this skill to convert goals and evidence into an actionable technical plan. Runs inside the Planner agent.
+Use this skill to convert goals and evidence into an actionable technical plan. Runs inside the Planner agent. The `bitcraft-plan` entry skill wraps this skill with the Phase 1 decision tree; use `bitcraft-plan` as the workflow entrypoint.
 
 ## Procedure
 
@@ -37,3 +37,4 @@ Use this skill to convert goals and evidence into an actionable technical plan. 
 - Delegation plan.
 - Validation plan.
 - Open human decisions.
+- Next step: "Run the `bitcraft-develop` skill for `.github/plans/<branch-slug>/plan.<slug>.md`. Execute work steps in order. Validate each step before the next."

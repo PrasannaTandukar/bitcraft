@@ -1,6 +1,6 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
 editor: ai-ops
 ai_gen: true
@@ -48,3 +48,4 @@ Two open findings from 2026-05-19 require sign-off before `fetch` and `git` MCP 
 - Recommended owner and follow-up.
 - CIL, CSS, and DIS.
 - Inbox updates.
+- Next step: "Run the `bitcraft-develop` skill. Fix these exact items: <numbered findings with file paths>." or "Work accepted. Human commits."
