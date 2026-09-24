@@ -399,9 +399,7 @@ public static class BenchmarkFeatures
                     ? selectedSnapshot?.ModelName
                     : string.IsNullOrWhiteSpace(request.ModelAlias) ? null : request.ModelAlias.Trim(),
                 GenerateActualOutputs = request.GenerateActualOutputs,
-                // Automatic generation always executes the tutor's activated knowledge
-                // configuration. The request flag remains for manual-run contract compatibility.
-                UseTutorKnowledge = request.GenerateActualOutputs || request.UseTutorKnowledge,
+                UseTutorKnowledge = request.UseTutorKnowledge,
                 RetrievalTopK = topK,
                 ConsistencyRuns = request.ConsistencyRuns,
                 Status = BenchmarkRunStatus.Queued,
@@ -689,8 +687,7 @@ public static class BenchmarkFeatures
                     : generated.Value.ContextText;
                 runCase.MetadataJson = MergeGenerationMetadata(
                     runCase.MetadataJson,
-                    generated.Value.ModelUsed,
-                    generated.Value.GenerationLatencyMs);
+                    generated.Value);
                 run.ModelAlias ??= generated.Value.ModelUsed;
 
                 generatedCount++;
@@ -884,14 +881,22 @@ public static class BenchmarkFeatures
         return metadata.ToJsonString();
     }
 
-    private static string MergeGenerationMetadata(string? metadataJson, string modelUsed, double? generationLatencyMs)
+    private static string MergeGenerationMetadata(string? metadataJson, GeneratedBenchmarkOutput generated)
     {
         var metadata = ParseMetadataObject(metadataJson);
-        metadata["generationModel"] = modelUsed;
-        if (generationLatencyMs.HasValue && double.IsFinite(generationLatencyMs.Value))
+        metadata["generationModel"] = generated.ModelUsed;
+        metadata["tutorRevisionId"] = generated.TutorRevisionId?.ToString();
+        metadata["tutorConfigurationSnapshotId"] = generated.TutorConfigurationSnapshotId?.ToString();
+        metadata["knowledgeUsed"] = generated.KnowledgeUsed;
+        metadata["sourceCount"] = generated.SourceCount;
+        metadata["toolCallCount"] = generated.ToolCallCount;
+        if (generated.GenerationLatencyMs.HasValue && double.IsFinite(generated.GenerationLatencyMs.Value))
         {
-            metadata["generationLatencyMs"] = Math.Round(generationLatencyMs.Value, 3);
+            metadata["generationLatencyMs"] = Math.Round(generated.GenerationLatencyMs.Value, 3);
         }
+        if (generated.InputTokenCount.HasValue) metadata["inputTokenCount"] = generated.InputTokenCount.Value;
+        if (generated.OutputTokenCount.HasValue) metadata["outputTokenCount"] = generated.OutputTokenCount.Value;
+        if (generated.TotalTokenCount.HasValue) metadata["totalTokenCount"] = generated.TotalTokenCount.Value;
 
         return metadata.ToJsonString();
     }

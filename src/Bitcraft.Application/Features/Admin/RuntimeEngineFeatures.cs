@@ -204,7 +204,7 @@ public static class RuntimeEngineFeatures
         string? ApiKeySecretRef) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
 
     public sealed class TestRuntimeEngineHandler(
-        ILlmGenerationProvider generationProvider,
+        IRuntimeModelDiagnostic diagnostic,
         ICurrentUserContext currentUser)
         : IRequestHandler<TestRuntimeEngineCommand, Result<TestRuntimeEngineConnectionResult>>
     {
@@ -227,48 +227,22 @@ public static class RuntimeEngineFeatures
             }
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                var discoveredModels = await generationProvider.ProbeAvailableModelsAsync(
-                    request.Endpoint.Trim(),
-                    string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
-                    request.ProviderType.ToString(),
-                    cancellationToken);
+            var probe = await diagnostic.ProbeModelsAsync(new RuntimeModelCatalogDiagnosticRequest(
+                request.ProviderType, request.Endpoint.Trim(),
+                string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim()),
+                cancellationToken);
+            stopwatch.Stop();
+            var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
+            if (probe.IsFailure)
+                return Result.Success(new TestRuntimeEngineConnectionResult(false, latency,
+                    "The runtime endpoint could not be verified."));
 
-                stopwatch.Stop();
-                var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
-
-                if (discoveredModels is { Count: > 0 })
-                {
-                    return Result.Success(new TestRuntimeEngineConnectionResult(
-                        true,
-                        latency,
-                        $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s).",
-                        discoveredModels));
-                }
-
-                if (discoveredModels is not null)
-                {
-                    return Result.Success(new TestRuntimeEngineConnectionResult(
-                        true,
-                        latency,
-                        $"Successfully reached {request.ProviderType} endpoint (no models reported).",
-                        discoveredModels));
-                }
-
-                return Result.Success(new TestRuntimeEngineConnectionResult(
-                    false,
-                    latency,
-                    $"Could not reach {request.ProviderType} endpoint or retrieve model catalog."));
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                return Result.Success(new TestRuntimeEngineConnectionResult(
-                    false,
-                    Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
-                    $"Connection failed: {ex.Message}"));
-            }
+            var discoveredModels = probe.Value.AvailableModels;
+            return Result.Success(new TestRuntimeEngineConnectionResult(true, latency,
+                discoveredModels.Count > 0
+                    ? $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s)."
+                    : $"Successfully reached {request.ProviderType} endpoint (no models reported).",
+                discoveredModels));
         }
     }
 

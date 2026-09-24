@@ -1,4 +1,4 @@
-import { apiFetch } from "../api/client.js";
+import { apiFetch, apiSse } from "../api/client.js";
 
 export const listRuntimeTutors = (signal) =>
   apiFetch("/api/runtime/tutors", { signal });
@@ -8,6 +8,11 @@ export const askRuntimeTutor = (activationSlug, payload, signal) =>
     method: "POST",
     json: payload,
     signal,
+  });
+
+export const streamRuntimeTutor = (activationSlug, payload, signal, onEvent) =>
+  apiSse(`/api/runtime/tutors/${encodeURIComponent(activationSlug)}/ask/stream`, {
+    json: payload, signal, onEvent,
   });
 
 export const getChatAttachmentOptions = (signal) =>
@@ -24,3 +29,9 @@ export const getChatImage = (id, signal) =>
 
 export const deleteChatImage = (id) =>
   apiFetch(`/api/runtime/attachments/${encodeURIComponent(id)}`, { method: "DELETE", parse: "none" });
+
+const conversationsPath = (slug) => `/api/runtime/tutors/${encodeURIComponent(slug)}/conversations`;
+export const listTutorConversations = (slug, signal) => apiFetch(conversationsPath(slug), { signal });
+export const createTutorConversation = (slug, signal) => apiFetch(conversationsPath(slug), { method: "POST", signal });
+export const getTutorConversation = (slug, id, signal) => apiFetch(`${conversationsPath(slug)}/${encodeURIComponent(id)}`, { signal });
+export const deleteTutorConversation = (slug, id) => apiFetch(`${conversationsPath(slug)}/${encodeURIComponent(id)}`, { method: "DELETE", parse: "none" });

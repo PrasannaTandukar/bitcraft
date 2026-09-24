@@ -1,6 +1,7 @@
 import { Alert, App, Button, Col, Collapse, Drawer, Form, Input, InputNumber, Row, Select, Space, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
+import TutorToolsPanel from "./TutorToolsPanel.jsx";
 import { updateTutorRevision } from "./tutorApi.js";
 import { deploymentTarget, parseJsonObject, prettyJson, revisionStatus } from "./tutorUtils.js";
 
@@ -9,12 +10,14 @@ const commonParameterValue = (parameters, snakeCase, camelCase) => {
   return value === null || value === undefined ? null : Number(value);
 };
 
-export default function RevisionEditor({ tutorId, revision, prompts, interactionModels, embeddingModels, onClose, onSaved, onCreatePrompt }) {
+export default function RevisionEditor({ tutorId, revision, prompts, interactionModels, embeddingModels, revisions, onClose, onSaved, onCreatePrompt }) {
   const { modal } = App.useApp();
   let initialParameters = {};
   try { initialParameters = parseJsonObject(revision.interactionParametersJson); } catch { initialParameters = {}; }
   const editable = revisionStatus(revision.status) === "Draft";
   const [form] = Form.useForm();
+  const [selectedToolIds, setSelectedToolIds] = useState(revision.toolDefinitionIds || []);
+  const selectedModelId = Form.useWatch("interactionModelId", form);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -77,6 +80,7 @@ export default function RevisionEditor({ tutorId, revision, prompts, interaction
     setError("");
     try {
       await updateTutorRevision(tutorId, revision.id, {
+        toolDefinitionIds: selectedToolIds,
         promptVersionId: values.promptVersionId || null,
         interactionModelId: values.interactionModelId || null,
         queryEmbeddingModelId: values.queryEmbeddingModelId || null,
@@ -167,6 +171,9 @@ export default function RevisionEditor({ tutorId, revision, prompts, interaction
           }]}
         />
       </Form>
+      <TutorToolsPanel tutorId={tutorId} selectedIds={selectedToolIds} editable={editable && !saving}
+        revisions={revisions} model={interactionOptions.find((model) => model.id === selectedModelId)}
+        onSelectionChange={(ids) => { setSelectedToolIds(ids); setDirty(true); }} />
     </Drawer>
   );
 }

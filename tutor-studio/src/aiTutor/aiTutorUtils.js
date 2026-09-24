@@ -16,6 +16,12 @@ const messagesByCode = {
   "TutorRuntime.KnowledgeConfigurationInvalid": "This tutor's knowledge is not ready. Vectorize its documents and activate a new revision.",
   "TutorRuntime.TopKInvalid": "Retrieval depth must be between 1 and 10.",
   "TutorRuntime.HistoryTooLarge": "This conversation is too long to send. Start a new chat and try again.",
+  "TutorRuntime.Timeout": "The tutor took too long to respond. Please try again.",
+  "TutorRuntime.RateLimited": "The tutor provider is busy. Please wait briefly and try again.",
+  "TutorRuntime.ContextTooLarge": "This conversation exceeds the model's context limit. Start a new chat and try again.",
+  "TutorRuntime.ProviderUnavailable": "The configured tutor provider is unavailable. Please try again later.",
+  "TutorRuntime.ModelConfigurationInvalid": "This tutor's model configuration needs administrator attention.",
+  "TutorConversation.Conflict": "This conversation changed in another request. Reload it before trying again.",
   "Ollama.Unavailable": "The configured Ollama runtime is unavailable. Please try again after the AI service is running.",
   "Ollama.ModelNotFound": "The tutor's configured model is not installed in Ollama.",
 };
@@ -25,24 +31,6 @@ export function getTutorRuntimeError(error) {
     if (messagesByCode[error.body.code]) return messagesByCode[error.body.code];
   }
   return getApiErrorDescription(error, "The tutor could not answer right now. Please try again.");
-}
-
-export function buildBoundedHistory(messages, attachmentIds = [], maxImagesPerRequest = 20) {
-  const history = messages
-    .filter((message) => !message.local && !message.error && ["user", "assistant"].includes(message.role))
-    .slice(-20)
-    .map((message) => ({
-      role: message.role, content: message.content,
-      ...(message.attachmentIds?.length ? { attachmentIds: message.attachmentIds } : {}),
-    }));
-
-  let total = history.reduce((sum, message) => sum + message.content.length, 0);
-  const imageCount = () => new Set([...attachmentIds, ...history.flatMap((message) => message.attachmentIds ?? [])]).size;
-  while (history.length && (total > 30000 || imageCount() > maxImagesPerRequest)) {
-    total -= history[0].content.length;
-    history.shift();
-  }
-  return history;
 }
 
 export const sourcePercent = (score) => `${Math.round(Math.max(0, Math.min(1, score)) * 100)}%`;

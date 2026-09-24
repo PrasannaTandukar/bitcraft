@@ -1,6 +1,7 @@
 import { Collapse, Flex, Slider, Switch, Typography } from "antd";
 
-export default function ChatSettings({ topK, showSources, onTopKChange, onShowSourcesChange }) {
+export default function ChatSettings({ topK, showSources, useMemory, saveToMemory,
+  onTopKChange, onShowSourcesChange, onUseMemoryChange, onSaveToMemoryChange }) {
   return (
     <Collapse
       size="small"
@@ -20,6 +21,20 @@ export default function ChatSettings({ topK, showSources, onTopKChange, onShowSo
             <Flex align="center" justify="space-between" gap={16}>
               <Typography.Text>Show sources</Typography.Text>
               <Switch checked={showSources} onChange={onShowSourcesChange} />
+            </Flex>
+            <Flex align="center" justify="space-between" gap={16}>
+              <div>
+                <Typography.Text>Use Tutor Memory</Typography.Text>
+                <Typography.Paragraph type="secondary">Use relevant information you previously chose to save with this tutor.</Typography.Paragraph>
+              </div>
+              <Switch checked={useMemory} onChange={onUseMemoryChange} />
+            </Flex>
+            <Flex align="center" justify="space-between" gap={16}>
+              <div>
+                <Typography.Text>Save this conversation to memory</Typography.Text>
+                <Typography.Paragraph type="secondary">Save this question and answer for future conversations with this tutor.</Typography.Paragraph>
+              </div>
+              <Switch checked={saveToMemory} onChange={onSaveToMemoryChange} />
             </Flex>
           </div>
         ),

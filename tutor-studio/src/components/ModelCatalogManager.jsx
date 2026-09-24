@@ -225,6 +225,8 @@ export default function ModelCatalogManager({ kind }) {
       settingsJson: model.settingsJson ?? undefined,
       isEnabled: model.isEnabled,
       supportsImageInput: model.supportsImageInput ?? false,
+      supportsFunctionCalling: model.supportsFunctionCalling ?? false,
+      supportsStructuredOutput: model.supportsStructuredOutput ?? false,
       embeddingDimensions: model.embeddingDimensions,
     });
     setOpen(true);
@@ -250,7 +252,11 @@ export default function ModelCatalogManager({ kind }) {
         settingsJson: values.settingsJson?.trim() || null,
         isEnabled: values.isEnabled,
       };
-      if (!isEmbedding) payload.supportsImageInput = Boolean(values.supportsImageInput);
+      if (!isEmbedding) {
+        payload.supportsImageInput = Boolean(values.supportsImageInput);
+        payload.supportsFunctionCalling = Boolean(values.supportsFunctionCalling);
+        payload.supportsStructuredOutput = Boolean(values.supportsStructuredOutput);
+      }
       if (isEmbedding && !editingModel) payload.embeddingDimensions = Number(values.embeddingDimensions);
       if (editingModel) {
         const updated = await apiFetch(`${config.apiPath}/${editingModel.id}`, { method: "PUT", json: payload });
@@ -285,7 +291,7 @@ export default function ModelCatalogManager({ kind }) {
   };
 
   const columns = [
-    { title: "Name", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name), render: (value, model) => <div className="management-name-cell"><Typography.Text strong>{value} {!isEmbedding && model.supportsImageInput ? <Tag color="purple">Vision</Tag> : null}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: model.providerModelName }}>{model.providerModelName || "Provider model not specified"}</Typography.Text></div> },
+    { title: "Name", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name), render: (value, model) => <div className="management-name-cell"><Typography.Text strong>{value} {!isEmbedding && model.supportsImageInput ? <Tag color="purple">Vision</Tag> : null} {!isEmbedding && model.supportsFunctionCalling ? <Tag color="blue">Tools</Tag> : null} {!isEmbedding && model.supportsStructuredOutput ? <Tag color="cyan">Structured</Tag> : null}</Typography.Text><Typography.Text type="secondary" ellipsis={{ tooltip: model.providerModelName }}>{model.providerModelName || "Provider model not specified"}</Typography.Text></div> },
     { title: "Runtime", dataIndex: "runtimeEngineName", width: 160, ellipsis: true, render: (value) => value || "—" },
     ...(isEmbedding ? [{ title: "Dimensions", dataIndex: "embeddingDimensions", width: 120, sorter: (a, b) => a.embeddingDimensions - b.embeddingDimensions, render: (value) => value > 0 ? Number(value).toLocaleString() : "—" }] : []),
     { title: "Status", dataIndex: "isEnabled", width: 100, filters: [{ text: "Enabled", value: true }, { text: "Disabled", value: false }], onFilter: (value, record) => record.isEnabled === value, render: (value) => <Tag color={value ? "success" : "default"}>{value ? "Enabled" : "Disabled"}</Tag> },
@@ -331,7 +337,7 @@ export default function ModelCatalogManager({ kind }) {
         {formError ? <Alert type="error" title={formError} showIcon style={{ marginBottom: 16 }} /> : null}
         {engineError ? <Alert type="error" title={engineError} showIcon style={{ marginBottom: 16 }} /> : null}
         {!editingModel && !engines.length && !engineError ? <Alert type="warning" title="No enabled runtime engines are available. Add or enable a runtime engine first." showIcon style={{ marginBottom: 16 }} /> : null}
-        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, supportsImageInput: false, embeddingDimensions: 0 }}>
+        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, supportsImageInput: false, supportsFunctionCalling: false, supportsStructuredOutput: false, embeddingDimensions: 0 }}>
           <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a model name." }]}><Input placeholder={`My ${isEmbedding ? "Embedding" : "Interaction"} Model`} /></Form.Item>
           <Form.Item label="Runtime engine" name="runtimeEngineId" rules={[{ required: true, message: "Select a runtime engine." }]}>
             <Select
@@ -417,6 +423,12 @@ export default function ModelCatalogManager({ kind }) {
             <section aria-label="Capabilities">
               <Typography.Title level={5}>Capabilities</Typography.Title>
               <Form.Item label="Image input / Vision" name="supportsImageInput" valuePropName="checked" extra="Allows tutors using this model to receive images. Activate a new tutor revision to apply capability changes.">
+                <Switch />
+              </Form.Item>
+              <Form.Item label="Function calling" name="supportsFunctionCalling" valuePropName="checked" extra="Allows snapshot-configured tutor tools. Enable this only for provider models verified to support tool calls.">
+                <Switch />
+              </Form.Item>
+              <Form.Item label="Structured output" name="supportsStructuredOutput" valuePropName="checked" extra="Records that the provider model supports schema-constrained structured responses.">
                 <Switch />
               </Form.Item>
               {editingModel ? <ModelImageInputTest key={editingModel.id} modelId={editingModel.id} disabled={saving} /> : null}
