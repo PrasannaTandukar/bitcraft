@@ -1,5 +1,5 @@
 import { MessageOutlined, PlusOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Empty, Select, Spin, Typography } from "antd";
+import { Alert, App, Button, Drawer, Empty, Spin, Typography } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -9,6 +9,8 @@ import { getTutorRuntimeError } from "./aiTutorUtils.js";
 import ChatComposer from "./ChatComposer.jsx";
 import ChatMessage from "./ChatMessage.jsx";
 import ChatSettings from "./ChatSettings.jsx";
+import ConversationHeader from "./ConversationHeader.jsx";
+import ConversationHistoryPanel from "./ConversationHistoryPanel.jsx";
 import TutorRuntimeHeader from "./TutorRuntimeHeader.jsx";
 import TutorSelector from "./TutorSelector.jsx";
 import "./AiTutor.css";
@@ -33,6 +35,10 @@ export default function AiTutorPage() {
   const [conversationId, setConversationId] = useState(null);
   const [conversationConfiguration, setConversationConfiguration] = useState(null);
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [deletingConversationId, setDeletingConversationId] = useState(null);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [settingsDrawerOpen, setSettingsDrawerOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [conversationKey, setConversationKey] = useState(0);
@@ -46,7 +52,9 @@ export default function AiTutorPage() {
   const [requestedTutorUnavailable, setRequestedTutorUnavailable] = useState("");
   const endRef = useRef(null);
   const requestRef = useRef(null);
+  const conversationRequestRef = useRef(null);
   useEffect(() => () => requestRef.current?.abort(), []);
+  useEffect(() => () => conversationRequestRef.current?.abort(), []);
 
   const selectedTutor = useMemo(() => tutors.find((tutor) => tutor.tutorId === selectedTutorId) || null, [selectedTutorId, tutors]);
 
@@ -80,10 +88,12 @@ export default function AiTutorPage() {
   }, [messages, sending]);
 
   useEffect(() => {
-    if (!selectedTutor) return;
+    if (!selectedTutor) return undefined;
     const controller = new AbortController();
-    listTutorConversations(selectedTutor.activationSlug, controller.signal).then(setConversations)
-      .catch((error) => { if (!controller.signal.aborted) setLoadError(getTutorRuntimeError(error)); });
+    listTutorConversations(selectedTutor.activationSlug, controller.signal).then((loaded) => {
+      if (!controller.signal.aborted) setConversations(loaded ?? []);
+    }).catch((error) => { if (!controller.signal.aborted) setLoadError(getTutorRuntimeError(error)); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingConversations(false); });
     return () => controller.abort();
   }, [selectedTutor]);
 
@@ -91,27 +101,60 @@ export default function AiTutorPage() {
     setConversationId(value.id);
     setConversationConfiguration(value);
     setMessages(value.messages.map((message) => ({ ...message, local: false,
-      attachments: message.attachmentIds.map((id) => ({ id })) })));
+      attachments: (message.attachmentIds ?? []).map((id) => ({ id })) })));
     setDraft("");
     setConversationKey((key) => key + 1);
   };
 
   const loadConversation = async (id) => {
+    if (!selectedTutor || id === conversationId || sending) return;
+    const previousConversation = { conversationId, configuration: conversationConfiguration, messages, draft };
+    conversationRequestRef.current?.abort();
+    const controller = new AbortController();
+    conversationRequestRef.current = controller;
     setLoadingConversation(true);
-    try { displayConversation(await getTutorConversation(selectedTutor.activationSlug, id)); }
-    catch (error) { setLoadError(getTutorRuntimeError(error)); }
-    finally { setLoadingConversation(false); }
+    setMessages([]);
+    setDraft("");
+    try {
+      const loaded = await getTutorConversation(selectedTutor.activationSlug, id, controller.signal);
+      if (!controller.signal.aborted) displayConversation(loaded);
+    } catch (error) {
+      if (!controller.signal.aborted && conversationRequestRef.current === controller) {
+        setConversationId(previousConversation.conversationId);
+        setConversationConfiguration(previousConversation.configuration);
+        setMessages(previousConversation.messages);
+        setDraft(previousConversation.draft);
+        setLoadError(getTutorRuntimeError(error));
+      }
+    } finally {
+      if (conversationRequestRef.current === controller) {
+        conversationRequestRef.current = null;
+        setLoadingConversation(false);
+      }
+    }
   };
 
-  const removeConversation = () => modal.confirm({
-    title: "Delete this conversation?", content: "This permanently removes its stored messages.",
+  const removeConversation = (id) => {
+    const conversation = conversations.find((value) => value.id === id);
+    if (!selectedTutor || !conversation) return;
+    modal.confirm({
+    title: "Delete this conversation?", content: `This permanently removes the stored messages in “${conversation.title || "New conversation"}”.`,
     okText: "Delete", okButtonProps: { danger: true },
     onOk: async () => {
-      await deleteTutorConversation(selectedTutor.activationSlug, conversationId);
-      setConversations((values) => values.filter((value) => value.id !== conversationId));
-      resetConversation();
+      setDeletingConversationId(id);
+      try {
+        await deleteTutorConversation(selectedTutor.activationSlug, id);
+        setConversations((values) => values.filter((value) => value.id !== id));
+        if (conversationId === id) resetConversation();
+      } catch (error) {
+        setLoadError(getTutorRuntimeError(error));
+        throw error;
+      } finally {
+        setDeletingConversationId(null);
+      }
     },
-  });
+    });
+  };
 
   const resetConversation = (tutor = selectedTutor) => {
     setConversationId(null);
@@ -122,7 +165,10 @@ export default function AiTutorPage() {
   };
 
   const applyTutor = (tutorId) => {
+    conversationRequestRef.current?.abort();
     const tutor = tutors.find((value) => value.tutorId === tutorId) || null;
+    setConversations([]);
+    setLoadingConversations(Boolean(tutor));
     setRequestedTutorUnavailable("");
     setSelectedTutorId(tutorId);
     resetConversation(tutor);
@@ -142,6 +188,16 @@ export default function AiTutorPage() {
       okText: "Change tutor",
       onOk: () => applyTutor(tutorId),
     });
+  };
+
+  const startNewChat = () => {
+    resetConversation();
+    setHistoryDrawerOpen(false);
+  };
+
+  const selectConversation = (id) => {
+    setHistoryDrawerOpen(false);
+    void loadConversation(id);
   };
 
   const sendQuestion = ({ question: questionOverride, attachments = [], retryTopK } = {}) => {
@@ -238,7 +294,7 @@ export default function AiTutorPage() {
         <PageHeader
           title="AI Tutor"
           description="Chat with the active, versioned configuration of a tutor."
-          extra={<Button icon={<PlusOutlined />} onClick={() => resetConversation()} disabled={!selectedTutor || sending || loadingConversation}>New chat</Button>}
+          extra={<Button icon={<PlusOutlined />} onClick={startNewChat} disabled={!selectedTutor || sending || loadingConversation}>New chat</Button>}
         />
 
         {loadError ? <Alert type="error" title="Tutor chat" description={loadError} showIcon /> : null}
@@ -257,34 +313,42 @@ export default function AiTutorPage() {
           <div className="runtime-workspace">
             <TutorSelector tutors={tutors} selectedTutorId={selectedTutorId} disabled={sending || loadingConversation} onChange={changeTutor} />
             <TutorRuntimeHeader tutor={selectedTutor} canManage={canManage} onConfigure={() => navigate(`/tutors/${selectedTutor.tutorId}?tab=revisions`)} onBenchmark={() => navigate(`/benchmarking?tab=new&tutorId=${selectedTutor.tutorId}&revisionId=${selectedTutor.activeRevisionId}`)} />
-            <div className="runtime-conversation-picker">
-              {conversationConfiguration ? <Typography.Text>Conversation pinned to revision {conversationConfiguration.revisionNumber}. </Typography.Text> : null}
-              <Select aria-label="Saved conversations" placeholder="Saved conversations" value={conversationId}
-                style={{ minWidth: 260 }} disabled={sending || loadingConversation} onChange={loadConversation}
-                options={conversations.map((value) => ({ value: value.id, label: value.title || "New conversation" }))} />
-              <Button danger onClick={removeConversation} disabled={!conversationId || sending || loadingConversation}>Delete conversation</Button>
+            <div className="runtime-conversation-workspace">
+              <ConversationHistoryPanel conversations={conversations} selectedConversationId={conversationId}
+                loading={loadingConversations} disabled={sending || loadingConversation}
+                deletingConversationId={deletingConversationId} onNewChat={startNewChat}
+                onSelectConversation={selectConversation} onDeleteConversation={removeConversation} />
+              <section className={`runtime-chat${loadingConversation ? " is-loading" : ""}`} aria-live="polite" aria-busy={loadingConversation}>
+                <ConversationHeader title={conversationConfiguration?.title} revisionNumber={conversationConfiguration?.revisionNumber ?? selectedTutor?.revisionNumber}
+                  onOpenHistory={() => setHistoryDrawerOpen(true)} onOpenSettings={() => setSettingsDrawerOpen(true)} />
+                <div className="runtime-messages">
+                  {loadingConversation ? <div className="runtime-conversation-loading"><Spin size="small" /> <Typography.Text type="secondary">Loading conversation</Typography.Text></div> : messages.map((message) => <ChatMessage
+                      key={message.id}
+                      message={message}
+                      tutorName={selectedTutor?.tutorName || "Tutor"}
+                      showSources={showSources}
+                      retryDisabled={sending}
+                      onRetry={(failed) =>
+                          sendQuestion({ question: failed.content, attachments: failed.attachments, retryTopK: failed.retryTopK })
+                      }
+                  />)}
+                  <div ref={endRef} />
+                </div>
+                <ChatComposer key={`${selectedTutorId}-${conversationKey}`} supportsImageInput={(conversationConfiguration?.supportsImageInput ?? selectedTutor?.model?.supportsImageInput) === true} value={draft} tutorName={selectedTutor?.tutorName} disabled={!selectedTutor || loadingConversation} generating={sending} onCancel={() => requestRef.current?.abort()} onChange={setDraft} onSend={(attachments) => sendQuestion({ attachments })} />
+              </section>
             </div>
-            <ChatSettings topK={topK} showSources={showSources} useMemory={useMemory}
-              saveToMemory={saveToMemory} onTopKChange={setTopK}
-              onShowSourcesChange={setShowSources} onUseMemoryChange={setUseMemory}
-              onSaveToMemoryChange={setSaveToMemory} />
-
-            <section className="runtime-chat" aria-live="polite">
-              <div className="runtime-messages">
-                {messages.map((message) => <ChatMessage
-                    key={message.id}
-                    message={message}
-                    tutorName={selectedTutor?.tutorName || "Tutor"}
-                    showSources={showSources}
-                    retryDisabled={sending}
-                    onRetry={(failed) =>
-                        sendQuestion({ question: failed.content, attachments: failed.attachments, retryTopK: failed.retryTopK })
-                    }
-                />)}
-                <div ref={endRef} />
-              </div>
-              <ChatComposer key={`${selectedTutorId}-${conversationKey}`} supportsImageInput={(conversationConfiguration?.supportsImageInput ?? selectedTutor?.model?.supportsImageInput) === true} value={draft} tutorName={selectedTutor?.tutorName} disabled={!selectedTutor || loadingConversation} generating={sending} onCancel={() => requestRef.current?.abort()} onChange={setDraft} onSend={(attachments) => sendQuestion({ attachments })} />
-            </section>
+            <Drawer className="runtime-history-drawer" title="Chats" open={historyDrawerOpen} onClose={() => setHistoryDrawerOpen(false)} size={340}>
+              <ConversationHistoryPanel drawer conversations={conversations} selectedConversationId={conversationId}
+                loading={loadingConversations} disabled={sending || loadingConversation}
+                deletingConversationId={deletingConversationId} onNewChat={startNewChat}
+                onSelectConversation={selectConversation} onDeleteConversation={removeConversation} />
+            </Drawer>
+            <Drawer title="Conversation settings" open={settingsDrawerOpen} onClose={() => setSettingsDrawerOpen(false)} size={440}>
+              <ChatSettings topK={topK} showSources={showSources} useMemory={useMemory}
+                saveToMemory={saveToMemory} onTopKChange={setTopK}
+                onShowSourcesChange={setShowSources} onUseMemoryChange={setUseMemory}
+                onSaveToMemoryChange={setSaveToMemory} />
+            </Drawer>
           </div>
         ) : null}
       </div>
