@@ -147,6 +147,9 @@ export default function useModelCatalog(kind, form) {
         providerModelName: model.providerModelName ?? undefined,
         settingsJson: model.settingsJson ?? undefined,
         isEnabled: model.isEnabled,
+        supportsImageInput: model.supportsImageInput ?? false,
+        supportsFunctionCalling: model.supportsFunctionCalling ?? false,
+        supportsStructuredOutput: model.supportsStructuredOutput ?? false,
         embeddingDimensions: model.embeddingDimensions,
       });
       setOpen(true);
@@ -177,6 +180,11 @@ export default function useModelCatalog(kind, form) {
         };
         if (isEmbedding && !editingModel)
           payload.embeddingDimensions = Number(values.embeddingDimensions);
+        if (!isEmbedding) {
+          payload.supportsImageInput = Boolean(values.supportsImageInput);
+          payload.supportsFunctionCalling = Boolean(values.supportsFunctionCalling);
+          payload.supportsStructuredOutput = Boolean(values.supportsStructuredOutput);
+        }
         if (editingModel) {
           const updated = await apiFetch(
             `${config.apiPath}/${editingModel.id}`,

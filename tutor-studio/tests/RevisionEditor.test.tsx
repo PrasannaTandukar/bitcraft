@@ -18,6 +18,11 @@ vi.mock("../src/features/editor/hooks/tutorApi.js", () => ({
   updateTutorRevision: vi.fn(),
 }));
 
+vi.mock("../src/features/editor/components/TutorToolsPanel.jsx", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 vi.mock("../src/features/editor/utils/tutorUtils.js", () => ({
   __esModule: true,
   deploymentTarget: vi.fn((value: number) => (Number(value) === 1 ? "Server" : "Local")),
@@ -335,6 +340,7 @@ describe("RevisionEditor - save payload", () => {
         interactionParametersJson: JSON.stringify({ temperature: 0.7, top_p: 0.9, max_tokens: 512 }),
         deploymentTarget: 0,
         deploymentConfigJson: JSON.stringify({ region: "us-east-1" }),
+        toolDefinitionIds: [],
       });
     });
   });

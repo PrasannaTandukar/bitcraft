@@ -2,7 +2,6 @@ using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Admin;
 using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Contracts.Knowledge;
-using Bitcraft.Api.Contracts.Rag;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Knowledge;
@@ -20,6 +19,17 @@ internal static class TutoringMapping
 {
     public static ActionResult ToActionResult(Error error) => error.Code switch
     {
+        "TutorRuntime.SessionRestoreFailed" or "TutorRuntime.SessionSerializationFailed" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status500InternalServerError },
+        "TutorConversation.Conflict" => new ConflictObjectResult(new ApiError(error.Code, error.Description)),
+        "TutorRuntime.RateLimited" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status429TooManyRequests },
+        "TutorRuntime.Timeout" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status504GatewayTimeout },
+        "TutorRuntime.ContextTooLarge" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status413PayloadTooLarge },
+        "TutorRuntime.ProviderUnavailable" =>
+            new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status503ServiceUnavailable },
         "TutorRuntime.TutorNotFound" =>
             new NotFoundObjectResult(new ApiError(error.Code, error.Description)),
         var c when c.EndsWith(".NotFound", StringComparison.Ordinal) =>
@@ -29,12 +39,17 @@ internal static class TutoringMapping
         "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
         "InteractionModel.ImageTestFailed" or "TutorRuntime.ImageRejected" or "Ollama.ModelNotFound" or "Ollama.InvalidResponse" or "TutorRuntime.GenerationFailed" or
-        "TutorRuntime.EmbeddingUnavailable" or "TutorRuntime.KnowledgeSearchFailed" =>
+        "TutorRuntime.EmbeddingUnavailable" or "TutorRuntime.KnowledgeSearchFailed" or
+        "TutorRuntime.MemoryEmbeddingUnavailable" or "TutorRuntime.MemorySearchFailed" or
+        "TutorRuntime.MemorySaveFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
         "TutorRuntime.ImageInputNotSupported" or "TutorRuntime.NoActiveRevision" or "TutorRuntime.InvalidRevision" or
         "TutorRuntime.PromptNotConfigured" or "TutorRuntime.InteractionModelNotConfigured" or
         "TutorRuntime.InteractionModelDisabled" or "TutorRuntime.EmbeddingModelDisabled" or
-        "TutorRuntime.SnapshotMissing" or "TutorRuntime.KnowledgeConfigurationInvalid" =>
+        "TutorRuntime.SnapshotMissing" or "TutorRuntime.KnowledgeConfigurationInvalid" or
+        "TutorRuntime.MemoryConfigurationInvalid" or "TutorRuntime.FunctionCallingNotSupported" or
+        "TutorRuntime.ToolRequestRejected" or "TutorRuntime.ToolConfigurationInvalid" or "TutorRuntime.ToolApprovalRequired" or
+        "TutorRuntime.ModelConfigurationInvalid" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status409Conflict },
         "Knowledge.EmbeddingServiceUnavailable" or "Knowledge.EmbeddingRequestFailed" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
@@ -112,35 +127,6 @@ internal static class TutoringMapping
         chunk.EmbeddingProvider,
         chunk.IngestedUtc);
 
-    public static AskRagQuestionResponse ToResponse(this RagAnswerResult result) => new(
-        result.Answer,
-        result.Model,
-        result.Sources.Select(source => new RagSourceChunkResponse(
-            source.DocumentId,
-            source.DocumentName,
-            source.ChunkId,
-            source.ChunkIndex,
-            source.Content,
-            source.Score)).ToList());
-
-    public static AskTutorQuestionResponse ToResponse(this TutorAnswerResult result) => new(
-        result.Answer,
-        result.Model,
-        result.Mode,
-        result.ContextUsed,
-        result.MemorySaved,
-        result.Sources.Select(source => new TutorSourceResponse(
-            source.SourceType,
-            source.SourceId,
-            source.DocumentId,
-            source.DocumentName,
-            source.MemoryId,
-            source.ChunkId,
-            source.ChunkIndex,
-            source.Content,
-            source.Score)).ToList(),
-        result.Message);
-
     public static TutorRuntimeAskResponse ToResponse(this TutorRuntimeResult result) => new(
         result.Answer,
         new TutorRuntimeTutorResponse(result.TutorId, result.TutorName),
@@ -155,7 +141,37 @@ internal static class TutoringMapping
             source.ChunkId,
             source.ChunkIndex,
             source.Score)).ToList(),
-        ConversationId: null);
+        ConversationId: result.ConversationId,
+        MemoryUsed: result.MemoryUsed,
+        MemorySaved: result.MemorySaved,
+        ToolActivities: (result.ToolActivities ?? []).Select(activity => new TutorToolCallActivityResponse(
+            activity.ToolName, activity.StartedUtc, activity.CompletedUtc, activity.Status.ToString(),
+            activity.DurationMs, activity.ResultSummary, activity.ErrorCategory)).ToList());
+
+    public static TutorRuntimeStreamEventResponse ToResponse(this TutorRuntimeStreamEvent value)
+    {
+        var type = value.Kind switch
+        {
+            TutorRuntimeStreamEventKind.ConversationStarted => "conversation.started",
+            TutorRuntimeStreamEventKind.MessageDelta => "message.delta",
+            TutorRuntimeStreamEventKind.ToolStarted => "tool.started",
+            TutorRuntimeStreamEventKind.ToolCompleted => "tool.completed",
+            TutorRuntimeStreamEventKind.SourceRetrieved => "source.retrieved",
+            TutorRuntimeStreamEventKind.MessageCompleted => "message.completed",
+            TutorRuntimeStreamEventKind.Error => "error",
+            _ => throw new ArgumentOutOfRangeException(nameof(value))
+        };
+        return new TutorRuntimeStreamEventResponse(value.Sequence, type, value.ConversationId,
+            value.Delta,
+            value.Source is null ? null : new TutorRuntimeSourceResponse(value.Source.DocumentId,
+                value.Source.DocumentName, value.Source.ChunkId, value.Source.ChunkIndex, value.Source.Score),
+            value.ToolActivity is null ? null : new TutorToolCallActivityResponse(value.ToolActivity.ToolName,
+                value.ToolActivity.StartedUtc, value.ToolActivity.CompletedUtc,
+                value.ToolActivity.Status.ToString(), value.ToolActivity.DurationMs,
+                value.ToolActivity.ResultSummary, value.ToolActivity.ErrorCategory),
+            value.Result?.ToResponse(),
+            value.Error is null ? null : new ApiError(value.Error.Code, value.Error.Description));
+    }
 
     public static TutorRuntimeDescriptorResponse ToResponse(this TutorRuntimeDescriptor descriptor) => new(
         descriptor.TutorId,
@@ -174,7 +190,9 @@ internal static class TutoringMapping
         model.Name,
         model.ProviderModelName,
         model.RuntimeEngineName,
-        model.SupportsImageInput);
+        model.SupportsImageInput,
+        model.SupportsFunctionCalling,
+        model.SupportsStructuredOutput);
 
     private static TutorRuntimeEmbeddingModelResponse ToResponse(this TutorRuntimeEmbeddingModelMetadata model) => new(
         model.Id,
@@ -194,7 +212,9 @@ internal static class TutoringMapping
         model.CreatedById,
         model.ModifiedUtc,
         model.ModifiedById,
-        model.Capabilities.HasFlag(ModelCapabilities.ImageInput));
+        model.Capabilities.HasFlag(ModelCapabilities.ImageInput),
+        model.Capabilities.HasFlag(ModelCapabilities.FunctionCalling),
+        model.Capabilities.HasFlag(ModelCapabilities.StructuredOutput));
 
     public static EmbeddingModelResponse ToResponse(this EmbeddingModel model) => new(
         model.Id,
@@ -216,7 +236,8 @@ internal static class TutoringMapping
         model.RuntimeEngineId,
         model.RuntimeEngine?.Name,
         model.IsEnabled,
-        model.RuntimeEngine?.IsEnabled == true);
+        model.RuntimeEngine?.IsEnabled == true,
+        model.Capabilities.HasFlag(ModelCapabilities.FunctionCalling));
 
     public static TutorEmbeddingModelCatalogResponse ToCatalogResponse(this EmbeddingModel model) => new(
         model.Id,
@@ -285,7 +306,8 @@ internal static class TutoringMapping
         value.FolderName);
 
     public static ToolDefinitionResponse ToResponse(this ToolDefinition t) => new(
-        t.Id, t.TutorId, t.Name, t.Description, t.JsonSchema, t.ExecutionUrl, t.CreatedUtc);
+        t.Id, t.TutorId, t.Name, t.Description, t.JsonSchema, t.CreatedUtc,
+        t.Kind, t.ImplementationKey, t.ExecutionPolicy);
 
     public static DeploymentProfileResponse ToResponse(this DeploymentProfile d) => new(
         d.Id, d.TutorId, d.Target, d.ConfigurationJson, d.CreatedUtc, d.ModifiedUtc);
@@ -339,7 +361,8 @@ internal static class TutoringMapping
             r.InteractionModel?.IsEnabled == true &&
             r.InteractionModel.RuntimeEngine?.IsEnabled == true,
         r.Status == RevisionStatus.Active,
-        r.Snapshots.OrderByDescending(x => x.CapturedUtc).FirstOrDefault()?.Id);
+        r.Snapshots.OrderByDescending(x => x.CapturedUtc).FirstOrDefault()?.Id,
+        r.RevisionTools.Select(link => link.ToolDefinitionId).ToArray());
 
     public static BenchmarkTemplateResponse ToResponse(this BenchmarkTemplate template) => new(
         template.Id,

@@ -7,7 +7,9 @@ public sealed record CreateInteractionModelRequest(
     string ProviderModelName,
     string? SettingsJson,
     bool IsEnabled,
-    bool SupportsImageInput = false);
+    bool SupportsImageInput = false,
+    bool SupportsFunctionCalling = false,
+    bool SupportsStructuredOutput = false);
 
 /// <summary>Admin request to update an <c>InteractionModel</c>.</summary>
 public sealed record UpdateInteractionModelRequest(
@@ -16,7 +18,9 @@ public sealed record UpdateInteractionModelRequest(
     string ProviderModelName,
     string? SettingsJson,
     bool IsEnabled,
-    bool SupportsImageInput = false);
+    bool SupportsImageInput = false,
+    bool SupportsFunctionCalling = false,
+    bool SupportsStructuredOutput = false);
 
 /// <summary>Read view of an <c>InteractionModel</c>. Never exposes raw secrets.</summary>
 public sealed record InteractionModelResponse(
@@ -30,7 +34,9 @@ public sealed record InteractionModelResponse(
     Guid? CreatedById,
     DateTime? ModifiedUtc,
     Guid? ModifiedById,
-    bool SupportsImageInput = false);
+    bool SupportsImageInput = false,
+    bool SupportsFunctionCalling = false,
+    bool SupportsStructuredOutput = false);
 
 /// <summary>Admin request to create an <c>EmbeddingModel</c>. <c>EmbeddingDimensions</c> is immutable after creation.</summary>
 public sealed record CreateEmbeddingModelRequest(

@@ -1,4 +1,4 @@
-import { CloseOutlined, PaperClipOutlined, SendOutlined } from "@ant-design/icons";
+import { CloseOutlined, PaperClipOutlined, SendOutlined, StopOutlined } from "@ant-design/icons";
 import { Alert, App, Button, Input, Spin, Tooltip } from "antd";
 import { useEffect, useRef, useState } from "react";
 import AttachmentImage from "./AttachmentImage.jsx";
@@ -7,7 +7,7 @@ import { getTutorRuntimeError } from "../utils/aiTutorUtils.js";
 
 const defaultLimits = { maxFileBytes: 5242880, maxImagesPerMessage: 4, maxImagesPerRequest: 20, allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"] };
 
-export default function ChatComposer({ value, tutorName, supportsImageInput, disabled, onChange, onSend }) {
+export default function ChatComposer({ value, tutorName, supportsImageInput, disabled, generating, onCancel, onChange, onSend }) {
   const { message } = App.useApp();
   const [pending, setPending] = useState([]);
   const [limits, setLimits] = useState(defaultLimits);
@@ -35,7 +35,7 @@ export default function ChatComposer({ value, tutorName, supportsImageInput, dis
   const selectFiles = async (event) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (disabled || !supportsImageInput) return;
+    if (disabled || generating || !supportsImageInput) return;
     setError("");
     if (pendingRef.current.length + files.length > limits.maxImagesPerMessage) {
       setError(`Attach up to ${limits.maxImagesPerMessage} images per message.`);
@@ -73,7 +73,7 @@ export default function ChatComposer({ value, tutorName, supportsImageInput, dis
 
   const submit = (event) => {
     event?.preventDefault();
-    if (disabled || uploading || (!value.trim() && !pending.length)) return;
+    if (disabled || generating || uploading || (!value.trim() && !pending.length)) return;
     if (onSend(pendingRef.current, limits)) {
       // Ownership transfers to sent local messages; never delete their attachments during composer cleanup.
       updatePending([]);
@@ -86,19 +86,19 @@ export default function ChatComposer({ value, tutorName, supportsImageInput, dis
       {pending.length ? <div className="runtime-attachments runtime-composer-attachments">
         {pending.map((attachment) => <div className="runtime-pending-image" key={attachment.id}>
           {attachment.uploading ? <Spin size="small" aria-label={`Uploading ${attachment.fileName}`} /> : <AttachmentImage attachment={attachment} />}
-          <Button size="small" type="text" aria-label={`Remove ${attachment.fileName}`} icon={<CloseOutlined />} onClick={() => remove(attachment)} disabled={disabled} />
+          <Button size="small" type="text" aria-label={`Remove ${attachment.fileName}`} icon={<CloseOutlined />} onClick={() => remove(attachment)} disabled={disabled || generating} />
         </div>)}
       </div> : null}
       {error ? <Alert className="runtime-composer-error" type="error" title={error} showIcon closable onClose={() => setError("")} /> : null}
       <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={selectFiles} aria-label="Choose images" />
       <Tooltip title={!supportsImageInput ? "This tutor's current model does not support image input." : `Attach images (up to ${limits.maxImagesPerMessage})`}>
-        <Button aria-label="Attach images" icon={<PaperClipOutlined />} disabled={disabled || !supportsImageInput || pending.length >= limits.maxImagesPerMessage} onClick={() => fileInput.current?.click()} />
+        <Button aria-label="Attach images" icon={<PaperClipOutlined />} disabled={disabled || generating || !supportsImageInput || pending.length >= limits.maxImagesPerMessage} onClick={() => fileInput.current?.click()} />
       </Tooltip>
       <Input.TextArea
         autoSize={{ minRows: 1, maxRows: 6 }}
         value={value}
         aria-label="Message to tutor"
-        disabled={disabled}
+        disabled={disabled || generating}
         placeholder={tutorName ? `Ask ${tutorName}…` : "Select a tutor to begin…"}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
@@ -106,8 +106,10 @@ export default function ChatComposer({ value, tutorName, supportsImageInput, dis
         }}
         maxLength={20000}
       />
-      <Tooltip title={uploading ? "Waiting for image uploads" : "Send message"}>
-        <Button type="primary" htmlType="submit" aria-label="Send message" icon={<SendOutlined />} disabled={disabled || uploading || (!value.trim() && !pending.length)} />
+      <Tooltip title={generating ? "Cancel generation" : uploading ? "Waiting for image uploads" : "Send message"}>
+        {generating
+          ? <Button danger aria-label="Cancel generation" icon={<StopOutlined />} onClick={onCancel} />
+          : <Button type="primary" htmlType="submit" aria-label="Send message" icon={<SendOutlined />} disabled={disabled || uploading || (!value.trim() && !pending.length)} />}
       </Tooltip>
     </form>
   );

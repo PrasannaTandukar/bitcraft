@@ -28,6 +28,7 @@ services:
     volumes:
       - ./src:/bitcraft/src
       - ./.config:/bitcraft/.config
+      - ./Directory.Build.props:/bitcraft/Directory.Build.props:ro
       - nuget-packages:/root/.nuget/packages
 
       # Shadow host obj/dirs so container never sees host build artifacts

@@ -84,6 +84,7 @@ export default function TutorRevisionsPanel({ tutorId, revisions, prompts, inter
       actions.push(<Button key="discard" size="small" danger disabled={isBusy} onClick={() => perform(revision, "discard", discardTutorRevision)}>Discard</Button>);
     }
     if (status === "Published" && canManage) {
+      actions.push(<Button key="view" size="small" onClick={() => setEditing(revision)}>View configuration</Button>);
       actions.push(<Button key="activate" size="small" type="primary" disabled={isBusy} onClick={() => perform(revision, "activate", activateTutorRevision)}>Activate</Button>);
       actions.push(<Button key="archive" size="small" disabled={isBusy} onClick={() => perform(revision, "archive", archiveTutorRevision)}>Archive</Button>);
     }
@@ -153,6 +154,7 @@ export default function TutorRevisionsPanel({ tutorId, revisions, prompts, inter
           key={editing.id}
           tutorId={tutorId}
           revision={editing}
+          revisions={revisions}
           prompts={prompts}
           interactionModels={interactionModels}
           embeddingModels={embeddingModels}

@@ -1,4 +1,4 @@
-import { Alert, Button, Typography } from "antd";
+import { Alert, Button, Spin, Tag, Typography } from "antd";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AttachmentImage from "./AttachmentImage.jsx";
@@ -26,9 +26,17 @@ export default function ChatMessage({ message, tutorName, showSources, onRetry, 
         {images}
         {message.role === "assistant" ? (
           <div className="runtime-markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+            {message.content ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              : message.streaming ? <div className="runtime-thinking"><Spin size="small" /> <span>Thinking…</span></div> : null}
           </div>
         ) : <p>{message.content}</p>}
+        {message.role === "assistant" && message.toolActivities?.length ? <div className="runtime-tool-activity" role="status" aria-live="polite">
+          {message.toolActivities.map((tool, index) => <Tag key={`${tool.toolName}-${index}`}
+            icon={tool.status === "Running" ? <Spin size="small" /> : null}
+            color={tool.status === "Succeeded" ? "success" : tool.status === "Running" ? "processing" : "error"}>
+            {tool.toolName}: {tool.status === "Running" ? "Running…" : tool.status === "Succeeded" ? "Completed" : tool.status === "TimedOut" ? "Timed out" : "Failed"}
+          </Tag>)}
+        </div> : null}
         {message.role === "assistant" && showSources ? <SourceList sources={message.sources} /> : null}
       </article>
     </div>

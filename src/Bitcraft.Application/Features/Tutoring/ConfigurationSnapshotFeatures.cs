@@ -110,10 +110,13 @@ public static class ConfigurationSnapshotFeatures
                 : JsonSerializer.Serialize(tutor.Tools.Select(t => new
                 {
                     t.Id,
+                    t.TutorId,
                     t.Name,
                     t.Description,
                     t.JsonSchema,
-                    t.ExecutionUrl
+                    t.Kind,
+                    t.ImplementationKey,
+                    t.ExecutionPolicy
                 }));
 
             var knowledgeJson = tutor.KnowledgeSources.Count == 0

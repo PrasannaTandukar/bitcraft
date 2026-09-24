@@ -1,4 +1,5 @@
 using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
@@ -17,17 +18,20 @@ public class PgvectorTutorMemoryStore(AppDbContext db) : ITutorMemoryStore
     }
 
     public Task<List<TutorMemory>> SearchNearestMemoriesAsync(
-        Guid creatorId,
-        float[] queryEmbedding,
-        int topK = 5,
+        TutorMemorySearchRequest request,
         CancellationToken cancellationToken = default)
     {
-        var queryVector = new Vector(queryEmbedding);
+        var queryVector = new Vector(request.QueryEmbedding);
 
         return db.TutorMemories
-            .Where(memory => memory.CreatedById == creatorId && memory.Embedding != null)
+            .AsNoTracking()
+            .Where(memory => memory.UserId == request.UserId && memory.TutorId == request.TutorId &&
+                memory.EmbeddingModelId == request.EmbeddingModelId &&
+                memory.EmbeddingDimensions == request.EmbeddingDimensions && memory.Embedding != null &&
+                (!request.ExcludedConversationId.HasValue || memory.ConversationId == null ||
+                    memory.ConversationId != request.ExcludedConversationId))
             .OrderBy(memory => memory.Embedding!.CosineDistance(queryVector))
-            .Take(topK)
+            .Take(Math.Clamp(request.TopK, 1, 10))
             .ToListAsync(cancellationToken);
     }
 }

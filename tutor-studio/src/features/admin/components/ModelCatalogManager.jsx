@@ -3,6 +3,7 @@ import { Alert, Button, Drawer, Empty, Flex, Form, Input, InputNumber, Popconfir
 import { useEffect } from "react";
 import useRolePermissions from "../../../hooks/useRolePermissions.js";
 import PageHeader from "../../../components/PageHeader.jsx";
+import ModelImageInputTest from "../../../components/ModelImageInputTest.jsx";
 import useModelCatalog from "../hooks/useModelCatalog.js";
 import { matchEmbeddingDimension } from "../utils/modelCatalogUtils.js";
 function buildColumns({ config, isEmbedding, canWrite, canDelete, deletingId, openEdit, remove }) {
@@ -13,7 +14,12 @@ function buildColumns({ config, isEmbedding, canWrite, canDelete, deletingId, op
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (value, model) => (
         <div className="management-name-cell">
-          <Typography.Text strong>{value}</Typography.Text>
+          <Typography.Text strong>
+            {value}
+            {!isEmbedding && model.supportsImageInput ? <Tag color="purple">Vision</Tag> : null}
+            {!isEmbedding && model.supportsFunctionCalling ? <Tag color="blue">Tools</Tag> : null}
+            {!isEmbedding && model.supportsStructuredOutput ? <Tag color="cyan">Structured</Tag> : null}
+          </Typography.Text>
           <Typography.Text type="secondary" ellipsis={{ tooltip: model.providerModelName }}>
             {model.providerModelName || "Provider model not specified"}
           </Typography.Text>
@@ -79,7 +85,6 @@ export default function ModelCatalogManager({ kind }) {
     error,
     engineError,
     open,
-    setOpen,
     editingModel,
     saving,
     formError,
@@ -155,7 +160,7 @@ export default function ModelCatalogManager({ kind }) {
         {!editingModel && !engines.length && !engineError ? (
           <Alert type="warning" title="No enabled runtime engines are available. Add or enable a runtime engine first." showIcon style={{ marginBottom: 16 }} />
         ) : null}
-        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, embeddingDimensions: 0 }}>
+        <Form form={form} layout="vertical" onFinish={save} requiredMark={false} initialValues={{ isEnabled: true, embeddingDimensions: 0, supportsImageInput: false, supportsFunctionCalling: false, supportsStructuredOutput: false }}>
           <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, message: "Enter a model name." }]}>
             <Input placeholder={`My ${isEmbedding ? "Embedding" : "Interaction"} Model`} />
           </Form.Item>
@@ -235,6 +240,15 @@ export default function ModelCatalogManager({ kind }) {
             <Form.Item label="Embedding dimensions" name="embeddingDimensions" extra={editingModel ? "Dimensions cannot be changed after a model is created." : undefined}>
               <InputNumber min={0} precision={0} style={{ width: "100%" }} disabled={Boolean(editingModel)} />
             </Form.Item>
+          ) : null}
+          {!isEmbedding ? (
+            <section aria-label="Capabilities">
+              <Typography.Title level={5}>Capabilities</Typography.Title>
+              <Form.Item label="Image input / Vision" name="supportsImageInput" valuePropName="checked" extra="Allows tutors using this model to receive images. Activate a new tutor revision to apply capability changes."><Switch /></Form.Item>
+              <Form.Item label="Function calling" name="supportsFunctionCalling" valuePropName="checked" extra="Allows snapshot-configured tutor tools. Enable this only for provider models verified to support tool calls."><Switch /></Form.Item>
+              <Form.Item label="Structured output" name="supportsStructuredOutput" valuePropName="checked" extra="Records that the provider model supports schema-constrained structured responses."><Switch /></Form.Item>
+              {editingModel ? <ModelImageInputTest key={editingModel.id} modelId={editingModel.id} disabled={saving} /> : null}
+            </section>
           ) : null}
           <Form.Item label="Settings JSON" name="settingsJson">
             <Input.TextArea className="workspace-code" autoSize={{ minRows: 4, maxRows: 12 }} placeholder='{"temperature": 0.7}' />

@@ -630,4 +630,3 @@ describe("TutorKnowledgePanel - busy state", () => {
     deferred.resolve();
   });
 });
-
