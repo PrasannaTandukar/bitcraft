@@ -57,4 +57,12 @@ public sealed record GeneratedBenchmarkOutput(
     string ActualOutput,
     string ModelUsed,
     string? ContextText,
-    double? GenerationLatencyMs);
+    double? GenerationLatencyMs,
+    Guid? TutorRevisionId = null,
+    Guid? TutorConfigurationSnapshotId = null,
+    bool KnowledgeUsed = false,
+    int SourceCount = 0,
+    int ToolCallCount = 0,
+    long? InputTokenCount = null,
+    long? OutputTokenCount = null,
+    long? TotalTokenCount = null);

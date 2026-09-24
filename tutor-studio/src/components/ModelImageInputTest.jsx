@@ -2,7 +2,7 @@ import { ExperimentOutlined } from "@ant-design/icons";
 import { Alert, Button, Space, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch, getApiErrorDescription } from "../api/client.js";
-import { deleteChatImage, getChatAttachmentOptions, uploadChatImage } from "../aiTutor/aiTutorApi.js";
+import { deleteChatImage, getChatAttachmentOptions, uploadChatImage } from "../features/user/utils/aiTutorApi.js";
 
 export default function ModelImageInputTest({ modelId, disabled }) {
   const input = useRef(null);

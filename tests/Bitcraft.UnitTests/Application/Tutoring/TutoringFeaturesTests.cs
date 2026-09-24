@@ -1,3 +1,4 @@
+using Bitcraft.Infrastructure.ExternalServices.Agents;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Admin;
 using Bitcraft.Application.Features.Documents;
@@ -217,9 +218,9 @@ public class ToolDefinitionFeaturesTests
         var owner = Guid.NewGuid();
         var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner), new TutorToolCatalog([new CalculatorTutorToolHandler()]));
         var command = new ToolDefinitionFeatures.RegisterToolDefinitionCommand(
-            tutor.Id, "search", null, "{ not-valid-json", null);
+            tutor.Id, "search", null, "{ not-valid-json");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -238,19 +239,48 @@ public class ToolDefinitionFeaturesTests
         var owner = Guid.NewGuid();
         var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner), new TutorToolCatalog([new CalculatorTutorToolHandler()]));
         var command = new ToolDefinitionFeatures.RegisterToolDefinitionCommand(
-            tutor.Id, "search", "Web search tool",
-            "{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}",
-            "https://tools.example.com/search");
+            tutor.Id, "calculator", "Arithmetic tool",
+            "{\"type\":\"object\",\"properties\":{\"expression\":{\"type\":\"string\"}}}",
+            TutorToolKind.BuiltIn, "builtin.calculator.v1",
+            TutorToolExecutionPolicy.ReadOnlyAutomatic);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal("search", result.Value.Name);
+        Assert.Equal("calculator", result.Value.Name);
+        Assert.Equal("builtin.calculator.v1", result.Value.ImplementationKey);
         Assert.Single(repo.Tools);
+    }
+
+    [Fact]
+    public void ToolDefinition_HasNoArbitraryExecutionUrl()
+    {
+        Assert.Null(typeof(ToolDefinition).GetProperty("ExecutionUrl"));
+    }
+
+    [Theory]
+    [InlineData(TutorToolKind.Mcp)]
+    [InlineData(TutorToolKind.ApprovedHttp)]
+    public async Task RegisterToolDefinitionHandler_WithUnavailableRemoteKind_RejectsRegistration(
+        TutorToolKind kind)
+    {
+        var repo = new FakeTutorRepository();
+        var owner = Guid.NewGuid();
+        var tutor = Tutor.Create("T", null, owner);
+        repo.Tutors[tutor.Id] = tutor;
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo,
+            new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner), new TutorToolCatalog([new CalculatorTutorToolHandler()]));
+
+        var result = await handler.Handle(new(tutor.Id, "remote", null, "{\"type\":\"object\"}",
+            kind, "remote.unavailable.v1", TutorToolExecutionPolicy.ReadOnlyAutomatic), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Tool.KindUnavailable", result.Error.Code);
+        Assert.Empty(repo.Tools);
     }
 }
 
