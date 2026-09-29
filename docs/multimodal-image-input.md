@@ -30,7 +30,7 @@ Defaults:
 | `RootPath` | OS temporary directory / `bitcraft-chat-attachments` | Dedicated private image storage; configure persistent storage for deployments |
 | `MaxFileBytes` | 5,242,880 (5 MiB) | Input and normalized image byte limit |
 | `MaxImagesPerMessage` | 4 | Current message and each historical user message |
-| `MaxImagesPerRequest` | 20 | Distinct images across bounded server history plus current message |
+| `MaxImagesPerRequest` | 20 | Distinct images across bounded history plus current message |
 | `MaxDimension` | 2048 | Maximum normalized width or height, preserving aspect ratio |
 | `MaxDecodedPixels` | 40,000,000 | Pre-decode protection against image expansion attacks |
 | `RetentionHours` | 24 | Temporary lifetime from upload; use does not extend it |
@@ -70,13 +70,13 @@ All attachment endpoints require the same `AuditorOrAbove` policy as runtime cha
 
 The UUID placeholder must be replaced with an actual upload ID. `question` may be empty or omitted when current-message attachments exist. With neither text nor current images, the request fails. Assistant history cannot contain attachments. Persistent conversation IDs remain unsupported.
 
-The runtime resolves tutor membership, active revision, and immutable snapshot, then enforces ImageInput **before loading images**. It validates ownership/expiry and loads images from persisted session history followed by the current message, deduplicating IDs by first occurrence. Human-friendly labels (`Image 1`, `Image 2`, etc.) remain stable; storage IDs and paths are not included in model-visible text. Replaying the bounded server context preserves labels and payload order.
+The runtime resolves tutor membership, active revision, and immutable snapshot, then enforces ImageInput **before loading images**. It validates ownership/expiry and loads images in history order followed by current-message order, deduplicating IDs by first occurrence. Prompt labels (`Image 1`, `Image 2`, etc.) match the order of `LlmGenerationRequest.Images` exactly; storage IDs/paths are not included in those labels. Replaying the same bounded input produces the same labels and payload order.
 
-The frontend sends only the current question, attachment IDs, retrieval depth and conversation ID. The server persists normalized messages and the Agent Framework session, then applies its bounded history projection for each model call. Failed-message retries reload authoritative conversation state. Expired or missing historical images require reattachment or a new chat.
+The frontend bounds history to 20 messages / 30,000 content characters and drops oldest messages when needed to meet the total image budget. It retains attachment IDs on user messages. Failed-message retries retain the exact question, attachment IDs, retrieval depth, and bounded history. Expired/missing history images require reattachment or a new chat.
 
 ## RAG and providers
 
-RAG remains text-only: question text → existing query embedding model → pgvector course context. Tutor instructions, bounded server history, retrieved context, question, and ordered images then go to the interaction model. Image-only requests skip embedding/retrieval and use the internal prompt `Please analyze the attached image(s).` No captions, multimodal embeddings, or new vector stores are introduced.
+RAG remains text-only: question text → existing query embedding model → pgvector course context. The ordinary tutor instructions, bounded history, retrieved context, question, and ordered images then go to the interaction model. Image-only requests skip embedding/retrieval and use the internal prompt `Please analyze the attached image(s).` No captions, multimodal embeddings, or new vector stores are introduced.
 
 | Provider | Multimodal request |
 | --- | --- |

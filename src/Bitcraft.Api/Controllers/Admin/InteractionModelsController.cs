@@ -58,9 +58,7 @@ public class InteractionModelsController(ISender sender) : ControllerBase
             request.ProviderModelName,
             request.SettingsJson,
             request.IsEnabled,
-            request.SupportsImageInput,
-            request.SupportsFunctionCalling,
-            request.SupportsStructuredOutput);
+            request.SupportsImageInput);
 
         var result = await sender.Send(command, cancellationToken);
         if (result.IsFailure)
@@ -91,9 +89,7 @@ public class InteractionModelsController(ISender sender) : ControllerBase
             request.ProviderModelName,
             request.SettingsJson,
             request.IsEnabled,
-            request.SupportsImageInput,
-            request.SupportsFunctionCalling,
-            request.SupportsStructuredOutput);
+            request.SupportsImageInput);
 
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess

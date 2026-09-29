@@ -3,10 +3,9 @@ namespace Bitcraft.Api.Contracts.Tutoring;
 public sealed record AskTutorRuntimeRequest(
     string Question = "",
     int? TopK = 5,
+    IReadOnlyList<TutorConversationMessageRequest>? History = null,
     Guid? ConversationId = null,
-    IReadOnlyList<Guid>? AttachmentIds = null,
-    bool UseMemory = false,
-    bool SaveToMemory = false);
+    IReadOnlyList<Guid>? AttachmentIds = null);
 
 public sealed record TutorRuntimeTutorResponse(Guid Id, string Name);
 
@@ -17,13 +16,7 @@ public sealed record TutorRuntimeModelResponse(
     string Name,
     string ProviderModelName,
     string RuntimeEngineName,
-    bool SupportsImageInput = false,
-    bool SupportsFunctionCalling = false,
-    bool SupportsStructuredOutput = false);
-
-public sealed record TutorToolCallActivityResponse(string ToolName, DateTime StartedUtc,
-    DateTime CompletedUtc, string Status, double DurationMs, string? ResultSummary,
-    string? ErrorCategory);
+    bool SupportsImageInput = false);
 
 public sealed record TutorRuntimeEmbeddingModelResponse(
     Guid Id,
@@ -48,20 +41,7 @@ public sealed record TutorRuntimeAskResponse(
     TutorRuntimeEmbeddingModelResponse? EmbeddingModel,
     bool KnowledgeUsed,
     IReadOnlyList<TutorRuntimeSourceResponse> Sources,
-    Guid? ConversationId,
-    bool MemoryUsed,
-    bool MemorySaved,
-    IReadOnlyList<TutorToolCallActivityResponse> ToolActivities);
-
-public sealed record TutorRuntimeStreamEventResponse(
-    long Sequence,
-    string Type,
-    Guid? ConversationId = null,
-    string? Delta = null,
-    TutorRuntimeSourceResponse? Source = null,
-    TutorToolCallActivityResponse? Tool = null,
-    TutorRuntimeAskResponse? Message = null,
-    ApiError? Error = null);
+    Guid? ConversationId);
 
 public sealed record TutorRuntimeDescriptorResponse(
     Guid TutorId,

@@ -4,7 +4,5 @@ namespace Bitcraft.Domain.Modeling;
 public enum ModelCapabilities
 {
     None = 0,
-    ImageInput = 1,
-    FunctionCalling = 2,
-    StructuredOutput = 4
+    ImageInput = 1
 }

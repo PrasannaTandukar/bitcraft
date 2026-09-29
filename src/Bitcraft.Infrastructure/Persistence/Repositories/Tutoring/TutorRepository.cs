@@ -179,21 +179,6 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public Task<List<ToolDefinition>> ListToolDefinitionsAsync(Guid tutorId, CancellationToken cancellationToken = default) =>
-        db.Set<ToolDefinition>().Where(tool => tool.TutorId == tutorId).OrderBy(tool => tool.Name).ToListAsync(cancellationToken);
-
-    public async Task UpdateToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default)
-    {
-        db.Entry(tool).State = EntityState.Modified;
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task RemoveToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default)
-    {
-        db.Set<ToolDefinition>().Remove(tool);
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
     public async Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default)
     {
         db.Set<ToolDefinition>().Add(tool);
@@ -302,7 +287,6 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
                 .ThenInclude(m => m!.RuntimeEngine)
             .Include(r => r.QueryEmbeddingModel)
                 .ThenInclude(m => m!.RuntimeEngine)
-            .Include(r => r.RevisionTools).ThenInclude(link => link.ToolDefinition)
             .Include(r => r.Snapshots)
             .OrderByDescending(r => r.VersionNumber)
             .ToListAsync(cancellationToken);
@@ -314,7 +298,6 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
                 .ThenInclude(m => m!.RuntimeEngine)
             .Include(r => r.QueryEmbeddingModel)
                 .ThenInclude(m => m!.RuntimeEngine)
-            .Include(r => r.RevisionTools).ThenInclude(link => link.ToolDefinition)
             .Include(r => r.Snapshots)
             .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.TutorId == tutorId && r.Status == RevisionStatus.Active, cancellationToken);
@@ -338,10 +321,7 @@ public class TutorRepository(AppDbContext db) : ITutorRepository
 
     public async Task UpdateRevisionAsync(TutorRevision revision, CancellationToken cancellationToken = default)
     {
-        // New links have application-assigned IDs; explicitly mark them Added before saving the tracked revision.
-        foreach (var link in revision.RevisionTools.Where(link => db.Entry(link).State == EntityState.Detached))
-            db.Set<TutorRevisionTool>().Add(link);
-        db.Entry(revision).State = EntityState.Modified;
+        db.Set<TutorRevision>().Update(revision);
         await db.SaveChangesAsync(cancellationToken);
     }
 

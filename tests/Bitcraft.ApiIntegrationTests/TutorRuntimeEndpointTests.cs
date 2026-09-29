@@ -14,7 +14,6 @@ using System.Text.Json;
 using Bitcraft.Api.Contracts.Auth;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Interfaces;
-using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Common;
 using Bitcraft.Domain.Documents;
@@ -23,419 +22,14 @@ using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Bitcraft.ApiIntegrationTests;
 
-public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory) : IClassFixture<BitcraftApiFactory>
+public sealed class TutorRuntimeEndpointTests(BitcraftApiFactory factory) : IClassFixture<BitcraftApiFactory>
 {
     private const string Password = "P@ssw0rd123!";
-
-    [Fact]
-    public async Task StreamingAskEmitsOrderedDeltasAndCommitsOneAssistantMessage()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner, includeKnowledge: true);
-        using var created = await client.PostAsync($"/api/runtime/tutors/{tutor.Slug}/conversations", null);
-        var conversation = (await created.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>())!;
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"/api/runtime/tutors/{tutor.Slug}/ask/stream")
-        {
-            Content = JsonContent.Create(new AskTutorRuntimeRequest("Explain inverse kinematics", ConversationId: conversation.Id))
-        };
-
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-        var body = await response.Content.ReadAsStringAsync();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
-        var events = ParseSse(body);
-        Assert.Equal(new[] { "conversation.started", "source.retrieved", "message.delta", "message.delta", "message.completed" },
-            events.Select(value => value.Type));
-        Assert.Equal(events.Select(value => value.Sequence).Order(), events.Select(value => value.Sequence));
-        Assert.Equal("Deterministic agent answer", string.Concat(events.Select(value => value.Delta)));
-        Assert.NotNull(Assert.Single(events, value => value.Type == "source.retrieved").Source);
-        var completed = Assert.Single(events, value => value.Type == "message.completed");
-        Assert.Equal(conversation.Id, completed.ConversationId);
-        Assert.Equal("Deterministic agent answer", completed.Message!.Answer);
-        var stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>(
-            $"/api/runtime/tutors/{tutor.Slug}/conversations/{conversation.Id}");
-        Assert.Equal(new[] { "user", "assistant" }, stored!.Messages.Select(value => value.Role));
-
-        using var followUp = new HttpRequestMessage(HttpMethod.Post,
-            $"/api/runtime/tutors/{tutor.Slug}/ask/stream")
-        {
-            Content = JsonContent.Create(new AskTutorRuntimeRequest("Continue", ConversationId: conversation.Id))
-        };
-        using var followUpResponse = await client.SendAsync(followUp, HttpCompletionOption.ResponseHeadersRead);
-        var followUpEvents = ParseSse(await followUpResponse.Content.ReadAsStringAsync());
-        Assert.Equal(conversation.Id,
-            Assert.Single(followUpEvents, value => value.Type == "message.completed").ConversationId);
-        stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>(
-            $"/api/runtime/tutors/{tutor.Slug}/conversations/{conversation.Id}");
-        Assert.Equal(new[] { "user", "assistant", "user", "assistant" },
-            stored!.Messages.Select(value => value.Role));
-    }
-
-    [Fact]
-    public async Task StreamingClientAbortCancelsAgentAndDoesNotCommitPartialTurn()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        using var created = await client.PostAsync($"/api/runtime/tutors/{tutor.Slug}/conversations", null);
-        var conversation = (await created.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>())!;
-        var recorder = factory.Services.GetRequiredService<TestTutorAgentRecorder>();
-        var serverCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        recorder.BeforeExecuteAsync = async token =>
-        {
-            using var registration = token.Register(() => serverCancelled.TrySetResult());
-            await Task.Delay(Timeout.InfiniteTimeSpan, token);
-        };
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post,
-                $"/api/runtime/tutors/{tutor.Slug}/ask/stream")
-            {
-                Content = JsonContent.Create(new AskTutorRuntimeRequest("cancel me", ConversationId: conversation.Id))
-            };
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead,
-                cancellation.Token);
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            cancellation.Cancel();
-            response.Dispose();
-            await serverCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        }
-        finally
-        {
-            recorder.BeforeExecuteAsync = null;
-        }
-        var stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>(
-            $"/api/runtime/tutors/{tutor.Slug}/conversations/{conversation.Id}");
-        Assert.Empty(stored!.Messages);
-    }
-
-    [Fact]
-    public async Task StreamingFailureUsesStructuredSafeErrorEvent()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        var agent = factory.Services.GetRequiredService<TestTutorAgentExecutor>();
-        agent.Failure = new Error("TutorAgent.GenerationFailed", "private provider response");
-        try
-        {
-            using var response = await client.PostAsJsonAsync(
-                $"/api/runtime/tutors/{tutor.Slug}/ask/stream", new AskTutorRuntimeRequest("fail"));
-            var body = await response.Content.ReadAsStringAsync();
-            var events = ParseSse(body);
-            Assert.Equal(new[] { "conversation.started", "error" }, events.Select(value => value.Type));
-            Assert.Equal("Ollama.RequestFailed", events[^1].Error!.Code);
-            Assert.DoesNotContain("private provider response", body);
-        }
-        finally { agent.Failure = null; }
-    }
-
-    [Fact]
-    public async Task CanonicalAskSavesAndRetrievesOnlyOptInTutorMemory()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner, includeKnowledge: true);
-        var memory = factory.Services.GetRequiredService<TestTutorMemoryStore>();
-        while (memory.Memories.TryDequeue(out _)) { }
-        while (memory.Requests.TryDequeue(out _)) { }
-        var path = $"/api/runtime/tutors/{tutor.Slug}/ask";
-
-        using var unsaved = await client.PostAsJsonAsync(path,
-            new AskTutorRuntimeRequest("Do not remember", SaveToMemory: false));
-        Assert.Equal(HttpStatusCode.OK, unsaved.StatusCode);
-        Assert.Empty(memory.Memories);
-
-        using var saved = await client.PostAsJsonAsync(path,
-            new AskTutorRuntimeRequest("Remember encoders", SaveToMemory: true));
-        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
-        var saveResponse = (await saved.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!;
-        Assert.True(saveResponse.MemorySaved);
-        Assert.False(saveResponse.MemoryUsed);
-        var stored = Assert.Single(memory.Memories);
-        Assert.Equal(owner, stored.UserId);
-        Assert.Equal(tutor.TutorId, stored.TutorId);
-        Assert.Equal(tutor.RevisionId, stored.TutorRevisionId);
-        Assert.Equal(tutor.SnapshotId, stored.TutorConfigurationSnapshotId);
-        Assert.NotNull(stored.ConversationId);
-
-        using var used = await client.PostAsJsonAsync(path,
-            new AskTutorRuntimeRequest("What did I save?", UseMemory: true));
-        Assert.Equal(HttpStatusCode.OK, used.StatusCode);
-        var useResponse = (await used.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!;
-        Assert.True(useResponse.MemoryUsed);
-        Assert.False(useResponse.MemorySaved);
-        var search = Assert.Single(memory.Requests);
-        Assert.Equal(owner, search.UserId);
-        Assert.Equal(tutor.TutorId, search.TutorId);
-        Assert.Equal(3, search.EmbeddingDimensions);
-        Assert.Contains("Remember encoders", factory.Services.GetRequiredService<TestTutorAgentExecutor>()
-            .LastResponse!.Memory!.Sources.Single().Content);
-    }
-
-    [Fact]
-    public async Task FailedGenerationNeverSavesTutorMemory()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner, includeKnowledge: true);
-        var memory = factory.Services.GetRequiredService<TestTutorMemoryStore>();
-        while (memory.Memories.TryDequeue(out _)) { }
-        var agent = factory.Services.GetRequiredService<TestTutorAgentExecutor>();
-        agent.Failure = new Error("TutorAgent.GenerationFailed", "private");
-        try
-        {
-            using var response = await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask",
-                new AskTutorRuntimeRequest("Remember this", SaveToMemory: true));
-            Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
-            Assert.Empty(memory.Memories);
-        }
-        finally { agent.Failure = null; }
-    }
-
-    [Fact]
-    public async Task MalformedPersistedSessionHasSafeSessionErrorAndLeavesDurableMessagesUnchanged()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        var path = $"/api/runtime/tutors/{tutor.Slug}";
-        using var first = await client.PostAsJsonAsync(path + "/ask", new AskTutorRuntimeRequest("hi"));
-        var id = (await first.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!.ConversationId!.Value;
-        using (var scope = factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var conversation = await db.Set<TutorConversation>().FindAsync(id);
-            db.Entry(conversation!).Property(value => value.AgentSessionJson).CurrentValue = "{private-session-body";
-            await db.SaveChangesAsync();
-        }
-        using var second = await client.PostAsJsonAsync(path + "/ask", new AskTutorRuntimeRequest("ok", ConversationId: id));
-        Assert.Equal(HttpStatusCode.InternalServerError, second.StatusCode);
-        Assert.Equal("TutorRuntime.SessionRestoreFailed", (await second.Content.ReadFromJsonAsync<ApiError>())!.Code);
-        Assert.DoesNotContain("private-session-body", await second.Content.ReadAsStringAsync());
-        var stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>(path + $"/conversations/{id}");
-        Assert.Equal(2, stored!.Messages.Count);
-    }
-
-    [Fact]
-    public async Task ConversationsPersistAcrossRequestScopesAndRemainPrivate()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        var path = $"/api/runtime/tutors/{tutor.Slug}";
-        using var created = await client.PostAsync(path + "/conversations", null);
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var conversation = (await created.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>())!;
-        Assert.Empty(conversation.Messages);
-        Assert.Equal(tutor.SnapshotId, conversation.SnapshotId);
-        using var first = await client.PostAsJsonAsync(path + "/ask", new AskTutorRuntimeRequest("Remember this", ConversationId: conversation.Id));
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        using var second = await client.PostAsJsonAsync(path + "/ask", new AskTutorRuntimeRequest("Continue", ConversationId: conversation.Id));
-        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
-        var stored = (await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>(path + $"/conversations/{conversation.Id}"))!;
-        Assert.Equal(new long[] { 1, 2, 3, 4 }, stored.Messages.Select(message => message.Sequence));
-        Assert.Equal(new[] { "user", "assistant", "user", "assistant" }, stored.Messages.Select(message => message.Role));
-        using (var scope = factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var durable = await db.Set<TutorConversation>().FindAsync(conversation.Id);
-            Assert.Contains("Remember this", durable!.AgentSessionJson);
-            Assert.Contains("Continue", durable.AgentSessionJson);
-        }
-        var list = await client.GetFromJsonAsync<List<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>>(path + "/conversations");
-        Assert.Contains(list!, value => value.Id == conversation.Id);
-        var otherTutor = await SeedActiveTutorAsync(owner);
-        using var crossTutor = await client.PostAsJsonAsync($"/api/runtime/tutors/{otherTutor.Slug}/ask", new AskTutorRuntimeRequest("Probe", ConversationId: conversation.Id));
-        Assert.Equal(HttpStatusCode.NotFound, crossTutor.StatusCode);
-        using var other = factory.CreateClient();
-        await AuthorizeAsRoleAsync(other, AppRoles.Editor);
-        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(path + $"/conversations/{conversation.Id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await other.PostAsJsonAsync(path + "/ask", new AskTutorRuntimeRequest("Probe", ConversationId: conversation.Id))).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync(path + $"/conversations/{conversation.Id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(path + $"/conversations/{conversation.Id}")).StatusCode);
-    }
-
-    [Fact]
-    public async Task AutoCreatedConversationPinsSnapshotAcrossActivationChanges()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        var path = $"/api/runtime/tutors/{tutor.Slug}/ask";
-        using var first = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("First"));
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        var response = (await first.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!;
-        Assert.NotNull(response.ConversationId);
-        Guid newSnapshotId;
-        using (var scope = factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var old = await db.TutorRevisions.FindAsync(tutor.RevisionId);
-            var aggregate = await db.Tutors.FindAsync(tutor.TutorId);
-            var prompt = await db.PromptVersions.FindAsync(old!.PromptVersionId);
-            var model = await db.InteractionModels.FindAsync(old.InteractionModelId);
-            old.Status = RevisionStatus.Archived;
-            old.ActivationSlug = null;
-            var next = new TutorRevision { TutorId = tutor.TutorId, VersionNumber = 4, Status = RevisionStatus.Active,
-                ActivationSlug = tutor.Slug, PromptVersionId = prompt!.Id, InteractionModelId = model!.Id, InteractionModel = model };
-            var snapshot = TutorConfigurationSnapshot.Capture(aggregate!, 4, prompt, null, "[]", "[]", null, owner,
-                tutorRevision: next, effectiveDocumentIdsJson: "[]", effectiveKnowledgeBindingJson: "[]");
-            aggregate!.ActiveRevisionId = next.Id;
-            next.UpdateMetadata(owner); snapshot.UpdateMetadata(owner);
-            db.Add(next); db.Add(snapshot);
-            await db.SaveChangesAsync();
-            newSnapshotId = snapshot.Id;
-        }
-        using var followup = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("Follow up", ConversationId: response.ConversationId));
-        Assert.Equal(HttpStatusCode.OK, followup.StatusCode);
-        var pinned = (await followup.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!;
-        Assert.Equal(tutor.SnapshotId, pinned.SnapshotId);
-        Assert.Equal(tutor.RevisionId, pinned.Revision.Id);
-        using var fresh = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("New conversation"));
-        Assert.Equal(newSnapshotId, (await fresh.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!.SnapshotId);
-    }
-
-    [Fact]
-    public async Task ConversationImageFollowupRestoresSessionAndDeletedImagesFailSafely()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner, supportsImages: true);
-        var image = await UploadImageAsync(client, "image/png");
-        var path = $"/api/runtime/tutors/{tutor.Slug}/ask";
-        using var first = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest(AttachmentIds: [image.Id]));
-        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        var response = (await first.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!;
-        using var followup = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("Explain the image", ConversationId: response.ConversationId));
-        Assert.Equal(HttpStatusCode.OK, followup.StatusCode);
-        using (var scope = factory.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var attachment = await db.ChatAttachments.FindAsync(image.Id);
-            db.Entry(attachment!).Property(value => value.ExpiresUtc).CurrentValue = DateTime.UtcNow.AddMinutes(-1);
-            await db.SaveChangesAsync();
-        }
-        using var expired = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("Explain again", ConversationId: response.ConversationId));
-        Assert.Equal(HttpStatusCode.Gone, expired.StatusCode);
-        await client.DeleteAsync($"/api/runtime/attachments/{image.Id}");
-        using var deleted = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("Explain again", ConversationId: response.ConversationId));
-        Assert.Equal(HttpStatusCode.NotFound, deleted.StatusCode);
-        Assert.Equal("ChatAttachment.NotFound", (await deleted.Content.ReadFromJsonAsync<ApiError>())!.Code);
-    }
-
-    [Fact]
-    public async Task ConcurrentConversationSavesRejectStaleSession()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        using var created = await client.PostAsync($"/api/runtime/tutors/{tutor.Slug}/conversations", null);
-        var id = (await created.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>())!.Id;
-        using var scope1 = factory.Services.CreateScope();
-        using var scope2 = factory.Services.CreateScope();
-        var repo1 = scope1.ServiceProvider.GetRequiredService<ITutorConversationRepository>();
-        var repo2 = scope2.ServiceProvider.GetRequiredService<ITutorConversationRepository>();
-        var first = (await repo1.GetAsync(id, owner, tutor.TutorId, default))!;
-        var second = (await repo2.GetAsync(id, owner, tutor.TutorId, default))!;
-        first.CompleteTurn("{}", "winner", null, "answer", "model", "Ollama");
-        second.CompleteTurn("{}", "stale", null, "answer", "model", "Ollama");
-        Assert.True(await repo1.SaveAsync(first, default));
-        Assert.False(await repo2.SaveAsync(second, default));
-        using var scope3 = factory.Services.CreateScope();
-        var stored = await scope3.ServiceProvider.GetRequiredService<ITutorConversationRepository>().GetAsync(id, owner, tutor.TutorId, default);
-        Assert.Equal(2, stored!.Messages.Count);
-        Assert.DoesNotContain(stored.Messages, value => value.Content == "stale");
-    }
-
-    [Fact]
-    public async Task SimultaneousAskRequestsReturnOneAnswerAndOneExplicitConflict()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        using var created = await client.PostAsync($"/api/runtime/tutors/{tutor.Slug}/conversations", null);
-        var id = (await created.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>())!.Id;
-        var recorder = factory.Services.GetRequiredService<TestTutorAgentRecorder>();
-        var arrived = 0;
-        var both = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        recorder.BeforeExecuteAsync = async token =>
-        {
-            if (Interlocked.Increment(ref arrived) == 2) both.TrySetResult();
-            await both.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
-        };
-        try
-        {
-            var responses = await Task.WhenAll(
-                client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", new AskTutorRuntimeRequest("First writer", ConversationId: id)),
-                client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", new AskTutorRuntimeRequest("Second writer", ConversationId: id)));
-            Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
-            var conflict = Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Conflict);
-            Assert.Equal("TutorConversation.Conflict", (await conflict.Content.ReadFromJsonAsync<ApiError>())!.Code);
-            var stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>($"/api/runtime/tutors/{tutor.Slug}/conversations/{id}");
-            Assert.Equal(2, stored!.Messages.Count);
-            foreach (var response in responses) response.Dispose();
-        }
-        finally { recorder.BeforeExecuteAsync = null; }
-    }
-
-    [Fact]
-    public async Task ConversationRequiresContinuingTutorMembershipAndRejectsSnapshotOverride()
-    {
-        using var client = factory.CreateClient();
-        var owner = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var tutor = await SeedActiveTutorAsync(owner);
-        using var created = await client.PostAsync($"/api/runtime/tutors/{tutor.Slug}/conversations", null);
-        var id = (await created.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>())!.Id;
-        using (var scope = factory.Services.CreateScope())
-        {
-            var runtime = scope.ServiceProvider.GetRequiredService<ITutorRuntime>();
-            var forged = await runtime.ExecuteAsync(new Bitcraft.Application.Common.Models.TutorRuntimeRequest(
-                tutor.TutorId, tutor.RevisionId, Guid.NewGuid(), "Probe", owner, ConversationId: id));
-            Assert.Equal("TutorConversation.NotFound", forged.Error.Code);
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.TutorMembers.RemoveRange(db.TutorMembers.Where(member => member.TutorId == tutor.TutorId));
-            await db.SaveChangesAsync();
-        }
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/runtime/tutors/{tutor.Slug}/conversations/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", new AskTutorRuntimeRequest("Probe", ConversationId: id))).StatusCode);
-    }
-
-    [Theory]
-    [InlineData("TutorAgent.ImageRejected", "TutorRuntime.ImageRejected", HttpStatusCode.BadGateway)]
-    [InlineData("TutorAgent.Timeout", "TutorRuntime.Timeout", HttpStatusCode.GatewayTimeout)]
-    [InlineData("TutorAgent.ModelNotFound", "Ollama.ModelNotFound", HttpStatusCode.BadGateway)]
-    [InlineData("TutorAgent.SecretNotFound", "TutorRuntime.ModelConfigurationInvalid", HttpStatusCode.Conflict)]
-    [InlineData("TutorAgent.RateLimited", "TutorRuntime.RateLimited", HttpStatusCode.TooManyRequests)]
-    [InlineData("TutorAgent.ContextTooLarge", "TutorRuntime.ContextTooLarge", HttpStatusCode.RequestEntityTooLarge)]
-    public async Task AgentFailuresPreserveSafeGatewayResponses(string agentCode, string expectedCode,
-        HttpStatusCode expectedStatus)
-    {
-        using var client = factory.CreateClient();
-        var userId = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
-        var configured = await SeedActiveTutorAsync(userId);
-        var agent = factory.Services.GetRequiredService<TestTutorAgentExecutor>();
-        agent.Failure = new Bitcraft.Application.Common.Models.Error(agentCode, "private-provider-details");
-        try
-        {
-            using var response = await client.PostAsJsonAsync($"/api/runtime/tutors/{configured.Slug}/ask", new AskTutorRuntimeRequest("Question"));
-            Assert.Equal(expectedStatus, response.StatusCode);
-            var error = await response.Content.ReadFromJsonAsync<ApiError>();
-            Assert.Equal(expectedCode, error!.Code);
-            Assert.DoesNotContain("private-provider-details", await response.Content.ReadAsStringAsync());
-        }
-        finally { agent.Failure = null; }
-    }
 
     [Fact]
     public async Task Ask_WithoutAuthentication_ReturnsUnauthorized()
@@ -486,17 +80,13 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.Equal(1, source.ChunkIndex);
         Assert.InRange(source.Score, 0.99d, 1d);
 
-        var generatedRequest = Assert.Single(factory.Services.GetRequiredService<TestTutorAgentExecutor>().Requests);
-        Assert.Equal("runtime-chat-model", generatedRequest.Model.ProviderModelName);
-        Assert.Equal(configured.TutorId, generatedRequest.TutorId);
-        Assert.Equal(configured.RevisionId, generatedRequest.TutorRevisionId);
-        Assert.Equal(configured.SnapshotId, generatedRequest.TutorConfigurationSnapshotId);
+        var generation = factory.Services.GetRequiredService<TestLlmGenerationProvider>();
+        var generatedRequest = Assert.Single(generation.Requests);
+        Assert.Equal("runtime-chat-model", generatedRequest.Model);
         Assert.Equal(0.25d, generatedRequest.Temperature);
         Assert.Equal(0.9d, generatedRequest.TopP);
-        Assert.Equal(512, generatedRequest.MaxOutputTokens);
-        Assert.Null(generatedRequest.Conversation);
-        Assert.Contains("Bounded source content", factory.Services.GetRequiredService<TestTutorAgentExecutor>().LastResponse!.Knowledge!.ReferenceMaterial);
-        Assert.DoesNotContain("Bounded source content", generatedRequest.Instructions);
+        Assert.Equal(512, generatedRequest.MaxTokens);
+        Assert.Contains("We are discussing robot arms.", generatedRequest.Prompt, StringComparison.Ordinal);
 
         var json = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("promptContent", json, StringComparison.OrdinalIgnoreCase);
@@ -523,6 +113,40 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
     }
 
     [Fact]
+    public async Task Ask_ExcessiveHistory_ReturnsBadRequest()
+    {
+        var client = factory.CreateClient();
+        var userId = await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
+        var configured = await SeedActiveTutorAsync(userId);
+        var history = Enumerable.Range(0, 21)
+            .Select(index => new TutorConversationMessageRequest(
+                index % 2 == 0 ? "user" : "assistant",
+                $"Message {index}"))
+            .ToList();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/runtime/tutors/{configured.Slug}/ask",
+            new AskTutorRuntimeRequest("Continue", History: history));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Ask_NullHistoryEntry_ReturnsBadRequestInsteadOfServerError()
+    {
+        var client = factory.CreateClient();
+        var userId = await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
+        var configured = await SeedActiveTutorAsync(userId);
+        using var payload = JsonDocument.Parse("{\"question\":\"Continue\",\"history\":[null]}");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/runtime/tutors/{configured.Slug}/ask",
+            payload.RootElement);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Ask_UserWithoutTutorMembership_ReturnsOpaqueNotFound()
     {
         var ownerClient = factory.CreateClient();
@@ -538,19 +162,45 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task LegacyAsk_TutorWithoutActiveRevision_ReturnsConflict()
+    {
+        var client = factory.CreateClient();
+        var userId = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
+        var tutorId = await SeedIncompleteTutorAsync(userId);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/tutor/ask",
+            new AskTutorQuestionRequest("Hello", TutorId: tutorId));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LegacyAsk_ModelOverrideIsRejected()
+    {
+        var client = factory.CreateClient();
+        var userId = await AuthorizeAsRoleAsync(client, AppRoles.Editor);
+        var configured = await SeedActiveTutorAsync(userId);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/tutor/ask",
+            new AskTutorQuestionRequest("Hello", Model: "different-model", TutorId: configured.TutorId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private void ClearProviderRequests()
     {
-        var diagnostics = factory.Services.GetRequiredService<TestRuntimeModelDiagnostic>();
-        while (diagnostics.Requests.TryDequeue(out _)) { }
-        var agents = factory.Services.GetRequiredService<TestTutorAgentExecutor>();
-        while (agents.Requests.TryDequeue(out _)) { }
+        var generation = factory.Services.GetRequiredService<TestLlmGenerationProvider>();
+        while (generation.Requests.TryDequeue(out _)) { }
         var embeddings = factory.Services.GetRequiredService<TestEmbeddingProvider>();
         while (embeddings.Requests.TryDequeue(out _)) { }
         var knowledge = factory.Services.GetRequiredService<TestKnowledgeRetriever>();
         while (knowledge.Requests.TryDequeue(out _)) { }
     }
 
-    private async Task<ConfiguredTutor> SeedActiveTutorAsync(Guid ownerId, bool includeKnowledge = false, bool supportsImages = false, string? endpoint = null, string? providerModel = null, int maxTokens = 512)
+    private async Task<ConfiguredTutor> SeedActiveTutorAsync(Guid ownerId, bool includeKnowledge = false, bool supportsImages = false)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -559,14 +209,14 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         {
             Name = $"Runtime {suffix}",
             ProviderType = RuntimeEngineProviderType.Ollama,
-            Endpoint = endpoint ?? "http://localhost:11434",
+            Endpoint = "http://localhost:11434",
             IsEnabled = true
         };
         var interactionModel = new InteractionModel
         {
             Name = $"Chat model {suffix}",
             Capabilities = supportsImages ? ModelCapabilities.ImageInput : ModelCapabilities.None,
-            ProviderModelName = providerModel ?? "runtime-chat-model",
+            ProviderModelName = "runtime-chat-model",
             RuntimeEngineId = engine.Id,
             RuntimeEngine = engine,
             IsEnabled = true
@@ -603,7 +253,7 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
             InteractionModel = interactionModel,
             QueryEmbeddingModelId = includeKnowledge ? embeddingModel.Id : null,
             QueryEmbeddingModel = includeKnowledge ? embeddingModel : null,
-            InteractionParametersJson = JsonSerializer.Serialize(new { temperature = 0.25, topP = 0.9, maxTokens }),
+            InteractionParametersJson = "{\"temperature\":0.25,\"topP\":0.9,\"maxTokens\":512}",
             ActivationSlug = slug,
             ActivatedById = ownerId,
             ActivatedUtc = DateTime.UtcNow
@@ -664,15 +314,6 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         {
             entry.Entity.UpdateMetadata(ownerId);
         }
-        if (db.Database.IsRelational())
-        {
-            // Insert the aggregate before its optional active pointers to avoid FK cycles.
-            tutor.ActiveRevisionId = null; tutor.ActiveRevision = null;
-            tutor.ActivePromptVersionId = null; tutor.ActivePromptVersion = null;
-            await db.SaveChangesAsync();
-            tutor.ActiveRevisionId = revision.Id; tutor.ActiveRevision = revision;
-            tutor.ActivePromptVersionId = prompt.Id; tutor.ActivePromptVersion = prompt;
-        }
         await db.SaveChangesAsync();
 
         return new ConfiguredTutor(tutor.Id, revision.Id, snapshot.Id, slug, document?.Id);
@@ -703,17 +344,16 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         var request = new AskTutorRuntimeRequest("Why does this circuit fail?", AttachmentIds: [image.Id]);
         using var answer = await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", request);
         Assert.Equal(HttpStatusCode.OK, answer.StatusCode);
-        var firstResponse = (await answer.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!;
-        Assert.Single(Assert.Single(factory.Services.GetRequiredService<TestTutorAgentExecutor>().Requests).Images!);
+        Assert.Single(Assert.Single(factory.Services.GetRequiredService<TestLlmGenerationProvider>().Requests).Images!);
         Assert.Single(factory.Services.GetRequiredService<TestEmbeddingProvider>().Requests);
         ClearProviderRequests();
-        using var followUp = await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask",
-            new AskTutorRuntimeRequest("What if Q3 fails?", ConversationId: firstResponse.ConversationId));
+        var history = new[] { new TutorConversationMessageRequest("user", request.Question, [image.Id]), new TutorConversationMessageRequest("assistant", "Check Q3.") };
+        using var followUp = await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", new AskTutorRuntimeRequest("What if Q3 fails?", History: history));
         Assert.Equal(HttpStatusCode.OK, followUp.StatusCode);
-        var sent = Assert.Single(factory.Services.GetRequiredService<TestTutorAgentExecutor>().Requests);
-        Assert.Null(sent.Images);
-        Assert.NotNull(sent.AgentSessionJson);
-        Assert.Null(sent.Conversation);
+        var sent = Assert.Single(factory.Services.GetRequiredService<TestLlmGenerationProvider>().Requests);
+        Assert.Single(sent.Images!);
+        Assert.Contains("attachments: [Image 1]", sent.Prompt);
+        Assert.DoesNotContain(image.Id.ToString(), sent.Prompt);
         using var deleted = await client.DeleteAsync($"/api/runtime/attachments/{image.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/runtime/attachments/{image.Id}")).StatusCode);
@@ -731,7 +371,7 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         using var answer = await client.PostAsJsonAsync($"/api/runtime/tutors/{vision.Slug}/ask", new { attachmentIds = new[] { image.Id } });
         Assert.Equal(HttpStatusCode.OK, answer.StatusCode);
         Assert.Empty(factory.Services.GetRequiredService<TestEmbeddingProvider>().Requests);
-        Assert.Contains("Please analyze the attached image(s).", Assert.Single(factory.Services.GetRequiredService<TestTutorAgentExecutor>().Requests).UserText);
+        Assert.Contains("Please analyze the attached image(s).", Assert.Single(factory.Services.GetRequiredService<TestLlmGenerationProvider>().Requests).Prompt);
         using var rejected = await client.PostAsJsonAsync($"/api/runtime/tutors/{text.Slug}/ask", new AskTutorRuntimeRequest("Explain", AttachmentIds: [image.Id]));
         Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
         Assert.Equal("TutorRuntime.ImageInputNotSupported", (await rejected.Content.ReadFromJsonAsync<ApiError>())!.Code);
@@ -819,9 +459,9 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         ClearProviderRequests();
         using var diagnostic = await client.PostAsJsonAsync($"/api/admin/interaction-models/{model.Id}/test-image", new TestInteractionModelImageRequest(image.Id));
         Assert.Equal(HttpStatusCode.OK, diagnostic.StatusCode);
-        var sent = Assert.Single(factory.Services.GetRequiredService<TestRuntimeModelDiagnostic>().Requests);
-        Assert.Equal("arbitrary-model", sent.ProviderModelName);
-        Assert.Equal("http://runtime.test", sent.Endpoint);
+        var sent = Assert.Single(factory.Services.GetRequiredService<TestLlmGenerationProvider>().Requests);
+        Assert.Equal("arbitrary-model", sent.Model);
+        Assert.Equal("http://runtime.test", sent.RuntimeEndpoint);
         Assert.Single(sent.Images!);
         Assert.False((await client.GetFromJsonAsync<InteractionModelResponse>($"/api/admin/interaction-models/{model.Id}"))!.SupportsImageInput);
         using var embedding = await client.PostAsJsonAsync("/api/admin/embedding-models", new CreateEmbeddingModelRequest($"Embedding {Guid.NewGuid():N}", engineId, "embed", 3, null, true));
@@ -843,7 +483,7 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.Equal("ChatAttachment.InvalidUpload", (await upload.Content.ReadFromJsonAsync<ApiError>())!.Code);
     }
 
-    private static async Task<Bitcraft.Api.Contracts.Chat.ChatAttachmentResponse> UploadImageAsync(HttpClient client, string mimeType)
+    private static async Task<ChatAttachmentResponse> UploadImageAsync(HttpClient client, string mimeType)
     {
         using var form = await ImageFormAsync(mimeType);
         using var response = await client.PostAsync("/api/runtime/attachments/images", form);
@@ -851,7 +491,7 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         var json = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("storageKey", json);
         Assert.DoesNotContain("/tmp/", json);
-        return (await response.Content.ReadFromJsonAsync<Bitcraft.Api.Contracts.Chat.ChatAttachmentResponse>())!;
+        return (await response.Content.ReadFromJsonAsync<ChatAttachmentResponse>())!;
     }
 
     private static async Task<MultipartFormDataContent> ImageFormAsync(string mimeType)
@@ -877,14 +517,6 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         await db.SaveChangesAsync();
         return tutor.Id;
     }
-
-    private static List<TutorRuntimeStreamEventResponse> ParseSse(string body) => body
-        .Replace("\r\n", "\n", StringComparison.Ordinal)
-        .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
-        .Select(block => block.Split('\n').Single(line => line.StartsWith("data: ", StringComparison.Ordinal))[6..])
-        .Select(json => JsonSerializer.Deserialize<TutorRuntimeStreamEventResponse>(json,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web))!)
-        .ToList();
 
     private async Task<Guid> AuthorizeAsRoleAsync(HttpClient client, string role)
     {

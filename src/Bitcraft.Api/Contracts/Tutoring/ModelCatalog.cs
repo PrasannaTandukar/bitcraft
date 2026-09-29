@@ -8,8 +8,7 @@ public sealed record TutorInteractionModelCatalogResponse(
     Guid RuntimeEngineId,
     string? RuntimeEngineName,
     bool IsEnabled,
-    bool IsRuntimeEngineEnabled,
-    bool SupportsFunctionCalling = false);
+    bool IsRuntimeEngineEnabled);
 
 /// <summary>Safe read-only embedding-model catalog item for tutor configuration.</summary>
 public sealed record TutorEmbeddingModelCatalogResponse(

@@ -37,8 +37,7 @@ public sealed record TutorRevisionResponse(
     string DeploymentTargetDisplay,
     bool IsPublishable,
     bool IsActive,
-    Guid? LatestSnapshotId,
-    IReadOnlyList<Guid> ToolDefinitionIds);
+    Guid? LatestSnapshotId);
 
 /// <summary>Editable Draft revision fields.</summary>
 public sealed record UpdateDraftRevisionRequest(
@@ -47,5 +46,4 @@ public sealed record UpdateDraftRevisionRequest(
     Guid? QueryEmbeddingModelId,
     string? InteractionParametersJson,
     DeploymentTarget DeploymentTarget,
-    string? DeploymentConfigJson,
-    IReadOnlyList<Guid>? ToolDefinitionIds = null);
+    string? DeploymentConfigJson);

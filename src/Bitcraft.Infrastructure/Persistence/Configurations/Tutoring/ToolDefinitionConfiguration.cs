@@ -9,13 +9,7 @@ public class ToolDefinitionConfiguration : IEntityTypeConfiguration<ToolDefiniti
 {
     public void Configure(EntityTypeBuilder<ToolDefinition> entity)
     {
-        entity.ToTable("ToolDefinitions", table =>
-        {
-            table.HasCheckConstraint("CK_ToolDefinitions_Kind", "\"Kind\" IN (0, 1, 2)");
-            table.HasCheckConstraint("CK_ToolDefinitions_ExecutionPolicy", "\"ExecutionPolicy\" IN (0, 1, 2)");
-            table.HasCheckConstraint("CK_ToolDefinitions_ActiveImplementation",
-                "\"ExecutionPolicy\" = 0 OR length(\"ImplementationKey\") > 0");
-        });
+        entity.ToTable("ToolDefinitions");
 
         entity.ConfigureBaseModel();
 
@@ -30,9 +24,8 @@ public class ToolDefinitionConfiguration : IEntityTypeConfiguration<ToolDefiniti
             .IsRequired()
             .HasColumnType("jsonb");
 
-        entity.Property(x => x.ImplementationKey)
-            .IsRequired()
-            .HasMaxLength(100);
+        entity.Property(x => x.ExecutionUrl)
+            .HasMaxLength(500);
 
         entity.HasIndex(x => new { x.TutorId, x.Name })
             .IsUnique();

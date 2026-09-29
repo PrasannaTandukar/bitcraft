@@ -57,7 +57,6 @@ public sealed record GeneratedBenchmarkOutput(
     string ActualOutput,
     string ModelUsed,
     string? ContextText,
-<<<<<<< HEAD
     double? GenerationLatencyMs);
 
 public sealed record StandardLlmBenchmarkRequest(
@@ -117,14 +116,3 @@ public sealed record ArduinoBenchmarkCaseResult(
     double SolutionReasoningScore,
     double GuidancePedagogyScore,
     string FeedbackSummary);
-=======
-    double? GenerationLatencyMs,
-    Guid? TutorRevisionId = null,
-    Guid? TutorConfigurationSnapshotId = null,
-    bool KnowledgeUsed = false,
-    int SourceCount = 0,
-    int ToolCallCount = 0,
-    long? InputTokenCount = null,
-    long? OutputTokenCount = null,
-    long? TotalTokenCount = null);
->>>>>>> dev

@@ -4,8 +4,8 @@ using Bitcraft.Application.Common.Models;
 namespace Bitcraft.Infrastructure.ExternalServices.Benchmarking;
 
 /// <summary>
-/// Backward-compatible benchmark adapter. Revision/snapshot resolution, retrieval,
-/// interaction parameters and agent execution are delegated to the same ITutorRuntime used by chat.
+/// Backward-compatible benchmark adapter. All tutor prompt assembly, revision/snapshot
+/// resolution, retrieval, interaction parameters, and generation are delegated to ITutorRuntime.
 /// </summary>
 public sealed class TutorBenchmarkOutputGenerator(ITutorRuntime runtime) : ITutorBenchmarkOutputGenerator
 {
@@ -20,9 +20,10 @@ public sealed class TutorBenchmarkOutputGenerator(ITutorRuntime runtime) : ITuto
                 request.TutorConfigurationSnapshotId,
                 request.InputText,
                 request.UserId,
-                UseKnowledge: request.UseTutorKnowledge,
+                UseKnowledge: true,
                 request.TopK,
-                TutorRuntimeExecutionMode.Benchmark),
+                TutorRuntimeExecutionMode.Benchmark,
+                History: null),
             cancellationToken);
 
         if (result.IsFailure)
@@ -36,14 +37,6 @@ public sealed class TutorBenchmarkOutputGenerator(ITutorRuntime runtime) : ITuto
             string.IsNullOrWhiteSpace(request.ContextOverride)
                 ? result.Value.ReferenceMaterial
                 : request.ContextOverride.Trim(),
-            result.Value.Usage.GenerationLatencyMs,
-            result.Value.TutorRevisionId,
-            result.Value.TutorConfigurationSnapshotId,
-            result.Value.KnowledgeUsed,
-            result.Value.Sources.Count,
-            result.Value.ToolActivities?.Count ?? 0,
-            result.Value.Usage.InputTokenCount,
-            result.Value.Usage.OutputTokenCount,
-            result.Value.Usage.TotalTokenCount));
+            result.Value.Usage.GenerationLatencyMs));
     }
 }

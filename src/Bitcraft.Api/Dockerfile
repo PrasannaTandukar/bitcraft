@@ -2,9 +2,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /bitcraft
 
-# Keep repository-wide compiler configuration active inside the container build.
-COPY Directory.Build.props ./
-
 # Copy all project files for restore
 COPY src/Bitcraft.Domain/Bitcraft.Domain.csproj src/Bitcraft.Domain/
 COPY src/Bitcraft.Application/Bitcraft.Application.csproj src/Bitcraft.Application/

@@ -49,7 +49,7 @@ public class OllamaEmbeddingProvider(
 
         var client = httpClientFactory.CreateClient(nameof(OllamaEmbeddingProvider));
         var request = new EmbeddingRequest(model, embeddingRequest.Text);
-        var endpoint = new Uri(baseUri.AbsoluteUri.TrimEnd('/') + "/api/embeddings");
+        var endpoint = new Uri(baseUri, "/api/embeddings");
 
         HttpResponseMessage response;
         try

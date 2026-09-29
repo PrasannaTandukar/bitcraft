@@ -221,13 +221,8 @@ public static class RuntimeEngineFeatures
     // Authorization is enforced by the API layer (ViewerOrAbove on the test endpoint). The handler
     // performs no role check so any authenticated user can run this read-only probe.
     public sealed class TestRuntimeEngineHandler(
-<<<<<<< HEAD
         ILlmGenerationProvider generationProvider,
         IRuntimeEngineRepository repository)
-=======
-        IRuntimeModelDiagnostic diagnostic,
-        ICurrentUserContext currentUser)
->>>>>>> dev
         : IRequestHandler<TestRuntimeEngineCommand, Result<TestRuntimeEngineConnectionResult>>
     {
         public async Task<Result<TestRuntimeEngineConnectionResult>> Handle(
@@ -259,7 +254,6 @@ public static class RuntimeEngineFeatures
             }
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-<<<<<<< HEAD
             try
             {
                 var discoveredModels = await generationProvider.ProbeAvailableModelsAsync(
@@ -267,24 +261,41 @@ public static class RuntimeEngineFeatures
                     string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim(),
                     request.ProviderType.ToString(),
                     cancellationToken);
-=======
-            var probe = await diagnostic.ProbeModelsAsync(new RuntimeModelCatalogDiagnosticRequest(
-                request.ProviderType, request.Endpoint.Trim(),
-                string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim()),
-                cancellationToken);
-            stopwatch.Stop();
-            var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
-            if (probe.IsFailure)
-                return Result.Success(new TestRuntimeEngineConnectionResult(false, latency,
-                    "The runtime endpoint could not be verified."));
->>>>>>> dev
 
-            var discoveredModels = probe.Value.AvailableModels;
-            return Result.Success(new TestRuntimeEngineConnectionResult(true, latency,
-                discoveredModels.Count > 0
-                    ? $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s)."
-                    : $"Successfully reached {request.ProviderType} endpoint (no models reported).",
-                discoveredModels));
+                stopwatch.Stop();
+                var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
+
+                if (discoveredModels is { Count: > 0 })
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        latency,
+                        $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s).",
+                        discoveredModels));
+                }
+
+                if (discoveredModels is not null)
+                {
+                    return Result.Success(new TestRuntimeEngineConnectionResult(
+                        true,
+                        latency,
+                        $"Successfully reached {request.ProviderType} endpoint (no models reported).",
+                        discoveredModels));
+                }
+
+                return Result.Success(new TestRuntimeEngineConnectionResult(
+                    false,
+                    latency,
+                    $"Could not reach {request.ProviderType} endpoint or retrieve model catalog."));
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                return Result.Success(new TestRuntimeEngineConnectionResult(
+                    false,
+                    Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1),
+                    $"Connection failed: {ex.Message}"));
+            }
         }
     }
 

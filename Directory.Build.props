@@ -15,12 +15,4 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Local'">
     <DefineConstants>$(DefineConstants);BITCRAFT_RUNTIME_LOCAL_ONLY</DefineConstants>
   </PropertyGroup>
-  <!-- OllamaSharp 5.4.30 ships an optional tool generator requiring Roslyn 5.6.
-       No generated tools are used in this phase. Remove it in consuming projects too,
-       where NuGet's analyzer exclusion does not prevent transitive discovery. -->
-  <Target Name="ExcludeUnusedOllamaToolGenerator" BeforeTargets="CoreCompile">
-    <ItemGroup>
-      <Analyzer Remove="@(Analyzer)" Condition="'%(Analyzer.Filename)' == 'OllamaSharp.SourceGenerators'" />
-    </ItemGroup>
-  </Target>
 </Project>

@@ -4,23 +4,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
-<<<<<<< HEAD
-=======
-using Bitcraft.Domain.Modeling;
-using Bitcraft.Infrastructure.ExternalServices.Agents;
-using Microsoft.Extensions.Configuration;
->>>>>>> dev
 using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.OpenAI;
 
 public class OpenAiCompatibleEmbeddingProvider(
     IHttpClientFactory httpClientFactory,
-<<<<<<< HEAD
-=======
-    IConfiguration configuration,
-    IRuntimeApiKeyResolver apiKeys,
->>>>>>> dev
     ILogger<OpenAiCompatibleEmbeddingProvider>? logger = null) : IEmbeddingProvider
 {
 
@@ -62,22 +51,12 @@ public class OpenAiCompatibleEmbeddingProvider(
         }
 
         var client = httpClientFactory.CreateClient(nameof(OpenAiCompatibleEmbeddingProvider));
-<<<<<<< HEAD
         var apiKey = embeddingRequest.ApiKey;
-=======
-        var providerType = Enum.TryParse<RuntimeEngineProviderType>(embeddingRequest.ProviderType,
-            ignoreCase: true, out var parsedProvider) ? parsedProvider : RuntimeEngineProviderType.OpenAI;
-        var resolvedKey = apiKeys.Resolve(new TutorAgentModelConfiguration(Guid.Empty, providerType,
-            baseUri.AbsoluteUri, embeddingRequest.ApiKeySecretRef, Guid.Empty, model, ModelCapabilities.None));
-        if (resolvedKey.IsFailure)
-            throw new EmbeddingProviderException(EmbeddingProviderFailureKind.RequestFailed,
-                "The embedding credential reference could not be resolved.");
->>>>>>> dev
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildEmbeddingsUri(baseUri));
-        if (!string.IsNullOrWhiteSpace(resolvedKey.Value))
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildEmbeddingsUri(baseUri));
+        if (!string.IsNullOrWhiteSpace(apiKey))
         {
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", resolvedKey.Value);
+            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
         }
 
         var requestBody = new OpenAiEmbeddingRequest(model, embeddingRequest.Text.Trim());
@@ -111,9 +90,11 @@ public class OpenAiCompatibleEmbeddingProvider(
         {
             if (!response.IsSuccessStatusCode)
             {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
                 logger?.LogWarning(
-                    "Embedding request failed. Operation={Operation}, StatusCode={StatusCode}, Provider={ProviderType}, Model={EmbeddingModel}",
-                    "embed", (int)response.StatusCode, providerType, model);
+                    "Embedding request failed. StatusCode={StatusCode}, Body={Body}",
+                    (int)response.StatusCode,
+                    body);
 
                 if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
                     response.StatusCode == System.Net.HttpStatusCode.Forbidden)

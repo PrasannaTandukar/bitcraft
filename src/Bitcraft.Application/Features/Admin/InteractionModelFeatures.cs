@@ -17,9 +17,7 @@ public static class InteractionModelFeatures
         string ProviderModelName,
         string? SettingsJson,
         bool IsEnabled,
-        bool SupportsImageInput = false,
-        bool SupportsFunctionCalling = false,
-        bool SupportsStructuredOutput = false) : IRequest<Result<InteractionModel>>;
+        bool SupportsImageInput = false) : IRequest<Result<InteractionModel>>;
 
     public sealed class CreateInteractionModelHandler(
         IModelRepository models,
@@ -63,9 +61,7 @@ public static class InteractionModelFeatures
                 RuntimeEngineId = request.RuntimeEngineId,
                 ProviderModelName = request.ProviderModelName.Trim(),
                 SettingsJson = string.IsNullOrWhiteSpace(request.SettingsJson) ? null : request.SettingsJson,
-                Capabilities = (request.SupportsImageInput ? ModelCapabilities.ImageInput : ModelCapabilities.None) |
-                    (request.SupportsFunctionCalling ? ModelCapabilities.FunctionCalling : ModelCapabilities.None) |
-                    (request.SupportsStructuredOutput ? ModelCapabilities.StructuredOutput : ModelCapabilities.None),
+                Capabilities = request.SupportsImageInput ? ModelCapabilities.ImageInput : ModelCapabilities.None,
                 IsEnabled = request.IsEnabled
             };
 
@@ -124,9 +120,7 @@ public static class InteractionModelFeatures
         string ProviderModelName,
         string? SettingsJson,
         bool IsEnabled,
-        bool SupportsImageInput = false,
-        bool SupportsFunctionCalling = false,
-        bool SupportsStructuredOutput = false) : IRequest<Result<InteractionModel>>;
+        bool SupportsImageInput = false) : IRequest<Result<InteractionModel>>;
 
     public sealed class UpdateInteractionModelHandler(
         IModelRepository models,
@@ -178,12 +172,6 @@ public static class InteractionModelFeatures
             existing.Capabilities = request.SupportsImageInput
                 ? existing.Capabilities | ModelCapabilities.ImageInput
                 : existing.Capabilities & ~ModelCapabilities.ImageInput;
-            existing.Capabilities = request.SupportsFunctionCalling
-                ? existing.Capabilities | ModelCapabilities.FunctionCalling
-                : existing.Capabilities & ~ModelCapabilities.FunctionCalling;
-            existing.Capabilities = request.SupportsStructuredOutput
-                ? existing.Capabilities | ModelCapabilities.StructuredOutput
-                : existing.Capabilities & ~ModelCapabilities.StructuredOutput;
 
             await models.UpdateAsync(existing, cancellationToken);
             return Result.Success(existing);
@@ -222,7 +210,7 @@ public static class InteractionModelFeatures
         IModelRepository models,
         IRuntimeEngineRepository engines,
         IChatAttachmentService attachments,
-        IRuntimeModelDiagnostic diagnostic,
+        ILlmGenerationProvider generation,
         ICurrentUserContext currentUser) : IRequestHandler<TestImageInputCommand, Result<ImageInputTestResponse>>
     {
         public async Task<Result<ImageInputTestResponse>> Handle(TestImageInputCommand request, CancellationToken cancellationToken)
@@ -240,22 +228,13 @@ public static class InteractionModelFeatures
             var image = await attachments.ReadAsync(request.AttachmentId, currentUser.UserId, cancellationToken);
             if (image.IsFailure) return Result.Failure<ImageInputTestResponse>(image.Error);
             // A diagnostic of the saved runtime/model. It never infers or updates capabilities.
-<<<<<<< HEAD
             var result = await generation.GenerateAsync(new LlmGenerationRequest(
                 "Briefly describe the attached image in one sentence.", model.ProviderModelName,
                 MaxTokens: 128, RuntimeEndpoint: engine.Endpoint, ApiKey: engine.ApiKey,
                 ProviderType: engine.ProviderType.ToString(), Images: [new(image.Value.Metadata.MimeType, image.Value.Data)]), cancellationToken);
             if (result.IsFailure || string.IsNullOrWhiteSpace(result.Value.Response))
-=======
-            var result = await diagnostic.GenerateAsync(new RuntimeModelGenerationDiagnosticRequest(
-                engine.Id, engine.ProviderType, engine.Endpoint, engine.ApiKeySecretRef,
-                model.Id, model.ProviderModelName, model.Capabilities,
-                "Briefly describe the attached image in one sentence.",
-                [new(image.Value.Metadata.MimeType, image.Value.Data)], 128), cancellationToken);
-            if (result.IsFailure || string.IsNullOrWhiteSpace(result.Value.Answer))
->>>>>>> dev
                 return Result.Failure<ImageInputTestResponse>(new Error("InteractionModel.ImageTestFailed", "The model could not process the image. Check its image support and runtime configuration."));
-            return Result.Success(new ImageInputTestResponse(result.Value.Answer.Trim()));
+            return Result.Success(new ImageInputTestResponse(result.Value.Response.Trim()));
         }
     }
 

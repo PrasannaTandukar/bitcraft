@@ -293,15 +293,6 @@ internal sealed class FakeTutorRepository : ITutorRepository
         return Task.CompletedTask;
     }
 
-    public Task<List<ToolDefinition>> ListToolDefinitionsAsync(Guid tutorId, CancellationToken ct = default) =>
-        Task.FromResult(Tools.Where(tool => tool.TutorId == tutorId).ToList());
-    public Task UpdateToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default) => Task.CompletedTask;
-    public Task RemoveToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default)
-    {
-        Tools.Remove(tool);
-        return Task.CompletedTask;
-    }
-
     public Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default)
     {
         Tools.Add(tool);
@@ -605,7 +596,7 @@ internal sealed class FakeRevisionEffectiveSetReader(IReadOnlyList<Guid>? docume
 internal sealed class FakeTutorMemoryStore : ITutorMemoryStore
 {
     public List<TutorMemory> Memories { get; } = new();
-    public TutorMemorySearchRequest? LastRequest { get; private set; }
+    public Guid LastCreatorId { get; private set; }
     public float[] LastQueryEmbedding { get; private set; } = [];
     public int LastTopK { get; private set; }
 
@@ -616,17 +607,16 @@ internal sealed class FakeTutorMemoryStore : ITutorMemoryStore
     }
 
     public Task<List<TutorMemory>> SearchNearestMemoriesAsync(
-        TutorMemorySearchRequest request,
+        Guid creatorId,
+        float[] queryEmbedding,
+        int topK = 5,
         CancellationToken cancellationToken = default)
     {
-        LastRequest = request;
-        LastQueryEmbedding = request.QueryEmbedding;
-        LastTopK = request.TopK;
+        LastCreatorId = creatorId;
+        LastQueryEmbedding = queryEmbedding;
+        LastTopK = topK;
         return Task.FromResult(Memories
-            .Where(memory => memory.UserId == request.UserId && memory.TutorId == request.TutorId &&
-                memory.EmbeddingModelId == request.EmbeddingModelId &&
-                memory.EmbeddingDimensions == request.EmbeddingDimensions &&
-                (!request.ExcludedConversationId.HasValue || memory.ConversationId != request.ExcludedConversationId))
+            .Where(memory => memory.CreatedById == creatorId || memory.CreatedById is null)
             .ToList());
     }
 }

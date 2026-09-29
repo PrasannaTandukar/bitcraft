@@ -3,10 +3,10 @@ using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Identity;
 using Bitcraft.Infrastructure.ExternalServices;
-using Bitcraft.Infrastructure.ExternalServices.Agents;
 using Bitcraft.Infrastructure.ExternalServices.Benchmarking;
 using Bitcraft.Infrastructure.ExternalServices.Embeddings;
 using Bitcraft.Infrastructure.ExternalServices.Documents;
+using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.Identity;
 using Bitcraft.Infrastructure.Persistence;
 using Bitcraft.Infrastructure.Persistence.Interceptors;
@@ -134,21 +134,10 @@ public static class DependencyInjection
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Embeddings.OllamaEmbeddingProvider>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider>();
         services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.CompositeEmbeddingProvider>();
-        services.AddScoped<IRuntimeApiKeyResolver, ConfigurationRuntimeApiKeyResolver>();
-        services.AddScoped<IRuntimeChatClientFactory, RuntimeChatClientFactory>();
-        services.AddScoped<IRuntimeModelDiagnostic, RuntimeModelDiagnostic>();
-        services.AddScoped<ITutorConversationRepository, Bitcraft.Infrastructure.Persistence.TutorConversationRepository>();
-        services.AddScoped<ITutorAgentExecutor, TutorAgentExecutor>();
-        services.AddScoped<TutorKnowledgeContextProviderFactory>();
-        services.AddScoped<TutorMemoryContextProviderFactory>();
-        services.AddSingleton<ITutorToolHandler, CalculatorTutorToolHandler>();
-        services.AddSingleton(TutorToolRuntimeOptions.Default);
-        services.AddSingleton<ITutorToolCatalog, TutorToolCatalog>();
-        services.AddSingleton<ITutorToolRegistry, TutorToolRegistry>();
-        services.AddHttpClient(RuntimeChatClientFactory.HttpClientName).RemoveAllLoggers();
-        services.AddHttpClient(RuntimeChatClientFactory.OllamaHttpClientName)
-            .AddHttpMessageHandler(() => new TutorAgentHttpStatusHandler())
-            .RemoveAllLoggers();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Ollama.OllamaGenerationProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleGenerationProvider>();
+        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider>();
+        services.AddScoped<ILlmGenerationProvider, Bitcraft.Infrastructure.ExternalServices.CompositeLlmGenerationProvider>();
         services.AddKnowledgePersistence(configuration);
         services.AddOptions<DeepEvalBenchmarkOptions>()
             .Bind(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName))
@@ -183,9 +172,22 @@ public static class DependencyInjection
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
         });
+        var ollamaGenerateTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
+        services.AddHttpClient(nameof(OllamaGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
+        });
+        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
+        });
         services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
+        });
+        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider), c =>
+        {
+            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
         });
         var deepEvalTimeoutSeconds = configuration.GetValue<int?>("Benchmarking:DeepEval:TimeoutSeconds") ?? 120;
         services.AddHttpClient(nameof(DeepEvalBenchmarkEngine), c =>

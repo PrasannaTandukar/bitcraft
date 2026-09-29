@@ -80,8 +80,7 @@ public class TutorRevisionsController(ISender sender) : ControllerBase
             request.QueryEmbeddingModelId,
             request.InteractionParametersJson,
             request.DeploymentTarget,
-            request.DeploymentConfigJson,
-            request.ToolDefinitionIds), cancellationToken);
+            request.DeploymentConfigJson), cancellationToken);
         if (result.IsFailure)
         {
             return TutoringMapping.ToActionResult(result.Error);

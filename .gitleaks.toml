@@ -1,8 +1,0 @@
-[extend]
-useDefault = true
-
-[allowlist]
-description = "Test fixture placeholder strings, not real credentials"
-regexes = [
-  '''missing\.implementation\.v1''',
-]
