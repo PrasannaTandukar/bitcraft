@@ -729,6 +729,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ConversationId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("uuid");
 
@@ -736,7 +739,13 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Vector>("Embedding")
-                        .HasColumnType("vector(768)");
+                        .HasColumnType("vector");
+
+                    b.Property<int?>("EmbeddingDimensions")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("EmbeddingModelId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
@@ -748,16 +757,35 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("TutorConfigurationSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TutorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TutorRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("Embedding");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "hnsw");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+                    b.HasIndex("EmbeddingModelId");
 
                     b.HasIndex("ModifiedById");
+
+                    b.HasIndex("TutorConfigurationSnapshotId");
+
+                    b.HasIndex("TutorId");
+
+                    b.HasIndex("TutorRevisionId");
+
+                    b.HasIndex("UserId", "TutorId", "EmbeddingModelId", "EmbeddingDimensions");
 
                     b.ToTable("TutorMemories", (string)null);
                 });
@@ -1018,13 +1046,20 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<string>("ExecutionUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<int>("ExecutionPolicy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ImplementationKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("JsonSchema")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
 
                     b.Property<Guid?>("ModifiedById")
                         .HasColumnType("uuid");
@@ -1049,7 +1084,14 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.HasIndex("TutorId", "Name")
                         .IsUnique();
 
-                    b.ToTable("ToolDefinitions", (string)null);
+                    b.ToTable("ToolDefinitions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ToolDefinitions_ActiveImplementation", "\"ExecutionPolicy\" = 0 OR length(\"ImplementationKey\") > 0");
+
+                            t.HasCheckConstraint("CK_ToolDefinitions_ExecutionPolicy", "\"ExecutionPolicy\" IN (0, 1, 2)");
+
+                            t.HasCheckConstraint("CK_ToolDefinitions_Kind", "\"Kind\" IN (0, 1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.Tutor", b =>
@@ -1196,6 +1238,120 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("TutorConfigurationSnapshots", (string)null);
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgentSessionJson")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TutorConfigurationSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TutorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TutorRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("TutorConfigurationSnapshotId");
+
+                    b.HasIndex("TutorId");
+
+                    b.HasIndex("TutorRevisionId");
+
+                    b.HasIndex("UserId", "TutorId", "UpdatedUtc");
+
+                    b.ToTable("TutorConversations", (string)null);
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorConversationMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<Guid[]>("AttachmentIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProviderModelName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("ConversationId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("TutorConversationMessages", (string)null);
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorDocument", b =>
@@ -1851,10 +2007,37 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Bitcraft.Domain.Modeling.EmbeddingModel", null)
+                        .WithMany()
+                        .HasForeignKey("EmbeddingModelId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
                         .WithMany()
                         .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bitcraft.Domain.Tutoring.TutorConfigurationSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("TutorConfigurationSnapshotId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Bitcraft.Domain.Tutoring.Tutor", null)
+                        .WithMany()
+                        .HasForeignKey("TutorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Tutoring.TutorRevision", null)
+                        .WithMany()
+                        .HasForeignKey("TutorRevisionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("CreatedBy");
 
@@ -2086,6 +2269,72 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("ModifiedBy");
 
                     b.Navigation("TutorRevision");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorConversation", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Bitcraft.Domain.Tutoring.TutorConfigurationSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("TutorConfigurationSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Tutoring.Tutor", null)
+                        .WithMany()
+                        .HasForeignKey("TutorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Tutoring.TutorRevision", null)
+                        .WithMany()
+                        .HasForeignKey("TutorRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorConversationMessage", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Tutoring.TutorConversation", null)
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorDocument", b =>
@@ -2377,6 +2626,11 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("TutorDocuments");
 
                     b.Navigation("TutorModelConnection");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorRevision", b =>

@@ -34,10 +34,15 @@ public class TutorBenchmarkOutputGeneratorTests
         Assert.Equal(snapshotId, runtime.Request.TutorConfigurationSnapshotId);
         Assert.Equal(userId, runtime.Request.UserId);
         Assert.Equal(TutorRuntimeExecutionMode.Benchmark, runtime.Request.ExecutionMode);
-        Assert.True(runtime.Request.UseKnowledge);
+        Assert.False(runtime.Request.UseKnowledge);
+        Assert.Null(runtime.Request.ConversationId);
+        Assert.False(runtime.Request.PersistConversation);
         Assert.Equal(3, runtime.Request.TopK);
         Assert.Equal("This must not bypass the configured runtime.", result.Value.ContextText);
         Assert.Equal("configured-model", result.Value.ModelUsed);
+        Assert.Equal(revisionId, result.Value.TutorRevisionId);
+        Assert.Equal(snapshotId, result.Value.TutorConfigurationSnapshotId);
+        Assert.False(result.Value.KnowledgeUsed);
     }
 
     private sealed class RecordingTutorRuntime : ITutorRuntime
@@ -63,7 +68,7 @@ public class TutorBenchmarkOutputGeneratorTests
                     Guid.NewGuid(),
                     "Ollama"),
                 null,
-                true,
+                request.UseKnowledge,
                 [],
                 new TutorRuntimeUsageMetadata(12),
                 "Runtime reference material")));

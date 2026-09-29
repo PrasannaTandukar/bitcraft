@@ -64,12 +64,44 @@ public class OllamaEmbeddingProviderTests
         Assert.Equal([0.1f, 0.2f, 0.3f], embedding);
     }
 
+<<<<<<< HEAD
     // OD-4: the endpoint now comes from the request (RuntimeEngine entity), not configuration.
     private static EmbeddingGenerationRequest BuildRequest(string model) =>
         new("chunk", model, RuntimeEndpoint: "http://ollama.invalid");
 
     private static OllamaEmbeddingProvider CreateProvider(HttpMessageHandler handler) =>
         new(
+=======
+    [Fact]
+    public async Task GenerateEmbeddingAsync_PreservesConfiguredProxyPrefix()
+    {
+        Uri? requested = null;
+        var configuration = new ConfigurationBuilder().Build();
+        var provider = new OllamaEmbeddingProvider(new StubHttpClientFactory(new StubHandler(request =>
+        {
+            requested = request.RequestUri;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"embedding\":[1]}", Encoding.UTF8, "application/json")
+            };
+        })), configuration, NullLogger<OllamaEmbeddingProvider>.Instance);
+
+        await provider.GenerateEmbeddingAsync(new EmbeddingGenerationRequest("chunk", "embed",
+            RuntimeEndpoint: "https://runtime.invalid/proxy"));
+
+        Assert.Equal("/proxy/api/embeddings", requested?.AbsolutePath);
+    }
+
+    private static OllamaEmbeddingProvider CreateProvider(HttpMessageHandler handler)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ModelProviders:Ollama:BaseUrl"] = "http://ollama.invalid"
+            })
+            .Build();
+        return new OllamaEmbeddingProvider(
+>>>>>>> dev
             new StubHttpClientFactory(handler),
             NullLogger<OllamaEmbeddingProvider>.Instance);
 

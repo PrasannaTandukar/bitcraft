@@ -24,7 +24,7 @@ public class TutorMemoryConfiguration : IEntityTypeConfiguration<TutorMemory>
             .IsRequired();
 
         var embeddingProperty = entity.Property(x => x.Embedding)
-            .HasColumnType("vector(768)")
+            .HasColumnType("vector")
             .HasConversion(
                 value => value == null ? null : new Vector(value),
                 value => value == null ? null : value.ToArray());
@@ -34,10 +34,17 @@ public class TutorMemoryConfiguration : IEntityTypeConfiguration<TutorMemory>
             value => value == null ? 0 : value.Aggregate(0, (hash, item) => HashCode.Combine(hash, item.GetHashCode())),
             value => value == null ? null : value.ToArray()));
 
-        entity.HasIndex(x => x.CreatedById);
-
-        entity.HasIndex(x => x.Embedding)
-            .HasMethod("hnsw")
-            .HasOperators("vector_cosine_ops");
+        entity.HasIndex(x => new { x.UserId, x.TutorId, x.EmbeddingModelId, x.EmbeddingDimensions });
+        entity.HasIndex(x => x.ConversationId);
+        entity.HasOne<Bitcraft.Domain.Identity.AppUser>().WithMany().HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        entity.HasOne<Bitcraft.Domain.Tutoring.Tutor>().WithMany().HasForeignKey(x => x.TutorId)
+            .OnDelete(DeleteBehavior.Cascade);
+        entity.HasOne<Bitcraft.Domain.Tutoring.TutorRevision>().WithMany().HasForeignKey(x => x.TutorRevisionId)
+            .OnDelete(DeleteBehavior.SetNull);
+        entity.HasOne<Bitcraft.Domain.Tutoring.TutorConfigurationSnapshot>().WithMany()
+            .HasForeignKey(x => x.TutorConfigurationSnapshotId).OnDelete(DeleteBehavior.SetNull);
+        entity.HasOne<Bitcraft.Domain.Modeling.EmbeddingModel>().WithMany().HasForeignKey(x => x.EmbeddingModelId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
