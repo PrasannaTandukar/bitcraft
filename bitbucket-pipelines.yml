@@ -1,5 +1,6 @@
 image: atlassian/default-image:5
 
+<<<<<<< HEAD
 # ADJUST THESE to match your actual repo layout
 definitions:
   steps:
@@ -147,3 +148,42 @@ pipelines:
       - step:
           <<: *deploy
           trigger: manual   # remove this line for a fully automatic deploy
+=======
+pipelines:
+  branches:
+    'deploy/orin':
+      - step:
+          name: Deploy Bitcraft to Jetson
+
+          runs-on:
+            - self.hosted
+            - linux.arm64
+            - bitcraft.jetson
+
+          script:
+            - mkdir -p ~/.ssh
+            - chmod 700 ~/.ssh
+            - 'printf "%s\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts'
+            - chmod 600 ~/.ssh/known_hosts
+
+            - |
+              ssh -o BatchMode=yes "$JETSON_USER@$JETSON_HOST" 'bash -se' <<'REMOTE'
+              set -euo pipefail
+
+              cd /home/cmpe6012/AgenticTutor/bitcraft-deploy
+
+              echo "Fetching deploy/orin..."
+              git fetch origin deploy/orin
+
+              echo "Updating deployment checkout..."
+              git reset --hard origin/deploy/orin
+
+              echo "Now deploying commit:"
+              git log -1 --oneline
+
+              echo "Starting Docker deployment..."
+              sudo -n /usr/local/sbin/bitcraft-deploy
+
+              echo "BITCRAFT_DEPLOYMENT_SUCCESS"
+              REMOTE
+>>>>>>> origin/deploy/orin
