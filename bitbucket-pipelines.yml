@@ -5,7 +5,7 @@ definitions:
   steps:
     - step: &scan-secrets
         name: "Secret scan (gitleaks)"
-        runs-on: ubuntu-latest
+        #runs-on: ubuntu-latest
         image: zricethezav/gitleaks:latest
         clone:
           depth: full
@@ -20,7 +20,7 @@ definitions:
 
     - step: &scan-frontend
         name: "Dependency scan — frontend (npm audit)"
-        runs-on: ubuntu-latest
+        #runs-on: ubuntu-latest
         image: node:20
         script:
           - cd tutor-studio
@@ -38,7 +38,7 @@ definitions:
 
     - step: &scan-backend
         name: "Dependency scan — backend (dotnet list package --vulnerable)"
-        runs-on: ubuntu-latest
+        #runs-on: ubuntu-latest
         image: mcr.microsoft.com/dotnet/sdk:10.0
         script:
           - dotnet restore bitcraft.slnx
@@ -61,7 +61,7 @@ definitions:
 
     - step: &test-frontend
         name: "Test — frontend (npm)"
-        runs-on: ubuntu-latest
+        #runs-on: ubuntu-latest
         image: node:20
         script:
           - cd tutor-studio
@@ -77,7 +77,7 @@ definitions:
 
     - step: &test-backend
         name: "Test — backend (.NET)"
-        runs-on: ubuntu-latest
+        #runs-on: ubuntu-latest
         image: mcr.microsoft.com/dotnet/sdk:10.0
         script:
           - dotnet restore bitcraft.slnx
