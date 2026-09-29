@@ -160,11 +160,8 @@ describe("PromptVersionsPanel", () => {
             screen.getByText("Notes: Initial version")
         ).toBeInTheDocument();
 
-        // expect(
-        //     screen.getByText(/Created 9\/1\/2026, 6:00:00 PM/)
-        // ).toBeInTheDocument();
         expect(
-            screen.getByText("Created Formatted 2026-09-01T10:00:00Z")
+            screen.getByText(/Created 9\/1\/2026, 6:00:00 PM/)
         ).toBeInTheDocument();
 
         expect(
