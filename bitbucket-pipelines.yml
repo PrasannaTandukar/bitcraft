@@ -67,12 +67,7 @@ definitions:
           - cd tutor-studio
           - npm ci
           - export TZ=Australia/Perth
-          - echo "TZ=$TZ"
-          - date
-          - node -e "console.log('Node date:', new Date('2026-09-01T10:00:00Z').toString())"
-          - node -e "console.log('Locale:', new Date('2026-09-01T10:00:00Z').toLocaleString())"
-          - npx vitest run tests/PromptVersionsPanel.test.tsx
-          #- npx vitest run --reporter=junit --outputFile=test-results/junit.xml
+          - npx vitest run --reporter=junit --outputFile=test-results/junit.xml
         artifacts:
           upload:
             - name: "frontend-test-report"
