@@ -1,4 +1,4 @@
-using Bitcraft.Application.Common.Interfaces;
+﻿using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Benchmarking;
@@ -52,7 +52,7 @@ public static class StandardBenchmarkFeatures
         IModelRepository modelRepository,
         IStandardBenchmarkRunQueue queue,
         ICurrentUserContext currentUser,
-        ILlmGenerationProvider? generationProvider = null)
+        IRuntimeModelDiagnostic? modelDiagnostic = null)
         : IRequestHandler<CreateStandardBenchmarkRunCommand, Result<StandardBenchmarkRun>>
     {
         private const int MaxProblems = 10_000;
@@ -168,16 +168,16 @@ public static class StandardBenchmarkFeatures
         /// </summary>
         internal virtual Task<bool> ProbeImageSupportAsync(InteractionModel model, CancellationToken cancellationToken)
         {
-            if (generationProvider is null)
+            if (modelDiagnostic is null)
             {
                 return Task.FromResult(false);
             }
 
-            return ProbeViaProviderAsync(generationProvider, model, cancellationToken);
+            return ProbeViaDiagnosticAsync(modelDiagnostic, model, cancellationToken);
         }
 
-        private static async Task<bool> ProbeViaProviderAsync(
-            ILlmGenerationProvider generationProvider,
+        private static async Task<bool> ProbeViaDiagnosticAsync(
+            IRuntimeModelDiagnostic modelDiagnostic,
             InteractionModel model,
             CancellationToken cancellationToken)
         {
@@ -187,13 +187,19 @@ public static class StandardBenchmarkFeatures
                 return false;
             }
 
-            var probe = await generationProvider.ProbeImageInputSupportAsync(
-                engine.Endpoint,
-                model.ProviderModelName,
-                engine.ApiKey,
-                engine.ProviderType.ToString(),
+            var probe = await modelDiagnostic.GenerateAsync(
+                new RuntimeModelGenerationDiagnosticRequest(
+                    engine.Id,
+                    engine.ProviderType,
+                    engine.Endpoint,
+                    engine.ApiKey,
+                    model.Id,
+                    model.ProviderModelName,
+                    model.Capabilities,
+                    "Reply with the single word: ok.",
+                    Images: null),
                 cancellationToken);
-            return probe.IsSuccess && probe.Value;
+            return probe.IsSuccess;
         }
     }
 

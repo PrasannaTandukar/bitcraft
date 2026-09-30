@@ -41,30 +41,27 @@ internal sealed class FakeRuntimeEngineRepository : IRuntimeEngineRepository
     }
 }
 
-internal sealed class FakeLlmGenerationProvider : ILlmGenerationProvider
+internal sealed class FakeRuntimeModelDiagnostic : IRuntimeModelDiagnostic
 {
     public int ProbeCalls { get; private set; }
     public string? LastEndpoint { get; private set; }
     public string? LastApiKey { get; private set; }
-    public string? LastProviderType { get; private set; }
+    public RuntimeEngineProviderType? LastProviderType { get; private set; }
     public IReadOnlyList<string>? ProbeResult { get; set; } = ["model-a", "model-b"];
 
-    public Task<Result<LlmGenerationResult>> GenerateAsync(
-        string prompt,
-        string? model,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(Result.Failure<LlmGenerationResult>(new Error("Fake.NotSupported", "Generation is not used in these tests.")));
-
-    public Task<IReadOnlyList<string>?> ProbeAvailableModelsAsync(
-        string endpoint,
-        string? ApiKey,
-        string? providerType,
+    public Task<Result<RuntimeModelCatalogDiagnostic>> ProbeModelsAsync(
+        RuntimeModelCatalogDiagnosticRequest request,
         CancellationToken cancellationToken = default)
     {
         ProbeCalls++;
-        LastEndpoint = endpoint;
-        LastApiKey = ApiKey;
-        LastProviderType = providerType;
-        return Task.FromResult(ProbeResult);
+        LastEndpoint = request.Endpoint;
+        LastApiKey = request.ApiKeySecretRef;
+        LastProviderType = request.ProviderType;
+        return Task.FromResult(Result.Success(new RuntimeModelCatalogDiagnostic(ProbeResult ?? [])));
     }
+
+    public Task<Result<RuntimeModelGenerationDiagnostic>> GenerateAsync(
+        RuntimeModelGenerationDiagnosticRequest request,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Failure<RuntimeModelGenerationDiagnostic>(new Error("Fake.NotSupported", "Generation is not used in these tests.")));
 }

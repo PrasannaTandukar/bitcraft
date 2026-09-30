@@ -1,4 +1,4 @@
-using Bitcraft.Application.Features.Admin;
+﻿using Bitcraft.Application.Features.Admin;
 using Bitcraft.Domain.Modeling;
 using Bitcraft.UnitTests.Application.Admin.Fakes;
 using Bitcraft.UnitTests.Application.Tutoring.Fakes;
@@ -292,7 +292,7 @@ public class RuntimeEngineFeaturesTests
         };
         repo.Engines.Add(engine);
 
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
 
         var result = await handler.Handle(
@@ -320,7 +320,7 @@ public class RuntimeEngineFeaturesTests
         };
         repo.Engines.Add(engine);
 
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
 
         var result = await handler.Handle(
@@ -351,7 +351,7 @@ public class RuntimeEngineFeaturesTests
         };
         repo.Engines.Add(engine);
 
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
 
         var result = await handler.Handle(
@@ -387,7 +387,7 @@ public class RuntimeEngineFeaturesTests
         };
         repo.Engines.Add(engine);
 
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, repo);
 
         var result = await handler.Handle(
@@ -402,7 +402,7 @@ public class RuntimeEngineFeaturesTests
     [Fact]
     public async Task Test_WithoutEngineIdOrNullKey_ProbesWithNullKey()
     {
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, new FakeRuntimeEngineRepository());
 
         var result = await handler.Handle(
@@ -419,7 +419,7 @@ public class RuntimeEngineFeaturesTests
     [Fact]
     public async Task Test_WithUnknownEngineId_ProbesWithNullKey()
     {
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, new FakeRuntimeEngineRepository());
 
         var result = await handler.Handle(
@@ -434,7 +434,7 @@ public class RuntimeEngineFeaturesTests
     [Fact]
     public async Task Test_WithInvalidEndpoint_ValidationFailsBeforeProbe()
     {
-        var provider = new FakeLlmGenerationProvider();
+        var provider = new FakeRuntimeModelDiagnostic();
         var handler = new RuntimeEngineFeatures.TestRuntimeEngineHandler(provider, new FakeRuntimeEngineRepository());
 
         var result = await handler.Handle(

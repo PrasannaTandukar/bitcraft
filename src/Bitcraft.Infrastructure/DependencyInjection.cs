@@ -133,7 +133,7 @@ public static class DependencyInjection
         services.AddScoped<ITutorMemoryStore, PgvectorTutorMemoryStore>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Embeddings.OllamaEmbeddingProvider>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider>();
-        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.CompositeEmbeddingProvider>();
+        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.Embeddings.CompositeEmbeddingProvider>();
         services.AddScoped<IRuntimeApiKeyResolver, ConfigurationRuntimeApiKeyResolver>();
         services.AddScoped<IRuntimeChatClientFactory, RuntimeChatClientFactory>();
         services.AddScoped<IRuntimeModelDiagnostic, RuntimeModelDiagnostic>();

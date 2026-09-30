@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
@@ -148,7 +148,7 @@ public sealed class TutorKnowledgeContextProvider(
                     request.UserQuery.Trim(),
                     providerModelName,
                     engine.Endpoint,
-                    engine.ApiKeySecretRef,
+                    engine.ApiKey,
                     engine.ProviderType.ToString()),
                 cancellationToken);
         }
@@ -292,7 +292,7 @@ public sealed class TutorKnowledgeContextProvider(
         foreach (var (source, index) in sources.Select((value, index) => (value, index)))
         {
             // Names, IDs and storage metadata are diagnostics. The model receives only an ordinal and content.
-            var block = $"[REFERENCE {index + 1} START — UNTRUSTED DATA]\n{source.Content}\n[REFERENCE {index + 1} END]";
+            var block = $"[REFERENCE {index + 1} START â€” UNTRUSTED DATA]\n{source.Content}\n[REFERENCE {index + 1} END]";
             var separatorLength = blocks.Count == 0 ? 0 : 2;
             if (length + separatorLength + block.Length > MaximumReferenceCharacters)
             {
@@ -306,7 +306,7 @@ public sealed class TutorKnowledgeContextProvider(
 
     private static string TrimContent(string content) => content.Length <= MaximumSourceCharacters
         ? content
-        : content[..MaximumSourceCharacters] + "…";
+        : content[..MaximumSourceCharacters] + "â€¦";
 
     private static double CalculateCosineSimilarity(float[] left, float[]? right)
     {

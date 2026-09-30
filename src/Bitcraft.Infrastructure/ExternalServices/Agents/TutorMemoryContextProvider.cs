@@ -1,4 +1,4 @@
-using Bitcraft.Application.Common.Interfaces;
+﻿using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
 using Bitcraft.Domain.Modeling;
@@ -141,7 +141,7 @@ public sealed class TutorMemoryContextProvider(
         {
             vector = await embeddings.GenerateEmbeddingAsync(new EmbeddingGenerationRequest(text,
                 resolved.Model.ProviderModelName.Trim(), resolved.Engine.Endpoint,
-                resolved.Engine.ApiKeySecretRef, resolved.Engine.ProviderType.ToString()), cancellationToken);
+                resolved.Engine.ApiKey, resolved.Engine.ProviderType.ToString()), cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception)
@@ -170,7 +170,7 @@ public sealed class TutorMemoryContextProvider(
     }
 
     private static string Bound(string value, int maximum) =>
-        value.Length <= maximum ? value : value[..(maximum - 1)] + "…";
+        value.Length <= maximum ? value : value[..(maximum - 1)] + "â€¦";
 
     private static string? BuildContext(IReadOnlyList<TutorMemorySource> sources)
     {

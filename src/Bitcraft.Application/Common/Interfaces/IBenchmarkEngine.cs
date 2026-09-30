@@ -1,4 +1,4 @@
-using Bitcraft.Application.Common.Models;
+﻿using Bitcraft.Application.Common.Models;
 
 namespace Bitcraft.Application.Common.Interfaces;
 
