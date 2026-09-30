@@ -1,6 +1,6 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-09-21
+edited_at: 2026-09-30
 creator: planner
 editor: lead-dev
 ai_gen: true
@@ -507,6 +507,8 @@ The canonical production flow is API → Application tutor use case → `ITutorR
 **Error codes.** Failures cross the API boundary as `ApiError { code, message, details? }` with stable `code` strings the frontend branches on. Initial vocabulary: `tutor_inactive`, `knowledge_not_ready_for_active_embedding_model`, `revision_not_editable`, `membership_required`, `runtime_engine_disabled`, `embedding_dimensions_mismatch`, `slug_conflict`. New codes are added by Application handlers and surfaced through the Api mapping layer; controllers never invent codes.
 
 **Configuration and secrets.** All configuration follows 12-Factor Config (D9). The full per-factor status, including the `BITCRAFT_RUNTIME_LOCAL_ONLY` build-stage classification under Factor V and the `BootstrapOptions`/env-vars-first plan under Factor III, lives in [.github/governance/twelve-factor.md](../.github/governance/twelve-factor.md). The `RuntimeEngines.ApiKey` column (historically named `ApiKeySecretRef`) currently holds the raw API key value at rest and is resolved directly by providers. A deployment secret store is future work; API responses never return the stored value.
+
+**Runtime credential resolution flow (OD-3).** The entity property is `RuntimeEngine.ApiKey` and holds the raw key. The EF configuration maps it to the historical `ApiKeySecretRef` column, so the rename needed no migration. The flow: `TutorRuntime` and `IRuntimeModelDiagnostic` callers pass `engine.ApiKey` into the Application model records (`TutorAgentModelConfiguration`, `RuntimeModelCatalogDiagnosticRequest`, `EmbeddingGenerationRequest`). `ConfigurationRuntimeApiKeyResolver` returns that stored key verbatim when present, and otherwise falls back to deployment configuration (`ModelProviders:{provider}:ApiKey`, then the `{PROVIDER}_API_KEY` environment variable). The wire contract uses `apiKey`, `clearApiKey`, and `hasApiKey` JSON names. A null `apiKey` on update preserves the stored value. `clearApiKey: true` removes it. The DB column keeps its historical name until a deployment secret store replaces the raw-key storage.
 
 **Migration strategy.** Schema evolution is the 8-step dependency-ordered sequence in [plan.erm.md §10](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#10-migration-sequencing) (D21): Identity vocabulary → resource membership → RuntimeEngine → Model TPH → Tutor-Document M:N → dynamic-dimension Knowledge → Tutor revisions → benchmark FK realignment. Each migration is reviewable in isolation; humans run `dotnet ef migrations add ...` per [AGENTS.md](../AGENTS.md) — agents do not.
 
