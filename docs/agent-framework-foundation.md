@@ -102,7 +102,7 @@ and fake HTTP tests.
 
 ## Secret references
 
-The Domain contract defines `RuntimeEngine.ApiKeySecretRef` as a logical reference. All remaining chat
+The Domain contract defines `RuntimeEngine.ApiKey` as a logical reference. All remaining chat
 and administrator diagnostic transports resolve it before client construction; the reference itself is never sent.
 
 `ConfigurationRuntimeApiKeyResolver` resolves a nonempty reference from

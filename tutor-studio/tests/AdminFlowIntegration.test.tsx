@@ -30,7 +30,7 @@ const runtimeEngine = {
   name: "Local Ollama",
   providerType: 0,
   endpoint: "http://localhost:11434",
-  apiKeySecretRef: null,
+  apiKey: null,
   isEnabled: true,
 };
 

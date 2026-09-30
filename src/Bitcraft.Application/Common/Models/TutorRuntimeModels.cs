@@ -99,7 +99,7 @@ public sealed record EmbeddingGenerationRequest(
     string Text,
     string Model,
     string? RuntimeEndpoint = null,
-    string? ApiKeySecretRef = null,
+    string? ApiKey = null,
     string? ProviderType = null);
 
 public sealed record KnowledgeSearchRequest(

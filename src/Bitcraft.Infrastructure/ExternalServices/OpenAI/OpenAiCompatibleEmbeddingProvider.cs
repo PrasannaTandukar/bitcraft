@@ -65,7 +65,7 @@ public class OpenAiCompatibleEmbeddingProvider(
         var providerType = Enum.TryParse<RuntimeEngineProviderType>(embeddingRequest.ProviderType,
             ignoreCase: true, out var parsedProvider) ? parsedProvider : RuntimeEngineProviderType.OpenAI;
         var resolvedKey = apiKeys.Resolve(new TutorAgentModelConfiguration(Guid.Empty, providerType,
-            baseUri.AbsoluteUri, embeddingRequest.ApiKeySecretRef, Guid.Empty, model, ModelCapabilities.None));
+            baseUri.AbsoluteUri, embeddingRequest.ApiKey, Guid.Empty, model, ModelCapabilities.None));
         if (resolvedKey.IsFailure)
             throw new EmbeddingProviderException(EmbeddingProviderFailureKind.RequestFailed,
                 "The embedding credential reference could not be resolved.");

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+﻿import { describe, expect, it, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -129,19 +129,19 @@ describe("VectorizeDocumentDialog", () => {
 
     expect(
       screen.getByText(
-        "Nomic Embed · nomic-embed-text · 768 dimensions · Ollama"
+        "Nomic Embed Â· nomic-embed-text Â· 768 dimensions Â· Ollama"
       )
     ).toBeInTheDocument();
 
     expect(
       screen.queryByText(
-        "Disabled Model · disabled-model · 384 dimensions · Ollama"
+        "Disabled Model Â· disabled-model Â· 384 dimensions Â· Ollama"
       )
     ).not.toBeInTheDocument();
 
     expect(
       screen.queryByText(
-        "Disabled Runtime · runtime-disabled · 768 dimensions · Ollama"
+        "Disabled Runtime Â· runtime-disabled Â· 768 dimensions Â· Ollama"
       )
     ).not.toBeInTheDocument();
   });
@@ -155,7 +155,7 @@ describe("VectorizeDocumentDialog", () => {
 
     expect(
   await screen.findByTitle(
-    "Nomic Embed · nomic-embed-text · 768 dimensions · Ollama"
+    "Nomic Embed Â· nomic-embed-text Â· 768 dimensions Â· Ollama"
   )
 ).toBeInTheDocument();
   });
@@ -174,7 +174,7 @@ describe("VectorizeDocumentDialog", () => {
 
     expect(
   await screen.findByTitle(
-    "Nomic Embed · nomic-embed-text · 768 dimensions · Ollama"
+    "Nomic Embed Â· nomic-embed-text Â· 768 dimensions Â· Ollama"
   )
 ).toBeInTheDocument();
   });
@@ -315,32 +315,6 @@ describe("VectorizeDocumentDialog", () => {
       screen.getByRole("button", { name: "Vectorize" })
     ).toBeDisabled();
   });
-
-//   it("validates chunk size when it is above the maximum", async () => {
-//     const user = userEvent.setup();
-
-//     renderDialog();
-
-//     await waitFor(() => {
-//       expect(screen.getByText("Chunk size")).toBeInTheDocument();
-//     });
-
-//     const inputs = screen.getAllByRole("spinbutton");
-
-//     await user.clear(inputs[0]);
-//     await user.type(inputs[0], "9000");
-
-//     expect(
-//       screen.getByText(
-//         "Chunk size must be a whole number from 100 to 8000."
-//       )
-//     ).toBeInTheDocument();
-
-//     expect(
-//       screen.getByRole("button", { name: "Vectorize" })
-//     ).toBeDisabled();
-//   });
-
   it("validates that overlap is less than chunk size", async () => {
     const user = userEvent.setup();
 

@@ -55,7 +55,7 @@ internal sealed class FakeRuntimeModelDiagnostic : IRuntimeModelDiagnostic
     {
         ProbeCalls++;
         LastEndpoint = request.Endpoint;
-        LastApiKey = request.ApiKeySecretRef;
+        LastApiKey = request.ApiKey;
         LastProviderType = request.ProviderType;
         return Task.FromResult(Result.Success(new RuntimeModelCatalogDiagnostic(ProbeResult ?? [])));
     }

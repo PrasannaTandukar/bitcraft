@@ -14,6 +14,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import RegisterForm from "./pages/Register.jsx";
 import RoleRoute from "./RoleRoute.jsx";
 import RuntimeEnginesPage from "./pages/admin/RuntimeEngines.jsx";
+import StandardBenchmarkRunPage from "./benchmarking/StandardBenchmarkRunPage.jsx";
 import Settings from "./pages/Settings.jsx";
 import TutorsPage from "./pages/editor/TutorsPage.jsx";
 import TutorDetailsPage from "./pages/editor/TutorDetailsPage.jsx";
@@ -38,6 +39,7 @@ function AppContent() {
         <Route path="tutors" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorsPage /></RoleRoute>} />
         <Route path="tutors/:tutorId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorDetailsPage /></RoleRoute>} />
         <Route path="benchmarking" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><BenchmarkingPage /></RoleRoute>} />
+        <Route path="benchmarking/runs/:runId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><StandardBenchmarkRunPage /></RoleRoute>} />
         <Route path="tutor-setup" element={<Navigate to="/tutors" replace />} />
         <Route path="admin/roles" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
         <Route path="admin/embedding-models" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><EmbeddingModels /></RoleRoute>} />

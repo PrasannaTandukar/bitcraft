@@ -30,7 +30,7 @@ function buildColumns({ canWrite, canDelete, deletingId, openEdit, remove }) {
     },
     {
       title: "Credential",
-      dataIndex: "hasApiKeySecret",
+      dataIndex: "hasApiKey",
       width: 140,
       render: (value) => (value ? <Tag color="blue">Configured</Tag> : <Typography.Text type="secondary">None</Typography.Text>),
     },
@@ -183,11 +183,11 @@ export default function RuntimeEnginesPage() {
             <Input placeholder="http://localhost:8080/v1" />
           </Form.Item>
           <Form.Item
-            label="API key secret reference"
-            name="apiKeySecretRef"
-            extra="Store only a secret reference here, never an API key value. Optional for local Llama.CPP/Ollama."
+            label="API key"
+            name="apiKey"
+            extra="Leave empty to keep the stored key when editing. Stored as a raw value at rest; optional for local Llama.CPP/Ollama."
           >
-            <Input placeholder="my-api-key-ref" />
+            <Input placeholder="sk-..." />
           </Form.Item>
           <Form.Item label="Enabled" name="isEnabled" valuePropName="checked"><Switch /></Form.Item>
         </Form>

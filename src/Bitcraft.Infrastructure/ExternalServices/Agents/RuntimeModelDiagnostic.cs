@@ -15,7 +15,7 @@ public sealed class RuntimeModelDiagnostic(
         CancellationToken cancellationToken = default)
     {
         var model = new TutorAgentModelConfiguration(Guid.Empty, request.ProviderType, request.Endpoint,
-            request.ApiKeySecretRef, Guid.Empty, "catalog-probe", 0);
+            request.ApiKey, Guid.Empty, "catalog-probe", 0);
         var result = await clients.ProbeAvailableModelsAsync(model, cancellationToken);
         if (result.IsFailure)
         {
@@ -31,7 +31,7 @@ public sealed class RuntimeModelDiagnostic(
         CancellationToken cancellationToken = default)
     {
         var created = clients.Create(new TutorAgentModelConfiguration(request.RuntimeEngineId,
-            request.ProviderType, request.Endpoint, request.ApiKeySecretRef, request.ModelId,
+            request.ProviderType, request.Endpoint, request.ApiKey, request.ModelId,
             request.ProviderModelName, request.Capabilities));
         if (created.IsFailure)
             return Result.Failure<RuntimeModelGenerationDiagnostic>(created.Error);

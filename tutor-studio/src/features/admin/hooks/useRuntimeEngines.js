@@ -77,7 +77,7 @@ export default function useRuntimeEngines(form) {
         name: engine.name,
         providerType: engine.providerType,
         endpoint: engine.endpoint,
-        apiKeySecretRef: engine.apiKeySecretRef ?? undefined,
+        apiKey: undefined,
         isEnabled: engine.isEnabled,
       });
       setOpen(true);
@@ -113,7 +113,7 @@ export default function useRuntimeEngines(form) {
         json: {
           providerType: Number(values.providerType ?? 0),
           endpoint: values.endpoint.trim(),
-          apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+          apiKey: values.apiKey?.trim() || null,
         },
       });
       setTestResult(result);
@@ -148,7 +148,8 @@ export default function useRuntimeEngines(form) {
         name: values.name.trim(),
         providerType: Number(values.providerType),
         endpoint: values.endpoint.trim(),
-        apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+        apiKey: values.apiKey?.trim() || null,
+        clearApiKey: values.clearApiKey === true,
         isEnabled: values.isEnabled,
       };
       try {
