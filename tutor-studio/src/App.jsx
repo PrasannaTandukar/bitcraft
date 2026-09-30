@@ -1,24 +1,32 @@
-import "./App.css";
+import "./styles/App.css";
 import { useSelector } from "react-redux";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import AiTutorPage from "./aiTutor/AiTutorPage.jsx";
+import AiTutorPage from "./pages/user/AiTutorPage.jsx";
 import BenchmarkingPage from "./BenchmarkingPage.jsx";
+<<<<<<< HEAD
 import StandardBenchmarkRunPage from "./benchmarking/StandardBenchmarkRunPage.jsx";
 import Dashboard from "./Dashboard.jsx";
 import DocumentUploadPage from "./DocumentUploadPage.jsx";
 import EmbeddingModels from "./EmbeddingModels.jsx";
 import FilesPage from "./FilesPage.jsx";
 import InteractionModelsPage from "./InteractionModels.jsx";
+=======
+import Dashboard from "./pages/Dashboard.jsx";
+import DocumentUploadPage from "./pages/editor/DocumentUploadPage.jsx";
+import EmbeddingModels from "./pages/admin/EmbeddingModels.jsx";
+import FilesPage from "./pages/editor/FilesPage.jsx";
+import InteractionModelsPage from "./pages/admin/InteractionModels.jsx";
+>>>>>>> dev
 import AppLayout from "./layout/AppLayout.jsx";
-import LoginForm from "./Login.jsx";
-import ProfilePage from "./ProfilePage.jsx";
-import RegisterForm from "./Register.jsx";
+import LoginForm from "./pages/Login.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
+import RegisterForm from "./pages/Register.jsx";
 import RoleRoute from "./RoleRoute.jsx";
-import RuntimeEnginesPage from "./RuntimeEngines.jsx";
-import Settings from "./Settings.jsx";
-import TutorsPage from "./TutorsPage.jsx";
-import TutorDetailsPage from "./tutors/TutorDetailsPage.jsx";
-import UsersPage from "./Users.jsx";
+import RuntimeEnginesPage from "./pages/admin/RuntimeEngines.jsx";
+import Settings from "./pages/Settings.jsx";
+import TutorsPage from "./pages/editor/TutorsPage.jsx";
+import TutorDetailsPage from "./pages/editor/TutorDetailsPage.jsx";
+import UsersPage from "./pages/admin/UsersPage.jsx";
 
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);

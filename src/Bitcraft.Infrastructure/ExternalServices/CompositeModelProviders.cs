@@ -1,13 +1,12 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Modeling;
-using Bitcraft.Infrastructure.ExternalServices.Anthropic;
 using Bitcraft.Infrastructure.ExternalServices.Embeddings;
-using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.ExternalServices.OpenAI;
 
 namespace Bitcraft.Infrastructure.ExternalServices;
 
+<<<<<<< HEAD
 /// <summary>
 /// Shared provider-type parsing for the composites. A blank value is the legacy Ollama path
 /// (pre-RuntimeEngine callers). An unparseable value returns null. Callers fail closed on null.
@@ -86,6 +85,8 @@ public class CompositeLlmGenerationProvider(
     }
 }
 
+=======
+>>>>>>> dev
 public class CompositeEmbeddingProvider(
     OllamaEmbeddingProvider ollamaProvider,
     OpenAiCompatibleEmbeddingProvider openAiProvider) : IEmbeddingProvider
