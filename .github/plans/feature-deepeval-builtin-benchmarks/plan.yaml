@@ -23,6 +23,7 @@ artifacts:
   - plan.md
   - plan.decisions.md
   - context.md
+  - plan.dev-integration-and-maf-realignment.md
   - plan.standard-benchmark-hardening.md
   - plan.benchmarking-observability-and-custom-suites.md
   - plan.benchmark-run-view-and-controls.md
