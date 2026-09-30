@@ -170,7 +170,7 @@ public sealed class TutorMemoryContextProvider(
     }
 
     private static string Bound(string value, int maximum) =>
-        value.Length <= maximum ? value : value[..(maximum - 1)] + "â€¦";
+        value.Length <= maximum ? value : value[..(maximum - 1)] + "…";
 
     private static string? BuildContext(IReadOnlyList<TutorMemorySource> sources)
     {

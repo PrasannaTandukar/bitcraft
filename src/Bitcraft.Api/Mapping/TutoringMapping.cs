@@ -502,4 +502,5 @@ internal static class TutoringMapping
         run.CompletedUtc,
         run.LastProgressUtc,
         run.FailureCode,
-        run.FailureDescription);}
+        run.FailureDescription);
+}
