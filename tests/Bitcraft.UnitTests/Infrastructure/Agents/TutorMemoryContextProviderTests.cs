@@ -37,6 +37,7 @@ public sealed class TutorMemoryContextProviderTests
         var result = await setup.ExecuteAsync(true, false);
         Assert.True(result.IsSuccess, result.Error.Description);
         Assert.Equal(allowed.Id, Assert.Single(result.Value.Memory!.Sources).MemoryId);
+        Assert.Equal(1, result.Value.Memory.ContextMemoryCount);
         var request = setup.Leaky.LastRequest!;
         Assert.Equal(setup.UserId, request.UserId);
         Assert.Equal(setup.TutorId, request.TutorId);
@@ -55,8 +56,24 @@ public sealed class TutorMemoryContextProviderTests
         var result = await setup.ExecuteAsync(true, false);
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Value.Memory!.Sources);
+        Assert.Equal(0, result.Value.Memory.ContextMemoryCount);
         Assert.DoesNotContain(Assert.Single(setup.Knowledge.Clients.Clients).Messages,
             message => message.Text.Contains("Must not appear"));
+    }
+
+    [Fact]
+    public async Task MemoryContributionCountExcludesEntriesBeyondContextBudget()
+    {
+        var setup = new MemorySetup();
+        for (var index = 0; index < 5; index++)
+            setup.Store.Memories.Add(setup.CreateMemory(new string((char)('A' + index), 2_000),
+                setup.UserId, setup.TutorId, [1, 0]));
+        var result = await setup.ExecuteAsync(true, false);
+        Assert.True(result.IsSuccess, result.Error.Description);
+        Assert.Equal(5, result.Value.Memory!.Sources.Count);
+        Assert.Equal(3, result.Value.Memory.ContextMemoryCount);
+        Assert.DoesNotContain(Assert.Single(setup.Knowledge.Clients.Clients).Messages,
+            message => message.Text.Contains(new string('D', 100)));
     }
 
     [Fact]

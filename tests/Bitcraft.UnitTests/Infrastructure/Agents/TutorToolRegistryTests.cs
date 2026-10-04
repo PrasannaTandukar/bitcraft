@@ -78,7 +78,7 @@ public sealed class TutorToolRegistryTests
     [Fact]
     public async Task ToolTimeoutProducesSafeResultAndActivity()
     {
-        var result = Registry(new SlowHandler()).CreateTools(Request() with
+        var result = new TutorToolRegistry([new SlowHandler()], FastOptions).CreateTools(Request() with
         { Tools = [Tool() with { ImplementationKey = "test.slow.v1" }] });
         var function = Assert.IsAssignableFrom<AIFunction>(Assert.Single(result.Value.Tools));
         var output = await function.InvokeAsync(new AIFunctionArguments());
@@ -122,7 +122,8 @@ public sealed class TutorToolRegistryTests
     }
 
     private static TutorToolRegistry Registry(ITutorToolHandler? handler = null) =>
-        new(handler is null ? [new CalculatorTutorToolHandler()] : [handler], FastOptions);
+        new(handler is null ? [new CalculatorTutorToolHandler()] : [handler],
+            new TutorToolRuntimeOptions(TutorToolRuntimeOptions.Default.ExecutionTimeout, FastOptions.MaximumResultCharacters));
 
     internal static TutorAgentToolConfiguration Tool(Guid? tutorId = null) => new(Guid.NewGuid(),
         tutorId ?? TutorId, "calculator", "Evaluate bounded arithmetic",

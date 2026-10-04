@@ -41,5 +41,6 @@ public sealed class TutorConversationsController(TutorConversationService servic
     private static Response Map(Bitcraft.Application.Features.Tutoring.TutorConversationResponse value) => new(
         value.Id, value.TutorId, value.TutorRevisionId, value.SnapshotId, value.Title, value.CreatedUtc, value.UpdatedUtc,
         value.Messages.Select(message => new TutorConversationStoredMessageResponse(message.Id, message.Sequence,
-            message.Role, message.Content, message.CreatedUtc, message.AttachmentIds, message.ProviderModelName, message.ProviderType)).ToList(), value.RevisionNumber, value.SupportsImageInput);
+            message.Role, message.Content, message.CreatedUtc, message.AttachmentIds, message.ProviderModelName, message.ProviderType)
+            { Provenance = message.Provenance?.ToResponse() }).ToList(), value.RevisionNumber, value.SupportsImageInput);
 }

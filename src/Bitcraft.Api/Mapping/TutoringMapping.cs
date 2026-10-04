@@ -176,7 +176,21 @@ internal static class TutoringMapping
         MemorySaved: result.MemorySaved,
         ToolActivities: (result.ToolActivities ?? []).Select(activity => new TutorToolCallActivityResponse(
             activity.ToolName, activity.StartedUtc, activity.CompletedUtc, activity.Status.ToString(),
-            activity.DurationMs, activity.ResultSummary, activity.ErrorCategory)).ToList());
+            activity.DurationMs, activity.ResultSummary, activity.ErrorCategory)).ToList())
+        { Provenance = result.Provenance?.ToResponse() };
+
+    public static Bitcraft.Api.Contracts.Tutoring.TutorMessageProvenanceResponse ToResponse(
+        this Bitcraft.Application.Common.Models.TutorMessageProvenanceResponse value) => new(
+        new(value.Knowledge.RetrievedChunkCount, value.Knowledge.RetrievedChunks.Select(chunk =>
+            new Bitcraft.Api.Contracts.Tutoring.TutorRetrievedChunkEvidenceResponse(chunk.DocumentName,
+                chunk.ChunkIndex, chunk.RetrievalRank, chunk.Excerpt, chunk.SimilarityScore)
+                { DocumentGroupKey = chunk.DocumentGroupKey }).ToList(), value.Knowledge.SimilarityMetric),
+        new(value.Memory.ContextProvided, value.Memory.RetrievedItemCount),
+        value.Tools.Select(tool => new Bitcraft.Api.Contracts.Tutoring.TutorToolProvenanceResponse(
+            tool.ToolName, tool.Status, tool.Succeeded, tool.DurationMs, tool.ErrorCategory)).ToList(),
+        new(value.Runtime.TutorId, value.Runtime.TutorRevisionId, value.Runtime.RevisionNumber,
+            value.Runtime.SnapshotId, value.Runtime.InteractionModelId, value.Runtime.ProviderModelName, value.Runtime.ProviderType),
+        value.CapturedUtc);
 
     public static TutorRuntimeStreamEventResponse ToResponse(this TutorRuntimeStreamEvent value)
     {
@@ -199,7 +213,7 @@ internal static class TutoringMapping
                 value.ToolActivity.StartedUtc, value.ToolActivity.CompletedUtc,
                 value.ToolActivity.Status.ToString(), value.ToolActivity.DurationMs,
                 value.ToolActivity.ResultSummary, value.ToolActivity.ErrorCategory),
-            value.Result?.ToResponse(),
+            value.Kind == TutorRuntimeStreamEventKind.MessageCompleted ? value.Result?.ToResponse() : null,
             value.Error is null ? null : new ApiError(value.Error.Code, value.Error.Description));
     }
 

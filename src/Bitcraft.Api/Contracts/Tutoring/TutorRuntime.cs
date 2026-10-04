@@ -51,7 +51,10 @@ public sealed record TutorRuntimeAskResponse(
     Guid? ConversationId,
     bool MemoryUsed,
     bool MemorySaved,
-    IReadOnlyList<TutorToolCallActivityResponse> ToolActivities);
+    IReadOnlyList<TutorToolCallActivityResponse> ToolActivities)
+{
+    public TutorMessageProvenanceResponse? Provenance { get; init; }
+}
 
 public sealed record TutorRuntimeStreamEventResponse(
     long Sequence,

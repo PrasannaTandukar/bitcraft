@@ -251,6 +251,10 @@ export default function AiTutorPage() {
           }));
         } else if (type === "message.completed") {
           completedResponse = event.message;
+          if (completedResponse) setMessages((current) => current.map((message) => message.id === assistantMessage.id
+            ? { ...message, content: completedResponse.answer, streaming: false, local: false,
+              provenance: completedResponse.provenance ?? null, sources: completedResponse.sources,
+              toolActivities: completedResponse.toolActivities } : message));
         }
       });
     })
@@ -259,9 +263,16 @@ export default function AiTutorPage() {
         const stored = await getTutorConversation(slug, completedResponse.conversationId, controller.signal);
         const listed = await listTutorConversations(slug, controller.signal);
         if (!controller.signal.aborted) {
+          // A different tab may already have appended another turn. Keep completion metadata
+          // on this answer only; saved history remains authoritative for every other message.
+          const previousIds = new Set(messages.map((message) => message.id));
+          const completedAssistant = stored.messages.find((message) => !previousIds.has(message.id)
+            && message.role === "assistant" && message.content === completedResponse.answer
+            && (!completedResponse.provenance || message.provenance?.capturedUtc === completedResponse.provenance.capturedUtc));
           displayConversation(stored);
-          setMessages((current) => current.map((message, index) => index === current.length - 1
-            ? { ...message, sources: completedResponse.sources, toolActivities: completedResponse.toolActivities }
+          setMessages((current) => current.map((message) => message.id === completedAssistant?.id
+            ? { ...message, sources: completedResponse.sources, toolActivities: completedResponse.toolActivities,
+              renderKey: assistantMessage.id }
             : message));
           setConversations(listed);
         }
@@ -328,7 +339,7 @@ export default function AiTutorPage() {
                   onOpenHistory={() => setHistoryDrawerOpen(true)} onOpenSettings={() => setSettingsDrawerOpen(true)} />
                 <div className="runtime-messages">
                   {loadingConversation ? <div className="runtime-conversation-loading"><Spin size="small" /> <Typography.Text type="secondary">Loading conversation</Typography.Text></div> : messages.map((message) => <ChatMessage
-                      key={message.id}
+                      key={message.renderKey ?? message.id}
                       message={message}
                       tutorName={selectedTutor?.tutorName || "Tutor"}
                       showSources={showSources}

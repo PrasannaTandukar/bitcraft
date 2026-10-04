@@ -17,6 +17,15 @@ public class DocumentStore(AppDbContext db) : IDocumentStore, IDocumentContentSt
     public Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         db.Documents.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetDisplayNamesAsync(IReadOnlyCollection<Guid> documentIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (documentIds.Count == 0) return new Dictionary<Guid, string>();
+        return await db.Documents.AsNoTracking().Where(document => documentIds.Contains(document.Id))
+            .Select(document => new { document.Id, document.Name })
+            .ToDictionaryAsync(document => document.Id, document => document.Name, cancellationToken);
+    }
+
     public Task<List<Document>> ListByCreatorAsync(Guid creatorId, CancellationToken cancellationToken = default) =>
         db.Documents
             .Where(x => x.CreatedById == creatorId)
