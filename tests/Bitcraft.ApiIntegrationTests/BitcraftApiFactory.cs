@@ -67,6 +67,7 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
             services.RemoveAll<IDocumentVectorizationReader>();
+            services.RemoveAll<IRevisionEffectiveSetReader>();
             services.RemoveAll<IRuntimeModelDiagnostic>();
             services.RemoveAll<ITutorAgentExecutor>();
             services.RemoveAll<IRuntimeChatClientFactory>();
@@ -89,6 +90,7 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<TestDocumentVectorizationReader>();
             services.AddSingleton<IDocumentVectorizationReader>(serviceProvider =>
                 serviceProvider.GetRequiredService<TestDocumentVectorizationReader>());
+            services.AddScoped<IRevisionEffectiveSetReader, TestRevisionEffectiveSetReader>();
             services.AddSingleton<TestRuntimeModelDiagnostic>();
             services.AddSingleton<IRuntimeModelDiagnostic>(provider =>
                 provider.GetRequiredService<TestRuntimeModelDiagnostic>());
@@ -291,6 +293,44 @@ internal sealed class TestDocumentVectorizationReader : IDocumentVectorizationRe
         CancellationToken cancellationToken = default) => Task.FromResult(
         Metadata.GetValueOrDefault(documentId) ??
         new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null));
+}
+
+internal sealed class TestRevisionEffectiveSetReader(
+    AppDbContext db,
+    IDocumentVectorizationReader vectorization) : IRevisionEffectiveSetReader
+{
+    public async Task<EffectiveDocumentSet> GetEffectiveSetAsync(
+        Guid tutorId,
+        CancellationToken cancellationToken = default,
+        Guid? queryEmbeddingModelId = null)
+    {
+        var ids = await db.TutorDocuments.Where(link => link.TutorId == tutorId).Select(link => link.DocumentId).ToListAsync(cancellationToken);
+        ids.AddRange(await db.TutorKnowledgeSources.Where(link => link.TutorId == tutorId).Select(link => link.DocumentId).ToListAsync(cancellationToken));
+        var folderIds = await db.TutorDocumentFolders.Where(link => link.TutorId == tutorId).Select(link => link.DocumentFolderId).ToListAsync(cancellationToken);
+        if (folderIds.Count > 0)
+        {
+            var folders = await db.DocumentFolders.Select(folder => new { folder.Id, folder.ParentFolderId }).ToListAsync(cancellationToken);
+            var allFolderIds = folderIds.ToHashSet();
+            var expanded = true;
+            while (expanded)
+            {
+                expanded = false;
+                foreach (var folder in folders.Where(folder => folder.ParentFolderId.HasValue && allFolderIds.Contains(folder.ParentFolderId.Value)))
+                    expanded |= allFolderIds.Add(folder.Id);
+            }
+            ids.AddRange(await db.Documents.Where(document => document.FolderId.HasValue && allFolderIds.Contains(document.FolderId.Value))
+                .Select(document => document.Id).ToListAsync(cancellationToken));
+        }
+        var distinctIds = ids.Distinct().Order().ToList();
+        var bindings = new List<EffectiveKnowledgeBinding>();
+        foreach (var id in distinctIds)
+        {
+            var metadata = await vectorization.GetMetadataAsync(id, cancellationToken);
+            if (metadata.EmbeddingModelId is { } modelId && metadata.EmbeddingDimensions is { } dimensions)
+                bindings.Add(new EffectiveKnowledgeBinding(id, modelId, dimensions, metadata.ProviderModelName));
+        }
+        return new EffectiveDocumentSet(distinctIds, bindings);
+    }
 }
 
 internal sealed class TestAppDbContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)

@@ -71,4 +71,24 @@ public class TutorSnapshotsController(ISender sender) : ControllerBase
             new { tutorId = result.Value.TutorId, snapshotId = result.Value.Id },
             result.Value.ToResponse());
     }
+
+    /// <summary>Captures a new immutable knowledge snapshot for the existing active revision.</summary>
+    [HttpPost("active-revision")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
+    [ProducesResponseType(typeof(TutorConfigurationSnapshotResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TutorConfigurationSnapshotResponse>> CaptureActiveRevision(
+        Guid tutorId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ConfigurationSnapshotFeatures.CaptureActiveRevisionSnapshotCommand(tutorId),
+            cancellationToken);
+        if (result.IsFailure) return TutoringMapping.ToActionResult(result.Error);
+        return CreatedAtRoute(
+            "GetTutorSnapshotById",
+            new { tutorId, snapshotId = result.Value.Id },
+            result.Value.ToResponse());
+    }
 }

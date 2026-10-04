@@ -178,9 +178,9 @@ describe("DocumentRow - content", () => {
 // ---------------------------------------------------------------------------
 
 describe("DocumentRow - status label", () => {
-  it("shows 'Status unavailable' when status.unavailable is true", () => {
+  it("shows that the status request failed when status.unavailable is true", () => {
     setup({ document: { ...baseDocument, hasRawText: true }, status: { unavailable: true } });
-    expect(screen.getByText("Status unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Status check failed")).toBeInTheDocument();
   });
 
   it("shows 'Needs re-vectorization' when status.isStale is true", () => {

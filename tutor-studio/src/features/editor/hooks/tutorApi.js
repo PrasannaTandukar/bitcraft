@@ -61,6 +61,10 @@ export const detachTutorDocument = (tutorId, documentId) =>
 
 export const listTutorDocumentFolders = (tutorId, signal) =>
   apiFetch(`/api/tutors/${tutorId}/document-folders`, { signal });
+export const getTutorKnowledgeOverview = (tutorId, signal) =>
+  apiFetch(`/api/tutors/${tutorId}/knowledge-overview`, { signal });
+export const captureActiveRevisionKnowledgeSnapshot = (tutorId) =>
+  apiFetch(`/api/tutors/${tutorId}/snapshots/active-revision`, { method: "POST" });
 export const attachTutorDocumentFolder = (tutorId, folderId) =>
   apiFetch(`/api/tutors/${tutorId}/document-folders`, {
     method: "POST",
