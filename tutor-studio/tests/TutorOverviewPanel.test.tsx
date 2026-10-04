@@ -63,6 +63,7 @@ describe("TutorOverviewPanel", () => {
     tutor,
     prompts,
     revisions,
+    runtimeReadiness: { isChatReady: true, reasons: [] },
     canManage: true,
     onOpenTab: vi.fn(),
   };
@@ -128,7 +129,7 @@ describe("TutorOverviewPanel", () => {
       screen.getByText("Revision activated")
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Ready for benchmarking")
+      screen.getByText("Ready for chat")
     ).toBeInTheDocument();
   });
 
@@ -218,6 +219,22 @@ describe("TutorOverviewPanel", () => {
     ).toHaveLength(2);
   });
 
+  it("shows the backend readiness reason and revision action for an incomplete active configuration", () => {
+    render(
+      <TutorOverviewPanel
+        {...defaultProps}
+        runtimeReadiness={{
+          isChatReady: false,
+          reasons: [{ code: "MissingEmbeddingModel", message: "Knowledge is attached, but Revision 1 does not have a query embedding model. Create a new revision to add one." }],
+        }}
+      />
+    );
+
+    expect(screen.getByText("Chat configuration incomplete")).toBeInTheDocument();
+    expect(screen.getByText(/Revision 1 does not have a query embedding model/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Open revisions" }).length).toBeGreaterThan(0);
+  });
+
   it("calls onOpenTab when a checklist action is clicked", async () => {
     const user = userEvent.setup();
 
@@ -291,6 +308,7 @@ describe("TutorOverviewPanel", () => {
   it("does not show the Benchmark button when the tutor is not ready", () => {
     const props = {
       ...defaultProps,
+      runtimeReadiness: { isChatReady: false, reasons: [{ code: "MissingSnapshot", message: "Snapshot missing." }] },
       revisions: [
         {
           ...revisions[0],

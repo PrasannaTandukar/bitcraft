@@ -71,9 +71,9 @@ public class RevisionEffectiveSetReader(AppDbContext db) : IRevisionEffectiveSet
             ? new List<EffectiveKnowledgeBinding>()
             : await db.KnowledgeChunks
                 .Where(c => allDocIds.Contains(c.DocumentId) &&
-                            c.EmbeddingModelId != null &&
-                            c.EmbeddingDimensions != null &&
-                            (!queryEmbeddingModelId.HasValue || c.EmbeddingModelId == queryEmbeddingModelId.Value))
+                            c.EmbeddingModelId.HasValue &&
+                            c.EmbeddingDimensions.HasValue &&
+                            c.EmbeddingModelId.Value != Guid.Empty)
                 .Select(c => new
                 {
                     c.DocumentId,

@@ -360,7 +360,7 @@ public class TutorRevisionWorkflowTests
         setup.Revision.VersionNumber = 2;
         setup.Tutor.ActiveRevisionId = prior.Id;
         setup.Tutors.Revisions.Add(prior);
-        var effective = new StubEffectiveSetReader([Guid.NewGuid()]);
+        var effective = new StubEffectiveSetReader([]);
         var handler = new TutorRevisionFeatures.ActivateRevisionHandler(
             setup.Tutors,
             setup.Models,
@@ -383,6 +383,8 @@ public class TutorRevisionWorkflowTests
         Assert.Equal(setup.Revision.PromptVersionId, snapshot.PromptVersionId);
         Assert.Equal(1, setup.Tutors.ActivationSaveCalls);
         Assert.Equal(setup.Revision.QueryEmbeddingModelId, effective.QueryEmbeddingModelId);
+        var readiness = TutorRuntimeReadinessEvaluator.Evaluate(setup.Tutor).Readiness;
+        Assert.True(readiness.IsChatReady, string.Join("; ", readiness.Reasons.Select(reason => reason.Code)));
     }
 
     [Fact]
