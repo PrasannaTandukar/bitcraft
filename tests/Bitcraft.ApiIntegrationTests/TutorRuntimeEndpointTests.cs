@@ -699,6 +699,8 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.Equal(image.Width, decoded.Width);
         var descriptors = await client.GetFromJsonAsync<List<TutorRuntimeDescriptorResponse>>("/api/runtime/tutors");
         Assert.True(Assert.Single(descriptors!, value => value.TutorId == tutor.TutorId).Model.SupportsImageInput);
+        var readiness = await client.GetFromJsonAsync<List<TutorRuntimeReadinessResponse>>("/api/runtime/tutors/readiness");
+        Assert.True(Assert.Single(readiness!, value => value.TutorId == tutor.TutorId).IsChatReady);
         ClearProviderRequests();
         var request = new AskTutorRuntimeRequest("Why does this circuit fail?", AttachmentIds: [image.Id]);
         using var answer = await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", request);

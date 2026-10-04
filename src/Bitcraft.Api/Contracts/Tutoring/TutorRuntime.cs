@@ -74,3 +74,13 @@ public sealed record TutorRuntimeDescriptorResponse(
     TutorRuntimeModelResponse Model,
     TutorRuntimeEmbeddingModelResponse? EmbeddingModel,
     int KnowledgeDocumentCount);
+
+public sealed record TutorRuntimeReadinessReasonResponse(string Code, string Message);
+
+public sealed record TutorRuntimeReadinessResponse(
+    Guid TutorId,
+    string TutorName,
+    Guid? ActiveRevisionId,
+    int? ActiveRevisionNumber,
+    bool IsChatReady,
+    IReadOnlyList<TutorRuntimeReadinessReasonResponse> Reasons);
