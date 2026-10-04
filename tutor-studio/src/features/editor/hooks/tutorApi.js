@@ -43,6 +43,9 @@ export const discardTutorRevision = (tutorId, revisionId) =>
 export const listTutorSnapshots = (tutorId, signal) =>
   apiFetch(`/api/tutors/${tutorId}/snapshots`, { signal });
 
+export const listRuntimeTutorReadiness = (signal) =>
+  apiFetch("/api/runtime/tutors/readiness", { signal });
+
 export const listTutorDocuments = (tutorId, signal) =>
   apiFetch(`/api/tutors/${tutorId}/documents`, { signal });
 export const attachTutorDocument = (tutorId, documentId) =>

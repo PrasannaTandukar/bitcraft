@@ -16,6 +16,7 @@ import {
   listPromptVersions,
   listTutorRevisions,
   listTutorSnapshots,
+  listRuntimeTutorReadiness,
 } from "../../features/editor/hooks/tutorApi.js";
 import { tutorStatus } from "../../features/editor/utils/tutorUtils.js";
 import "../../styles/TutorDetails.css";
@@ -33,6 +34,7 @@ export default function TutorDetailsPage() {
   const [tutor, setTutor] = useState(null);
   const [prompts, setPrompts] = useState([]);
   const [revisions, setRevisions] = useState([]);
+  const [runtimeReadiness, setRuntimeReadiness] = useState(null);
   const [snapshots, setSnapshots] = useState([]);
   const [interactionModels, setInteractionModels] = useState([]);
   const [embeddingModels, setEmbeddingModels] = useState([]);
@@ -55,12 +57,14 @@ export default function TutorDetailsPage() {
       listPromptVersions(tutorId, controller.signal),
       listTutorRevisions(tutorId, controller.signal),
       listTutorSnapshots(tutorId, controller.signal),
+      listRuntimeTutorReadiness(controller.signal),
     ])
-      .then(([loadedTutor, loadedPrompts, loadedRevisions, loadedSnapshots]) => {
+      .then(([loadedTutor, loadedPrompts, loadedRevisions, loadedSnapshots, readinessValues]) => {
         setTutor(loadedTutor);
         setPrompts(loadedPrompts ?? []);
         setRevisions(loadedRevisions ?? []);
         setSnapshots(loadedSnapshots ?? []);
+        setRuntimeReadiness((readinessValues ?? []).find((value) => value.tutorId === tutorId) ?? null);
         setError("");
       })
       .catch((requestError) => {
@@ -105,7 +109,7 @@ export default function TutorDetailsPage() {
   if (!tutor && error) return <Result status="error" title="Tutor workspace unavailable" subTitle={error} extra={<Button icon={<ReloadOutlined />} onClick={refresh}>Retry</Button>} />;
 
   const items = [
-    { key: "overview", label: "Overview", children: <TutorOverviewPanel tutor={tutor} prompts={prompts} revisions={revisions} canManage={canManage} onOpenTab={setTab} /> },
+    { key: "overview", label: "Overview", children: <TutorOverviewPanel tutor={tutor} prompts={prompts} revisions={revisions} runtimeReadiness={runtimeReadiness} canManage={canManage} onOpenTab={setTab} /> },
     { key: "prompts", label: `Prompt versions (${prompts.length})`, children: <PromptVersionsPanel tutorId={tutorId} prompts={prompts} activePromptVersionId={tutor.activePromptVersionId} canManage={canManage} onChanged={refresh} /> },
     { key: "revisions", label: `Revisions (${revisions.length})`, children: <><>{catalogError ? <Alert type="warning" title={catalogError} showIcon style={{ marginBottom: 16 }} /> : null}</><TutorRevisionsPanel tutorId={tutorId} revisions={revisions} prompts={prompts} interactionModels={interactionModels} embeddingModels={embeddingModels} canManage={canManage} onChanged={refresh} onCreatePrompt={() => setTab("prompts")} /></> },
     { key: "knowledge", label: "Knowledge", children: <TutorKnowledgePanel tutorId={tutorId} canManage={canManage} /> },

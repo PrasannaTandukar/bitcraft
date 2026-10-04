@@ -10,6 +10,8 @@ public interface IRevisionEffectiveSetReader
     Task<EffectiveDocumentSet> GetEffectiveSetAsync(
         Guid tutorId,
         CancellationToken cancellationToken = default,
+        // Retained for older callers; snapshots capture every vector binding so diagnostics can
+        // distinguish missing vectors from documents embedded with a different model.
         Guid? queryEmbeddingModelId = null);
 }
 
