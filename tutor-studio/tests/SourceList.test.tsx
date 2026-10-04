@@ -1,12 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import SourceList from "../src/features/user/components/SourceList.jsx";
-
-vi.mock("../src/features/user/utils/aiTutorUtils.js", () => ({
-  sourcePercent: vi.fn((score: number) => `${Math.round(score * 100)}%`),
-}));
 
 describe("SourceList", () => {
   const sources = [
@@ -28,7 +24,7 @@ describe("SourceList", () => {
     const user = userEvent.setup();
 
     await user.click(
-      screen.getByText("2 sources used"),
+      screen.getByText("2 chunks retrieved"),
     );
   }
 
@@ -63,7 +59,7 @@ describe("SourceList", () => {
     );
 
     expect(
-      screen.getByText("1 source used"),
+      screen.getByText("1 chunk retrieved"),
     ).toBeInTheDocument();
   });
 
@@ -73,7 +69,7 @@ describe("SourceList", () => {
     );
 
     expect(
-      screen.getByText("2 sources used"),
+      screen.getByText("2 chunks retrieved"),
     ).toBeInTheDocument();
   });
 
@@ -118,7 +114,7 @@ describe("SourceList", () => {
     const user = userEvent.setup();
 
     await user.click(
-      screen.getByText("1 source used"),
+      screen.getByText("1 chunk retrieved"),
     );
 
     expect(
@@ -142,7 +138,7 @@ describe("SourceList", () => {
     const user = userEvent.setup();
 
     await user.click(
-      screen.getByText("1 source used"),
+      screen.getByText("1 chunk retrieved"),
     );
 
     expect(
@@ -150,7 +146,7 @@ describe("SourceList", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the similarity percentage for each source", async () => {
+  it("renders raw cosine similarity without converting it to a percentage", async () => {
     render(
       <SourceList sources={sources} />,
     );
@@ -158,27 +154,18 @@ describe("SourceList", () => {
     await openSources();
 
     expect(
-      screen.getByText("Similarity 92%"),
+      screen.getByText("Cosine similarity 0.920"),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText("Similarity 81%"),
+      screen.getByText("Cosine similarity 0.810"),
     ).toBeInTheDocument();
   });
 
-  it("calls sourcePercent with each source score", async () => {
-    const { sourcePercent } = await import(
-      "../src/features/user/utils/aiTutorUtils.js"
-    );
-
-    render(
-      <SourceList sources={sources} />,
-    );
-
-    await openSources();
-
-    expect(sourcePercent).toHaveBeenCalledWith(0.92);
-    expect(sourcePercent).toHaveBeenCalledWith(0.81);
+  it("omits a missing score instead of inventing a relevance value", async () => {
+    render(<SourceList sources={[{ chunkId: "unscored", documentName: "Notes", chunkIndex: 0, score: null }]} />);
+    await userEvent.setup().click(screen.getByText("1 chunk retrieved"));
+    expect(screen.queryByText(/Cosine similarity/)).not.toBeInTheDocument();
   });
 
   it("renders all provided sources", async () => {
@@ -210,7 +197,7 @@ describe("SourceList", () => {
     const user = userEvent.setup();
 
     await user.click(
-      screen.getByText("3 sources used"),
+      screen.getByText("3 chunks retrieved"),
     );
 
     expect(
@@ -238,7 +225,7 @@ describe("SourceList", () => {
     const user = userEvent.setup();
 
     await user.click(
-      screen.getByText("2 sources used"),
+      screen.getByText("2 chunks retrieved"),
     );
 
     expect(

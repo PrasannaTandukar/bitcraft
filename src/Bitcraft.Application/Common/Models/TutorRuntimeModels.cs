@@ -62,7 +62,11 @@ public sealed record TutorRuntimeResult(
     string? ReferenceMaterial, Guid? ConversationId = null,
     bool MemoryUsed = false, bool MemorySaved = false,
     IReadOnlyList<TutorMemorySource>? MemorySources = null,
-    IReadOnlyList<TutorToolCallActivity>? ToolActivities = null);
+    IReadOnlyList<TutorToolCallActivity>? ToolActivities = null)
+{
+    /// <summary>Only populated after a completed assistant message and its evidence have been saved.</summary>
+    public TutorMessageProvenanceResponse? Provenance { get; init; }
+}
 
 public enum TutorRuntimeStreamEventKind
 {

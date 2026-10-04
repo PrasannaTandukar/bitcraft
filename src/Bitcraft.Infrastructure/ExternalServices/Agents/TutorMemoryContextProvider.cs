@@ -70,8 +70,8 @@ public sealed class TutorMemoryContextProvider(
                 candidate.Memory.TutorConfigurationSnapshotId, candidate.Score,
                 Bound(candidate.Memory.Content, MaximumSourceCharacters)))
             .ToList();
-        Memory = new TutorMemoryResult(false, resolved.Value.Metadata, sources);
-        var text = BuildContext(sources);
+        var text = BuildContext(sources, out var suppliedCount);
+        Memory = new TutorMemoryResult(false, resolved.Value.Metadata, sources) { ContextMemoryCount = suppliedCount };
         return new AIContext
         {
             Messages = text is null ? [] : [new ChatMessage(ChatRole.User,
@@ -172,11 +172,28 @@ public sealed class TutorMemoryContextProvider(
     private static string Bound(string value, int maximum) =>
         value.Length <= maximum ? value : value[..(maximum - 1)] + "…";
 
-    private static string? BuildContext(IReadOnlyList<TutorMemorySource> sources)
+    private static string? BuildContext(IReadOnlyList<TutorMemorySource> sources, out int suppliedCount)
     {
+        suppliedCount = 0;
         if (sources.Count == 0) return null;
-        var combined = string.Join("\n\n", sources.Select((source, index) =>
-            $"Memory {index + 1}:\n{source.Content}"));
+        var blocks = new List<string>();
+        foreach (var (source, index) in sources.Select((value, index) => (value, index)))
+        {
+            var prefix = $"Memory {index + 1}:\n";
+            blocks.Add(prefix + source.Content);
+        }
+        var combined = string.Join("\n\n", blocks);
+        // Truncation replaces the last character with an ellipsis. Count an entry only
+        // if at least one character of its content (not just its label) survives.
+        var retainedCharacters = combined.Length > MaximumContextCharacters
+            ? MaximumContextCharacters - 1 : combined.Length;
+        var offset = 0;
+        for (var index = 0; index < sources.Count; index++)
+        {
+            var contentStart = offset + $"Memory {index + 1}:\n".Length;
+            if (contentStart < retainedCharacters && sources[index].Content.Length > 0) suppliedCount++;
+            offset += blocks[index].Length + 2;
+        }
         return Bound(combined, MaximumContextCharacters);
     }
 

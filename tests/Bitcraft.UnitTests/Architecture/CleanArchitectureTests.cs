@@ -1,6 +1,10 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Domain.Tutoring;
 using Bitcraft.Infrastructure.ExternalServices.Benchmarking;
+using Bitcraft.Infrastructure.ExternalServices.Agents;
+using Bitcraft.Application.Features.Tutoring;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Bitcraft.UnitTests.Architecture;
@@ -36,6 +40,21 @@ public sealed class CleanArchitectureTests
         var parameters = Assert.Single(typeof(TutorBenchmarkOutputGenerator).GetConstructors()).GetParameters();
         Assert.Contains(parameters, value => value.ParameterType == typeof(ITutorRuntime));
         Assert.DoesNotContain(parameters, value => value.ParameterType == typeof(ITutorAgentExecutor));
+    }
+
+    [Fact]
+    public void ProductionRegistrationsUseCanonicalRuntimeExecutorContextProvidersAndTools()
+    {
+        var services = new ServiceCollection();
+        Bitcraft.Application.DependencyInjection.AddApplication(services);
+        Bitcraft.Infrastructure.DependencyInjection.AddInfrastructure(services, new ConfigurationBuilder().Build());
+        Assert.Equal(typeof(TutorRuntime), Assert.Single(services, value => value.ServiceType == typeof(ITutorRuntime)).ImplementationType);
+        Assert.Equal(typeof(TutorAgentExecutor), Assert.Single(services, value => value.ServiceType == typeof(ITutorAgentExecutor)).ImplementationType);
+        Assert.Equal(typeof(RuntimeChatClientFactory), Assert.Single(services, value => value.ServiceType == typeof(IRuntimeChatClientFactory)).ImplementationType);
+        Assert.Equal(typeof(TutorToolRegistry), Assert.Single(services, value => value.ServiceType == typeof(ITutorToolRegistry)).ImplementationType);
+        Assert.Equal(typeof(TutorKnowledgeContextProviderFactory), Assert.Single(services, value => value.ServiceType == typeof(TutorKnowledgeContextProviderFactory)).ImplementationType);
+        Assert.Equal(typeof(TutorMemoryContextProviderFactory), Assert.Single(services, value => value.ServiceType == typeof(TutorMemoryContextProviderFactory)).ImplementationType);
+        Assert.Equal(typeof(TutorBenchmarkOutputGenerator), Assert.Single(services, value => value.ServiceType == typeof(ITutorBenchmarkOutputGenerator)).ImplementationType);
     }
 
     [Fact]

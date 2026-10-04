@@ -57,11 +57,15 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            if (SessionTestPostgres is not null)
+            // Keep each host's Npgsql data source/type cache separate. The opt-in legacy
+            // migration test recreates its disposable database (including vector type OIDs).
+            var postgresConnection = SessionTestPostgres is null ? null :
+                new Npgsql.NpgsqlConnectionStringBuilder(SessionTestPostgres) { ApplicationName = databaseName }.ConnectionString;
+            if (postgresConnection is not null)
             {
                 // Opt-in only: callers must supply a disposable test database.
                 using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-                    .UseNpgsql(SessionTestPostgres, provider => provider.UseVector()).Options);
+                    .UseNpgsql(postgresConnection, provider => provider.UseVector()).Options);
                 db.Database.Migrate();
             }
             services.RemoveAll<DbContextOptions<AppDbContext>>();
@@ -79,9 +83,9 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             {
                 var options = new DbContextOptionsBuilder<AppDbContext>()
                     .AddInterceptors(serviceProvider.GetRequiredService<EntitySaveChangesInterceptor>());
-                if (SessionTestPostgres is not null)
+                if (postgresConnection is not null)
                 {
-                    options.UseNpgsql(SessionTestPostgres, provider => provider.UseVector());
+                    options.UseNpgsql(postgresConnection, provider => provider.UseVector());
                     return UseLegacySessionJsonb ? new LegacySessionAppDbContext(options.Options) : new AppDbContext(options.Options);
                 }
                 options.UseInMemoryDatabase(databaseName, databaseRoot);
@@ -187,7 +191,15 @@ internal sealed class TestTutorAgentExecutor(TutorAgentExecutor executor, TestTu
 
 internal sealed class TestRuntimeChatClientFactory : IRuntimeChatClientFactory
 {
-    public Result<IChatClient> Create(TutorAgentModelConfiguration model) => Result.Success<IChatClient>(new TestChatClient());
+    public ConcurrentDictionary<Guid, ProvenanceTestChatClient> ProvenanceClients { get; } = new();
+    public Result<IChatClient> Create(TutorAgentModelConfiguration model)
+    {
+        if (!model.ProviderModelName.StartsWith("provenance-", StringComparison.Ordinal))
+            return Result.Success<IChatClient>(new TestChatClient());
+        var client = new ProvenanceTestChatClient(model.ProviderModelName);
+        ProvenanceClients[model.ModelId] = client;
+        return Result.Success<IChatClient>(client);
+    }
 
     private sealed class TestChatClient : IChatClient
     {
@@ -234,6 +246,7 @@ internal sealed class TestEmbeddingProvider : IEmbeddingProvider
 internal sealed class TestKnowledgeRetriever : IKnowledgeRetriever
 {
     public ConcurrentQueue<KnowledgeSearchRequest> Requests { get; } = new();
+    public ConcurrentDictionary<Guid, IReadOnlyList<KnowledgeChunk>> DocumentChunks { get; } = new();
 
     public Task<List<KnowledgeChunk>> SearchNearestChunksAsync(
         IReadOnlyCollection<Guid> documentIds,
@@ -249,6 +262,9 @@ internal sealed class TestKnowledgeRetriever : IKnowledgeRetriever
         CancellationToken cancellationToken = default)
     {
         Requests.Enqueue(request);
+        if (request.DocumentIds.Any(DocumentChunks.ContainsKey))
+            return Task.FromResult(request.DocumentIds.SelectMany(id => DocumentChunks.GetValueOrDefault(id) ?? [])
+                .Take(request.TopK).ToList());
         var chunks = request.DocumentIds
             .Take(request.TopK)
             .Select((documentId, index) => new KnowledgeChunk

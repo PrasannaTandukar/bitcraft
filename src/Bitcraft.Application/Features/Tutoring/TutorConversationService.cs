@@ -5,7 +5,10 @@ using Bitcraft.Domain.Tutoring;
 namespace Bitcraft.Application.Features.Tutoring;
 
 public sealed record TutorConversationMessageResponse(Guid Id, long Sequence, string Role, string Content,
-    DateTime CreatedUtc, IReadOnlyList<Guid> AttachmentIds, string? ProviderModelName, string? ProviderType);
+    DateTime CreatedUtc, IReadOnlyList<Guid> AttachmentIds, string? ProviderModelName, string? ProviderType)
+{
+    public TutorMessageProvenanceResponse? Provenance { get; init; }
+}
 public sealed record TutorConversationResponse(Guid Id, Guid TutorId, Guid TutorRevisionId,
     Guid SnapshotId, string? Title, DateTime CreatedUtc, DateTime UpdatedUtc,
     IReadOnlyList<TutorConversationMessageResponse> Messages, int RevisionNumber, bool SupportsImageInput);
@@ -65,11 +68,15 @@ public sealed class TutorConversationService(ITutorRepository tutors, ITutorMemb
     private async Task<TutorConversationResponse> ToResponseAsync(TutorConversation value, CancellationToken token)
     {
         var snapshot = await tutors.GetSnapshotByIdAsync(value.TutorConfigurationSnapshotId, token);
+        // Resolve the conversation's pinned revision, never the current activation or snapshot counter.
+        var revision = snapshot?.TutorRevision?.Id == value.TutorRevisionId
+            ? snapshot.TutorRevision : await tutors.GetRevisionByIdAsync(value.TutorRevisionId, token);
         return new(value.Id, value.TutorId,
         value.TutorRevisionId, value.TutorConfigurationSnapshotId, value.Title, value.CreatedUtc, value.UpdatedUtc,
         value.Messages.OrderBy(message => message.Sequence).Select(message => new TutorConversationMessageResponse(
             message.Id, message.Sequence, message.Role, message.Content, message.CreatedUtc, message.AttachmentIds,
-            message.ProviderModelName, message.ProviderType)).ToList(), snapshot?.VersionNumber ?? 0,
+            message.ProviderModelName, message.ProviderType)
+            { Provenance = TutorMessageProvenancePresentation.Map(message.Provenance, revision?.VersionNumber) }).ToList(), revision?.VersionNumber ?? 0,
         snapshot?.ModelCapabilities.HasFlag(Bitcraft.Domain.Modeling.ModelCapabilities.ImageInput) == true);
     }
 }

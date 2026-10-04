@@ -102,7 +102,10 @@ public sealed record TutorKnowledgeResult(
     IReadOnlyList<TutorRuntimeSource> Sources,
     string? ReferenceMaterial)
 {
-    public bool KnowledgeUsed => Sources.Count > 0;
+    /// <summary>Only excerpts actually supplied within the context budget; never asserted model citations.</summary>
+    public IReadOnlyList<TutorRuntimeSource> ContextSources { get; init; } = [];
+    // Legacy runtime flag means context was supplied, not that the model relied on it.
+    public bool KnowledgeUsed => ContextSources.Count > 0;
     public static TutorKnowledgeResult Empty { get; } = new(null, Array.Empty<TutorRuntimeSource>(), null);
 }
 
@@ -116,6 +119,8 @@ public sealed record TutorMemorySource(Guid MemoryId, Guid TutorId, Guid? Conver
 public sealed record TutorMemoryResult(bool MemorySaved,
     TutorRuntimeEmbeddingModelMetadata? EmbeddingModel, IReadOnlyList<TutorMemorySource> Sources)
 {
-    public bool MemoryUsed => Sources.Count > 0;
+    /// <summary>Retrieved memories with content actually supplied to the agent, excluding budgeted-out entries.</summary>
+    public int ContextMemoryCount { get; init; }
+    public bool MemoryUsed => ContextMemoryCount > 0;
     public static TutorMemoryResult Empty { get; } = new(false, null, []);
 }
