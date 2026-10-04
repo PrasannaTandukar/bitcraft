@@ -453,6 +453,120 @@
   border-bottom: 0;
 }
 
+.runtime-provenance {
+  min-width: 0;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.runtime-provenance-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.runtime-provenance-controls .ant-btn {
+  color: #667085;
+}
+
+.runtime-provenance-controls .ant-btn[aria-expanded="true"] {
+  background: #eef2f6;
+  color: #344054;
+}
+
+.runtime-provenance-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: 8px;
+  background: #fff;
+  overflow-wrap: anywhere;
+}
+
+.runtime-provenance-note {
+  margin: 4px 0 12px;
+  color: #667085;
+  line-height: 1.5;
+}
+
+.runtime-provenance h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.runtime-evidence-document + .runtime-evidence-document {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bitcraft-color-border-secondary);
+}
+
+.runtime-evidence-chunk + .runtime-evidence-chunk {
+  margin-top: 10px;
+}
+
+.runtime-evidence-excerpt {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.runtime-evidence-chunk .ant-btn-link {
+  padding-inline: 0;
+}
+
+.runtime-evidence-details {
+  margin-top: 5px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.runtime-evidence-details summary {
+  cursor: pointer;
+}
+
+.runtime-evidence-details span {
+  display: block;
+  margin-top: 4px;
+}
+
+.runtime-provenance-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.runtime-evidence-status {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+  color: #475467;
+}
+
+.runtime-evidence-status .anticon {
+  flex: 0 0 auto;
+}
+
+.runtime-evidence-status.is-failed {
+  color: #b54708;
+}
+
+.runtime-provenance-runtime {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.runtime-provenance-runtime dt { color: #667085; }
+.runtime-provenance-runtime dd { margin: 0; }
+
+@media (max-width: 575px) {
+  .runtime-provenance-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
 .runtime-empty-icon {
   color: #c7d2fe;
   font-size: 64px;

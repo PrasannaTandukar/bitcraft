@@ -179,7 +179,11 @@ public sealed class TutorKnowledgeContextProviderTests
         Assert.Equal(boundedTopK, Assert.Single(setup.Retriever.Requests).TopK);
         Assert.Equal(boundedTopK, result.Value.Knowledge!.Sources.Count);
         Assert.All(result.Value.Knowledge.Sources, source => Assert.True(source.Content.Length <= 1201));
+        Assert.Equal(new[] { setup.Document.Id }, Assert.Single(setup.Documents.DisplayNameRequests));
         Assert.True(result.Value.Knowledge.ReferenceMaterial!.Length <= 6000);
+        Assert.Equal(Math.Min(boundedTopK, 4), result.Value.Knowledge.ContextSources.Count);
+        Assert.Equal(result.Value.Knowledge.Sources.Take(result.Value.Knowledge.ContextSources.Count),
+            result.Value.Knowledge.ContextSources);
     }
 
     [Fact]

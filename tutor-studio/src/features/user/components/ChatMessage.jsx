@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AttachmentImage from "./AttachmentImage.jsx";
 import SourceList from "./SourceList.jsx";
+import MessageProvenance from "./MessageProvenance.jsx";
 
 export default function ChatMessage({ message, tutorName, showSources, onRetry, retryDisabled }) {
   const images = message.attachments?.length ? <div className="runtime-attachments">
@@ -37,7 +38,9 @@ export default function ChatMessage({ message, tutorName, showSources, onRetry, 
             {tool.toolName}: {tool.status === "Running" ? "Running…" : tool.status === "Succeeded" ? "Completed" : tool.status === "TimedOut" ? "Timed out" : "Failed"}
           </Tag>)}
         </div> : null}
-        {message.role === "assistant" && showSources ? <SourceList sources={message.sources} /> : null}
+        {message.role === "assistant" && !message.streaming ? (message.provenance
+          ? <MessageProvenance provenance={message.provenance} showSources={showSources} />
+          : showSources ? <SourceList sources={message.sources} /> : null) : null}
       </article>
     </div>
   );

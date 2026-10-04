@@ -2191,9 +2191,149 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ModifiedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.OwnsOne("Bitcraft.Domain.Tutoring.TutorConversationMessageProvenance", "Provenance", b1 =>
+                        {
+                            b1.Property<Guid>("MessageId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTime>("CapturedUtc")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.Property<Guid>("InteractionModelId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<bool>("MemoryContextProvided")
+                                .HasColumnType("boolean");
+
+                            b1.Property<string>("ProviderModelName")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<string>("ProviderType")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)");
+
+                            b1.Property<int>("RetrievedMemoryCount")
+                                .HasColumnType("integer");
+
+                            b1.Property<Guid>("TutorConfigurationSnapshotId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("TutorId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("TutorRevisionId")
+                                .HasColumnType("uuid");
+
+                            b1.HasKey("MessageId");
+
+                            b1.ToTable("TutorConversationMessageProvenance", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("MessageId");
+
+                            b1.OwnsMany("Bitcraft.Domain.Tutoring.TutorRetrievedKnowledgeEvidence", "KnowledgeEvidence", b2 =>
+                                {
+                                    b2.Property<Guid>("Id")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<int>("ChunkIndex")
+                                        .HasColumnType("integer");
+
+                                    b2.Property<string>("ContentExcerpt")
+                                        .IsRequired()
+                                        .HasMaxLength(1201)
+                                        .HasColumnType("character varying(1201)");
+
+                                    b2.Property<double?>("CosineSimilarity")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<Guid>("DocumentChunkId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<Guid>("DocumentId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<string>("DocumentName")
+                                        .HasColumnType("text");
+
+                                    b2.Property<int?>("EmbeddingDimensions")
+                                        .HasColumnType("integer");
+
+                                    b2.Property<Guid?>("EmbeddingModelId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<string>("EmbeddingProviderModelName")
+                                        .HasColumnType("text");
+
+                                    b2.Property<Guid>("MessageId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<int>("RetrievalRank")
+                                        .HasColumnType("integer");
+
+                                    b2.HasKey("Id");
+
+                                    b2.HasIndex("MessageId", "RetrievalRank")
+                                        .IsUnique();
+
+                                    b2.ToTable("TutorMessageRetrievedKnowledgeEvidence", (string)null);
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("MessageId");
+                                });
+
+                            b1.OwnsMany("Bitcraft.Domain.Tutoring.TutorToolExecutionEvidence", "ToolEvidence", b2 =>
+                                {
+                                    b2.Property<Guid>("Id")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<DateTime>("CompletedUtc")
+                                        .HasColumnType("timestamp with time zone");
+
+                                    b2.Property<double>("DurationMs")
+                                        .HasColumnType("double precision");
+
+                                    b2.Property<string>("ErrorCategory")
+                                        .HasMaxLength(32)
+                                        .HasColumnType("character varying(32)");
+
+                                    b2.Property<Guid>("MessageId")
+                                        .HasColumnType("uuid");
+
+                                    b2.Property<DateTime>("StartedUtc")
+                                        .HasColumnType("timestamp with time zone");
+
+                                    b2.Property<string>("Status")
+                                        .IsRequired()
+                                        .HasMaxLength(16)
+                                        .HasColumnType("character varying(16)");
+
+                                    b2.Property<string>("ToolName")
+                                        .IsRequired()
+                                        .HasColumnType("text");
+
+                                    b2.HasKey("Id");
+
+                                    b2.HasIndex("MessageId");
+
+                                    b2.ToTable("TutorMessageToolExecutionEvidence", (string)null);
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("MessageId");
+                                });
+
+                            b1.Navigation("KnowledgeEvidence");
+
+                            b1.Navigation("ToolEvidence");
+                        });
+
                     b.Navigation("CreatedBy");
 
                     b.Navigation("ModifiedBy");
+
+                    b.Navigation("Provenance");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Tutoring.TutorDocument", b =>

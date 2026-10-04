@@ -6,7 +6,9 @@ namespace Bitcraft.Infrastructure.Persistence;
 public sealed class TutorConversationRepository(AppDbContext db) : ITutorConversationRepository
 {
     public Task<TutorConversation?> GetAsync(Guid id, Guid userId, Guid tutorId, CancellationToken cancellationToken) =>
-        db.Set<TutorConversation>().Include(value => value.Messages).SingleOrDefaultAsync(
+        // Owned knowledge/tool collections are eagerly loaded in a fixed number of queries,
+        // avoiding multiplication of excerpt rows by tool calls and repeated answer/session text.
+        db.Set<TutorConversation>().Include(value => value.Messages).AsSplitQuery().SingleOrDefaultAsync(
             value => value.Id == id && value.UserId == userId && value.TutorId == tutorId, cancellationToken);
     public async Task<IReadOnlyList<TutorConversation>> ListAsync(Guid userId, Guid tutorId, CancellationToken cancellationToken) =>
         await db.Set<TutorConversation>().AsNoTracking().Where(value => value.UserId == userId && value.TutorId == tutorId)

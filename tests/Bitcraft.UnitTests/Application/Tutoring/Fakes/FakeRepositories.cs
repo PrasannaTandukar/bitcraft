@@ -504,6 +504,7 @@ internal sealed class FakeDocumentStore : IDocumentStore, IDocumentContentStore
 {
     public Dictionary<Guid, Document> Documents { get; } = new();
     public int ContentReplacementCalls { get; private set; }
+    public List<IReadOnlyCollection<Guid>> DisplayNameRequests { get; } = [];
 
     public Task<Document> AddAsync(Document document, CancellationToken ct = default)
     {
@@ -513,6 +514,14 @@ internal sealed class FakeDocumentStore : IDocumentStore, IDocumentContentStore
 
     public Task<Document?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(Documents.TryGetValue(id, out var document) ? document : null);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetDisplayNamesAsync(IReadOnlyCollection<Guid> documentIds,
+        CancellationToken cancellationToken = default)
+    {
+        DisplayNameRequests.Add(documentIds);
+        return Task.FromResult<IReadOnlyDictionary<Guid, string>>(Documents.Values
+            .Where(document => documentIds.Contains(document.Id)).ToDictionary(document => document.Id, document => document.Name));
+    }
 
     public Task<List<Document>> ListByCreatorAsync(Guid creatorId, CancellationToken ct = default) =>
         Task.FromResult(Documents.Values.Where(document => document.CreatedById == creatorId).ToList());
