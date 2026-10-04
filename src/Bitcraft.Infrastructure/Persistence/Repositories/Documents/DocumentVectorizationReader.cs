@@ -10,54 +10,72 @@ public sealed class DocumentVectorizationReader(AppDbContext db) : IDocumentVect
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
-        if (db.Model.FindEntityType(typeof(Bitcraft.Domain.Knowledge.KnowledgeChunk)) is null)
-        {
-            return new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null);
-        }
-
-        var chunks = await db.KnowledgeChunks
-            .AsNoTracking()
-            .Where(chunk => chunk.DocumentId == documentId)
-            .OrderBy(chunk => chunk.ChunkIndex)
-            .Select(chunk => new ChunkMetadata(
-                chunk.IngestedUtc,
-                chunk.EmbeddingModelId,
-                chunk.EmbeddingModelEntity == null ? null : chunk.EmbeddingModelEntity.Name,
-                chunk.EmbeddingModel,
-                chunk.EmbeddingProvider,
-                chunk.EmbeddingDimensions))
-            .ToListAsync(cancellationToken);
-
-        if (chunks.Count == 0)
-        {
-            return new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null);
-        }
-
-        var first = chunks[0];
-        var uniform = chunks.All(chunk =>
-            chunk.EmbeddingModelId == first.EmbeddingModelId &&
-            string.Equals(chunk.EmbeddingModelName, first.EmbeddingModelName, StringComparison.Ordinal) &&
-            string.Equals(chunk.ProviderModelName, first.ProviderModelName, StringComparison.Ordinal) &&
-            string.Equals(chunk.EmbeddingProvider, first.EmbeddingProvider, StringComparison.Ordinal) &&
-            chunk.EmbeddingDimensions == first.EmbeddingDimensions);
-
-        return new DocumentVectorizationMetadata(
-            true,
-            false,
-            chunks.Count,
-            chunks.Max(chunk => chunk.IngestedUtc),
-            uniform ? first.EmbeddingModelId : null,
-            uniform ? first.EmbeddingModelName : null,
-            uniform ? first.ProviderModelName : null,
-            uniform ? first.EmbeddingProvider : null,
-            uniform ? first.EmbeddingDimensions : null);
+        var result = await GetMetadataAsync([documentId], cancellationToken);
+        return result.GetValueOrDefault(documentId) ?? EmptyMetadata();
     }
 
-    private sealed record ChunkMetadata(
-        DateTime IngestedUtc,
+    public async Task<IReadOnlyDictionary<Guid, DocumentVectorizationMetadata>> GetMetadataAsync(
+        IReadOnlyCollection<Guid> documentIds,
+        CancellationToken cancellationToken = default)
+    {
+        var distinctIds = documentIds.Where(id => id != Guid.Empty).Distinct().ToArray();
+        var results = distinctIds.ToDictionary(id => id, _ => EmptyMetadata());
+        if (distinctIds.Length == 0 ||
+            db.Model.FindEntityType(typeof(Bitcraft.Domain.Knowledge.KnowledgeChunk)) is null)
+            return results;
+
+        var groups = await db.KnowledgeChunks
+            .AsNoTracking()
+            .Where(chunk => distinctIds.Contains(chunk.DocumentId))
+            .GroupBy(chunk => new
+            {
+                chunk.DocumentId,
+                chunk.EmbeddingModelId,
+                EmbeddingModelName = chunk.EmbeddingModelEntity == null ? null : chunk.EmbeddingModelEntity.Name,
+                chunk.EmbeddingModel,
+                chunk.EmbeddingProvider,
+                chunk.EmbeddingDimensions
+            })
+            .Select(group => new GroupedChunkMetadata(
+                group.Key.DocumentId,
+                group.Key.EmbeddingModelId,
+                group.Key.EmbeddingModelName,
+                group.Key.EmbeddingModel,
+                group.Key.EmbeddingProvider,
+                group.Key.EmbeddingDimensions,
+                group.Count(),
+                group.Max(chunk => chunk.IngestedUtc)))
+            .ToListAsync(cancellationToken);
+
+        foreach (var documentGroups in groups.GroupBy(group => group.DocumentId))
+        {
+            var first = documentGroups.First();
+            var uniform = documentGroups.Count() == 1;
+            results[documentGroups.Key] = new DocumentVectorizationMetadata(
+                true,
+                false,
+                documentGroups.Sum(group => group.ChunkCount),
+                documentGroups.Max(group => group.LastIngestedUtc),
+                uniform ? first.EmbeddingModelId : null,
+                uniform ? first.EmbeddingModelName : null,
+                uniform ? first.ProviderModelName : null,
+                uniform ? first.EmbeddingProvider : null,
+                uniform ? first.EmbeddingDimensions : null);
+        }
+
+        return results;
+    }
+
+    private static DocumentVectorizationMetadata EmptyMetadata() =>
+        new(false, false, 0, null, null, null, null, null, null);
+
+    private sealed record GroupedChunkMetadata(
+        Guid DocumentId,
         Guid? EmbeddingModelId,
         string? EmbeddingModelName,
         string ProviderModelName,
         string EmbeddingProvider,
-        int? EmbeddingDimensions);
+        int? EmbeddingDimensions,
+        int ChunkCount,
+        DateTime LastIngestedUtc);
 }

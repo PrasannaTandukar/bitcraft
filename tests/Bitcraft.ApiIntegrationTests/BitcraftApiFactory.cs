@@ -293,6 +293,12 @@ internal sealed class TestDocumentVectorizationReader : IDocumentVectorizationRe
         CancellationToken cancellationToken = default) => Task.FromResult(
         Metadata.GetValueOrDefault(documentId) ??
         new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null));
+
+    public Task<IReadOnlyDictionary<Guid, DocumentVectorizationMetadata>> GetMetadataAsync(
+        IReadOnlyCollection<Guid> documentIds,
+        CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyDictionary<Guid, DocumentVectorizationMetadata>>(
+        documentIds.Distinct().ToDictionary(id => id, id => Metadata.GetValueOrDefault(id) ??
+            new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null)));
 }
 
 internal sealed class TestRevisionEffectiveSetReader(

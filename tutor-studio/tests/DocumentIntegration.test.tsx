@@ -65,6 +65,15 @@ const baseDocument = {
   folderId: null,
   createdUtc: "2026-09-10T08:00:00Z",
   lastModifiedUtc: "2026-09-10T08:00:00Z",
+  vectorization: {
+    isVectorized: false,
+    isStale: false,
+    chunkCount: 0,
+    embeddingModelId: null,
+    embeddingModelName: null,
+    providerModelName: null,
+    embeddingDimensions: null,
+  },
 };
 
 const baseFolder = {
@@ -113,16 +122,12 @@ function configureDefaultMocks() {
 
   mockedListDocumentFolders.mockResolvedValue([baseFolder] as any);
 
-  /*
-   * Important:
-   *
-   * The vectorization status is deliberately based on whether the
-   * vectorize API has actually been called, rather than on the number
-   * of getVectorizationStatus calls.
-   *
-   * React effects can run more than once in the test environment, so
-   * relying on call counts makes the integration test fragile.
-   */
+  // The list response supplies Browse state. The individual endpoint remains
+  // mocked for the dialog's focused initial/post-vectorization refreshes.
+  mockedListDocuments.mockImplementation(async () => [{
+    ...baseDocument,
+    vectorization: mockedVectorizeDocument.mock.calls.length > 0 ? vectorizedStatus : initialStatus,
+  }] as any);
   mockedGetVectorizationStatus.mockImplementation(async () => {
     if (mockedVectorizeDocument.mock.calls.length > 0) {
       return vectorizedStatus as any;
@@ -170,6 +175,47 @@ describe("Document integration workflow", () => {
     vi.clearAllMocks();
 
     configureDefaultMocks();
+  });
+
+  it("shows a useful documents-list error when the combined metadata request fails", async () => {
+    mockedListDocuments.mockRejectedValue(new Error("service unavailable"));
+
+    render(<FilesPage />);
+
+    expect(await screen.findByText("Documents could not be loaded.")).toBeInTheDocument();
+    expect(mockedGetVectorizationStatus).not.toHaveBeenCalled();
+  });
+
+  it("loads vectorization states for 15 documents from the list response without per-row status requests", async () => {
+    const documents = Array.from({ length: 15 }, (_, index) => ({
+      ...baseDocument,
+      id: `doc-${index + 1}`,
+      name: `Document ${index + 1}.md`,
+      vectorization: index === 0
+        ? { ...vectorizedStatus, chunkCount: 4 }
+        : index === 1
+          ? { ...initialStatus }
+          : index === 2
+            ? { ...vectorizedStatus, isStale: true, chunkCount: 6 }
+            : index === 3
+              ? null
+            : { ...initialStatus },
+    }));
+    mockedListDocuments.mockResolvedValue(documents as any);
+
+    render(<FilesPage />);
+
+    const firstRow = (await screen.findByText("Document 1.md")).closest(".document-list-item") as HTMLElement;
+    const secondRow = screen.getByText("Document 2.md").closest(".document-list-item") as HTMLElement;
+    const thirdRow = screen.getByText("Document 3.md").closest(".document-list-item") as HTMLElement;
+    const fourthRow = screen.getByText("Document 4.md").closest(".document-list-item") as HTMLElement;
+    expect(within(firstRow).getByText("Vectorized · 4 chunks")).toBeInTheDocument();
+    expect(within(secondRow).getByText("Not vectorized")).toBeInTheDocument();
+    expect(within(thirdRow).getByText("Needs re-vectorization")).toBeInTheDocument();
+    expect(within(fourthRow).getByText("Status check failed")).toBeInTheDocument();
+    expect(screen.getByText("Vectorization status could not be checked for 1 document.")).toBeInTheDocument();
+    expect(mockedListDocuments).toHaveBeenCalledTimes(1);
+    expect(mockedGetVectorizationStatus).not.toHaveBeenCalled();
   });
 
   it("loads documents, creates a document, and previews its extracted text", async () => {
@@ -550,19 +596,7 @@ describe("Document integration workflow", () => {
       chunkCount: 3,
     } as any);
 
-    /*
-     * The status mock is intentionally controlled by whether
-     * vectorizeDocument has been called.
-     *
-     * Before vectorization:
-     *     -> initialStatus
-     *
-     * After vectorization:
-     *     -> vectorizedStatus
-     *
-     * This avoids depending on the exact number of React effect
-     * executions or API calls.
-     */
+    // Keep focused vectorization status lookup behavior in the dialog.
     mockedGetVectorizationStatus.mockImplementation(
       async () => {
         if (
@@ -607,7 +641,7 @@ describe("Document integration workflow", () => {
       await within(
         documentRow as HTMLElement,
       ).findByText(
-        "Ready for vectorization",
+        "Not vectorized",
       ),
     ).toBeInTheDocument();
 
@@ -733,7 +767,7 @@ describe("Document integration workflow", () => {
     });
 
     // ------------------------------------------------------------
-    // 11. Status is requested again after vectorization
+    // 11. The dialog performs its one-document status refresh after vectorization.
     // ------------------------------------------------------------
 
     await waitFor(() => {

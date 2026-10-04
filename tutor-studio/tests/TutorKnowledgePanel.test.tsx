@@ -115,12 +115,17 @@ function setDefaultResolvedValues(overrides: {
   attachedDocuments?: any[];
   attachedFolders?: any[];
 } = {}) {
-  mockListDocuments.mockResolvedValue(overrides.documents ?? baseDocuments);
+  const docs = overrides.documents ?? baseDocuments;
+  mockListDocuments.mockResolvedValue(docs.map((document) => ({
+    ...document,
+    vectorization: Object.hasOwn(document, "vectorization")
+      ? document.vectorization
+      : vectorizationById[document.id] ?? { isVectorized: false, isStale: false, chunkCount: 0 },
+  })));
   mockListDocumentFolders.mockResolvedValue(overrides.folders ?? baseFolders);
   mockListTutorDocuments.mockResolvedValue(overrides.attachedDocuments ?? baseAttachedDocuments);
   mockListTutorDocumentFolders.mockResolvedValue(overrides.attachedFolders ?? baseAttachedFolders);
   mockGetVectorizationStatus.mockImplementation(async (documentId: string) => vectorizationById[documentId] ?? null);
-  const docs = overrides.documents ?? baseDocuments;
   const folders = overrides.folders ?? baseFolders;
   const direct = overrides.attachedDocuments ?? baseAttachedDocuments;
   const attachedFolders = overrides.attachedFolders ?? baseAttachedFolders;
@@ -247,29 +252,24 @@ describe("TutorKnowledgePanel - loading and errors", () => {
     expect(screen.queryByText(/will capture .* effective document/)).not.toBeInTheDocument();
   });
 
-  it("does not fetch vectorization status when canManage is false", async () => {
+  it("does not fetch per-document vectorization status when canManage is false", async () => {
     setup({ canManage: false });
     await waitForLoaded();
     expect(mockGetVectorizationStatus).not.toHaveBeenCalled();
   });
 
-  it("fetches vectorization status for each document when canManage is true", async () => {
+  it("uses vectorization metadata from the document list instead of fetching status per document", async () => {
     setup({ canManage: true });
     await waitForLoaded();
-    expect(mockGetVectorizationStatus).toHaveBeenCalledWith("d1", expect.any(AbortSignal));
-    expect(mockGetVectorizationStatus).toHaveBeenCalledWith("d4", expect.any(AbortSignal));
+    expect(mockGetVectorizationStatus).not.toHaveBeenCalled();
   });
 
-  it("treats a per-document vectorization status failure as null rather than failing the whole load", async () => {
-    mockGetVectorizationStatus.mockImplementation(async (documentId: string) => {
-      if (documentId === "d4") throw new Error("status service down");
-      return vectorizationById[documentId] ?? null;
-    });
+  it("shows status check failed when a list item has no vectorization metadata", async () => {
+    setDefaultResolvedValues({ documents: baseDocuments.map((document) => ({ ...document, vectorization: document.id === "d4" ? null : vectorizationById[document.id] })) });
     setup();
     await waitForLoaded();
-    // The rest of the panel still renders normally.
-    expect(screen.getByText("Knowledge")).toBeInTheDocument();
-    expect(screen.queryByRole("alert", { name: /could not load/i })).not.toBeInTheDocument();
+    await selectFromDropdown(userEvent.setup(), "Select a source document", "Doc Four · Status check failed");
+    expect(screen.getByText("Vectorization status could not be checked. Retry from Files before attaching this document.")).toBeInTheDocument();
   });
 });
 

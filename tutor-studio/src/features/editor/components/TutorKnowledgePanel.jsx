@@ -3,7 +3,7 @@ import { Alert, Button, Card, Empty, Flex, Popconfirm, Select, Spin, Tag, Typogr
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorDescription } from "../../../api/client.js";
-import { getVectorizationStatus, listDocumentFolders, listDocuments } from "../utils/documentApi.js";
+import { listDocumentFolders, listDocuments } from "../utils/documentApi.js";
 import {
   attachTutorDocument,
   attachTutorDocumentFolder,
@@ -40,16 +40,9 @@ export default function TutorKnowledgePanel({ tutorId, canManage }) {
       trackEndpoint("GET /api/document-folders", listDocumentFolders(controller.signal)),
       trackEndpoint(`GET /api/tutors/${tutorId}/knowledge-overview`, getTutorKnowledgeOverview(tutorId, controller.signal)),
     ])
-      .then(async ([loadedDocuments, loadedFolders, loadedOverview]) => {
+      .then(([loadedDocuments, loadedFolders, loadedOverview]) => {
         const docs = loadedDocuments ?? [];
-        const statuses = canManage
-          ? await Promise.all(docs.map(async (document) => {
-              try { return [document.id, await getVectorizationStatus(document.id, controller.signal)]; }
-              catch { return [document.id, { unavailable: true }]; }
-            }))
-          : [];
-        const byId = new Map(statuses);
-        setDocuments(docs.map((document) => ({ ...document, vectorization: byId.get(document.id) ?? null })));
+        setDocuments(docs);
         setFolders(loadedFolders ?? []);
         setAttachedDocuments(loadedOverview?.directDocuments ?? []);
         setAttachedFolders(loadedOverview?.folders ?? []);
@@ -151,12 +144,12 @@ export default function TutorKnowledgePanel({ tutorId, canManage }) {
               style={{ flex: "1 1 320px" }}
               options={availableDocuments.map((document) => ({
                 value: document.id,
-                label: `${document.name} · ${document.vectorization?.unavailable ? "Status check failed" : document.vectorization?.isVectorized && !document.vectorization?.isStale ? "Vectorized" : "Not vectorized"}`,
+                label: `${document.name} · ${!document.vectorization || document.vectorization.unavailable ? "Status check failed" : document.vectorization.isVectorized && !document.vectorization.isStale ? "Vectorized" : "Not vectorized"}`,
               }))}
             />
-            <Button type="primary" icon={<LinkOutlined />} loading={saving} disabled={!selectedDocumentId || selectedDocument?.vectorization?.unavailable || !selectedDocument?.vectorization?.isVectorized || selectedDocument?.vectorization?.isStale} onClick={() => runMutation(() => attachTutorDocument(tutorId, selectedDocumentId))}>Attach</Button>
+            <Button type="primary" icon={<LinkOutlined />} loading={saving} disabled={!selectedDocumentId || !selectedDocument?.vectorization || selectedDocument?.vectorization?.unavailable || !selectedDocument?.vectorization?.isVectorized || selectedDocument?.vectorization?.isStale} onClick={() => runMutation(() => attachTutorDocument(tutorId, selectedDocumentId))}>Attach</Button>
           </Flex>
-          {selectedDocument?.vectorization?.unavailable ? <Alert type="error" title="Vectorization status could not be checked. Retry from Files before attaching this document." showIcon style={{ marginTop: 16 }} /> : null}
+          {selectedDocument && (!selectedDocument.vectorization || selectedDocument.vectorization.unavailable) ? <Alert type="error" title="Vectorization status could not be checked. Retry from Files before attaching this document." showIcon style={{ marginTop: 16 }} /> : null}
           {selectedDocument && !selectedDocument.vectorization?.unavailable && (!selectedDocument.vectorization?.isVectorized || selectedDocument.vectorization?.isStale) ? <Alert type="warning" title="Vectorize this document in Files before attaching it." showIcon style={{ marginTop: 16 }} /> : null}
         </Card>
       ) : null}
