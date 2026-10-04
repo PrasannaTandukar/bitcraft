@@ -14,7 +14,7 @@ function formatDate(value) {
 
 function statusLabel(document, status) {
     if (!document.hasRawText) return { color: "warning", text: "No extracted text" };
-    if (status?.unavailable) return { color: "default", text: "Status unavailable" };
+    if (status?.unavailable) return { color: "error", text: "Status check failed" };
     if (status?.isStale) return { color: "warning", text: "Needs re-vectorization" };
     if (status?.isVectorized) return { color: "success", text: `Vectorized · ${status.chunkCount} chunks` };
     if (status === undefined) return { color: "processing", text: "Checking vectorization" };

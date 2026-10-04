@@ -30,3 +30,31 @@ public sealed record TutorKnowledgeFolderResponse(
     Guid TutorId,
     Guid FolderId,
     string FolderName);
+
+public sealed record TutorKnowledgeEffectiveDocumentResponse(
+    Guid DocumentId,
+    string DocumentName,
+    string AttachedThrough,
+    string ReadinessStatus,
+    bool IsVectorized,
+    bool IsStale,
+    int ChunkCount,
+    Guid? EmbeddingModelId,
+    string? EmbeddingModelName,
+    string? ProviderModelName,
+    int? EmbeddingDimensions,
+    bool ReadyForSnapshot,
+    string? Reason);
+
+public sealed record TutorKnowledgeOverviewResponse(
+    IReadOnlyList<TutorKnowledgeDocumentResponse> DirectDocuments,
+    IReadOnlyList<TutorKnowledgeFolderResponse> Folders,
+    IReadOnlyList<TutorKnowledgeEffectiveDocumentResponse> EffectiveDocuments,
+    int EffectiveDocumentCount,
+    int? ActiveRevisionNumber,
+    Guid? ActiveSnapshotId,
+    bool ActiveSnapshotMatchesCurrentKnowledge,
+    Guid? QueryEmbeddingModelId,
+    string? QueryEmbeddingModelName,
+    string? QueryProviderModelName,
+    int? QueryEmbeddingDimensions);

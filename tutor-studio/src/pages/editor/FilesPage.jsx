@@ -49,6 +49,7 @@ export default function FilesPage({ initialUploadOpen = false }) {
         documentCounts,
         filteredDocuments,
     } = useFilesWorkspace(initialUploadOpen);
+    const unavailableStatusCount = Object.values(statuses).filter((status) => status?.unavailable).length;
 
     return (
         <main className="workspace-page files-page">
@@ -65,6 +66,13 @@ export default function FilesPage({ initialUploadOpen = false }) {
 
                 {notice ? <Alert type="success" title={notice} closable onClose={() => setNotice("")} showIcon style={{ marginBottom: 16 }} /> : null}
                 {error ? <Alert type="error" title={error} closable onClose={() => setError("")} showIcon style={{ marginBottom: 16 }} /> : null}
+                {unavailableStatusCount > 0 ? <Alert
+                    type="warning"
+                    title={`Vectorization status could not be checked for ${unavailableStatusCount} document${unavailableStatusCount === 1 ? "" : "s"}.`}
+                    action={<Button size="small" onClick={() => loadWorkspace(true)} loading={refreshing}>Retry</Button>}
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                /> : null}
                 <DocumentFolders
                     folders={folders}
                     selectedFolderId={selectedFolderId}
