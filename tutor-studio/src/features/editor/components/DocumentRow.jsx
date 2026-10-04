@@ -18,7 +18,7 @@ function statusLabel(document, status) {
     if (status?.isStale) return { color: "warning", text: "Needs re-vectorization" };
     if (status?.isVectorized) return { color: "success", text: `Vectorized · ${status.chunkCount} chunks` };
     if (status === undefined) return { color: "processing", text: "Checking vectorization" };
-    return { color: "blue", text: "Ready for vectorization" };
+    return { color: "blue", text: "Not vectorized" };
 }
 
 export default function DocumentRow({ document, folderName, status, canManage, canDelete, onPreview, onReplace, onVectorize, onDelete, onMove }) {

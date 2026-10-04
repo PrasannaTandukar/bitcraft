@@ -4,6 +4,7 @@ using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Contracts.Knowledge;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Application.Features.Documents;
 using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Application.Features.Tutoring;
 using Bitcraft.Domain.Benchmarking;
@@ -77,7 +78,36 @@ internal static class TutoringMapping
         document.CreatedUtc,
         document.CreatedById,
         document.ModifiedUtc,
-        document.ModifiedById);
+        document.ModifiedById,
+        null);
+
+    public static DocumentSummaryResponse ToSummaryResponse(this DocumentFeatures.DocumentListItem item)
+    {
+        var document = item.Document;
+        var metadata = item.Vectorization;
+        return new DocumentSummaryResponse(
+            document.Id,
+            document.Name,
+            document.SourcePath,
+            document.MimeType,
+            document.FolderId,
+            !string.IsNullOrWhiteSpace(document.RawText),
+            document.RawText?.Length ?? 0,
+            document.CreatedUtc,
+            document.CreatedById,
+            document.ModifiedUtc,
+            document.ModifiedById,
+            metadata is null ? null : new DocumentVectorizationMetadataResponse(
+                metadata.IsVectorized,
+                metadata.IsStale,
+                metadata.ChunkCount,
+                metadata.LastVectorizedUtc,
+                metadata.EmbeddingModelId,
+                metadata.EmbeddingModelName,
+                metadata.ProviderModelName,
+                metadata.EmbeddingProvider,
+                metadata.EmbeddingDimensions));
+    }
 
     public static DocumentDetailResponse ToDetailResponse(this Document document) => new(
         document.Id,

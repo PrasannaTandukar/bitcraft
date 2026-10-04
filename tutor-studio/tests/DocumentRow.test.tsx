@@ -201,17 +201,17 @@ describe("DocumentRow - status label", () => {
     expect(screen.getByText("Checking vectorization")).toBeInTheDocument();
   });
 
-  it("shows 'Ready for vectorization' when status is an empty object", () => {
+  it("shows 'Not vectorized' when status is an empty object", () => {
     setup({ document: { ...baseDocument, hasRawText: true }, status: {} });
-    expect(screen.getByText("Ready for vectorization")).toBeInTheDocument();
+    expect(screen.getByText("Not vectorized")).toBeInTheDocument();
   });
 
-  it("shows 'Ready for vectorization' (not 'Checking...') when status is null", () => {
+  it("shows 'Not vectorized' (not 'Checking...') when status is null", () => {
     // Edge case: the component's check is `status === undefined`, so a
     // `null` status falls through to the final default branch rather than
     // the "Checking vectorization" branch — worth pinning down explicitly.
     setup({ document: { ...baseDocument, hasRawText: true }, status: null });
-    expect(screen.getByText("Ready for vectorization")).toBeInTheDocument();
+    expect(screen.getByText("Not vectorized")).toBeInTheDocument();
   });
 });
 
