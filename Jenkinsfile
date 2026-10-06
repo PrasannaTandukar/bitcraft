@@ -5,9 +5,6 @@ pipeline {
     stages {
 
         stage('feature/jenkins-pipeline pipeline') {
-            when {
-                branch 'feature/jenkins-pipeline'
-            }
 
             stages {
 
