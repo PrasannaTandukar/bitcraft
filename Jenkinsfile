@@ -152,7 +152,7 @@ pipeline {
                             npm ci
                             mkdir -p test-results
                             TZ=Australia/Perth npx vitest run \
-                                --reporter=junit \
+                                --reporter=default \
                                 --outputFile=test-results/junit.xml \
                                 --maxWorkers=1
                         '
