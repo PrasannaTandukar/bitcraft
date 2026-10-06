@@ -17,7 +17,36 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      #connection between Jenkins webUI to host only on local network
+      - "127.0.0.1:8080:8080"
+      #JNLP port to connect other containers running Jenkins if needed
+      - "127.0.0.1:50000:50000"
+    #Reference: https://www.jenkins.io/doc/book/installing/docker/
+    #for volumes and environment
+    volumes:
+      #this is needed as per documentation in jenkins
+      - jenkins_home:/var/jenkins_home
+      #jenkins needs access to this volume but has a read only option, so no write privilege
+      - docker-certs-client:/certs/client:ro
+      #- ./jenkins-workspace:/var/jenkins_home/workspace
+    environment:
+      DOCKER_HOST: "tcp://docker:2376"
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+  jenkins-init:
+    image: busybox
+    container_name: jenkins-init
+    depends_on:
+      - jenkins
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    entrypoint: sh -c "mkdir -p /var/jenkins_home/logs && chown -R 1000:1000 /var/jenkins_home/logs && echo 'logs dir ready'"
+    restart: "no"
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     container_name: bitcraft-migrator
@@ -116,3 +145,9 @@ volumes:
   postgres_data: {}
   nuget-packages: {}
   benchmark_sidecar_socket: {}
+  jenkins_home:
+    name: jenkins_home
+  docker-certs-ca:
+    name: docker-certs-ca
+  docker-certs-client:
+    name: docker-certs-client
