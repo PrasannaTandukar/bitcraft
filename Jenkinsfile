@@ -82,7 +82,7 @@ pipeline {
                         -w /app \
                         node:22 \
                         sh -c '
-                            npm ci
+                            npm ci --verbose
                             npm audit --json > npm-audit-report.json || true
                             npm audit --audit-level=high
                         '
