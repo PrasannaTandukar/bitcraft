@@ -17,10 +17,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+  dind:
+    image: docker:dind
+    container_name: dind
+    restart: unless-stopped
+    #privileged is needed for nested containers and is not the same as running as root
+    privileged: true
+    #the daemon for docker uses TLS connection
+    #environment and volumes are necessary as per dind image setup on docker hub
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      - dind-storage:/var/lib/docker #persists image layers/build cache
+      - ./jenkins-workspace:/var/jenkins_home/workspace
+    networks:
+      #this creates isolation so that nothing outside this network can access the
+      #did service
+      jenkins_dind:
+        aliases:
+          - docker
+    #enables TLS trough port 2376
+    expose:
+      - 2376
   jenkins:
     build: ./jenkins
     container_name: jenkins
     restart: unless-stopped
+    #tells this service to start dind before
+    depends_on:
+      - dind
+      - dind-init
     ports:
       #connection between Jenkins webUI to host only on local network
       - "127.0.0.1:8080:8080"
@@ -33,11 +61,34 @@ services:
       - jenkins_home:/var/jenkins_home
       #jenkins needs access to this volume but has a read only option, so no write privilege
       - docker-certs-client:/certs/client:ro
-      #- ./jenkins-workspace:/var/jenkins_home/workspace
+      - ./jenkins-workspace:/var/jenkins_home/workspace
     environment:
       DOCKER_HOST: "tcp://docker:2376"
       DOCKER_CERT_PATH: /certs/client
       DOCKER_TLS_VERIFY: "1"
+    #connect to the same network as dind
+    networks:
+      - jenkins_dind
+  dind-init:
+    image: docker:cli
+    container_name: dind-init
+    depends_on:
+      - dind
+    networks:
+      - jenkins_dind
+    environment:
+      DOCKER_HOST: "tcp://docker:2376"
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+    volumes:
+      - docker-certs-client:/certs/client:ro
+    entrypoint: >
+      sh -c "
+      until docker info >/dev/null 2>&1; do echo waiting for dind...; sleep 2; done;
+      docker network inspect jenkins_dind >/dev/null 2>&1 || docker network create jenkins_dind;
+      echo jenkins_dind network ready;
+      "
+    restart: "no"
   jenkins-init:
     image: busybox
     container_name: jenkins-init
@@ -47,6 +98,7 @@ services:
       - jenkins_home:/var/jenkins_home
     entrypoint: sh -c "mkdir -p /var/jenkins_home/logs && chown -R 1000:1000 /var/jenkins_home/logs && echo 'logs dir ready'"
     restart: "no"
+
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
     container_name: bitcraft-migrator
@@ -140,6 +192,12 @@ services:
       backend:
         condition: service_healthy
 
+networks:
+  jenkins_dind:
+    #creates virtual network
+    name: jenkins_dind
+    driver: bridge
+
 volumes:
   chat_attachments: {}
   postgres_data: {}
@@ -147,6 +205,8 @@ volumes:
   benchmark_sidecar_socket: {}
   jenkins_home:
     name: jenkins_home
+  dind-storage:
+    name: dind-storage
   docker-certs-ca:
     name: docker-certs-ca
   docker-certs-client:
