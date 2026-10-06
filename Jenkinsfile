@@ -1,10 +1,10 @@
-```groovy
+
 pipeline {
     agent none
 
     stages {
 
-        stage('deploy/orin pipeline') {
+        stage('feature/jenkins-pipeline pipeline') {
             when {
                 branch 'feature/jenkins-pipeline'
             }
@@ -303,4 +303,3 @@ pipeline {
         }
     }
 }
-```
