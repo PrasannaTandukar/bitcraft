@@ -80,7 +80,7 @@ pipeline {
                     docker run --rm \
                         -v "$WORKSPACE/tutor-studio:/app" \
                         -w /app \
-                        node:20 \
+                        node:22 \
                         sh -c '
                             npm ci
                             npm audit --json > npm-audit-report.json || true
