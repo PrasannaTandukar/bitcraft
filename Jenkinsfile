@@ -78,6 +78,7 @@ pipeline {
                     echo "Running npm dependency scan..."
 
                     docker run --rm \
+                        --network host \
                         -v "$WORKSPACE/tutor-studio:/app" \
                         -w /app \
                         node:22 \
