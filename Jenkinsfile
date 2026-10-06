@@ -151,9 +151,10 @@ pipeline {
                         sh -c '
                             npm ci
                             mkdir -p test-results
-                            npx vitest run \
+                            TZ=Australia/Perth npx vitest run \
                                 --reporter=junit \
-                                --outputFile=test-results/junit.xml
+                                --outputFile=test-results/junit.xml \
+                                --maxWorkers=1
                         '
                 '''
             }
