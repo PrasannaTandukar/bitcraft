@@ -108,6 +108,7 @@ pipeline {
                     echo "Running .NET dependency scan..."
 
                     docker run --rm \
+                        --network host \
                         -v "$WORKSPACE:/src" \
                         -w /src \
                         mcr.microsoft.com/dotnet/sdk:10.0 \
@@ -146,6 +147,7 @@ pipeline {
                     echo "Running frontend tests..."
 
                     docker run --rm \
+                        --network host \
                         -v "$WORKSPACE/tutor-studio:/app" \
                         -w /app \
                         node:20 \
@@ -178,6 +180,7 @@ pipeline {
                     echo "Running backend tests..."
 
                     docker run --rm \
+                        --network host \
                         -v "$WORKSPACE:/src" \
                         -w /src \
                         mcr.microsoft.com/dotnet/sdk:10.0 \
