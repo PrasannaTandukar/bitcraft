@@ -1,0 +1,1 @@
+docker pull "$JD_TO_PULL"

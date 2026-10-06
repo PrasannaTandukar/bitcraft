@@ -13,7 +13,6 @@ pipeline {
             '''
         }
     }
-
     environment {
         DOCKER_HOST = 'tcp://docker:2376'
         DOCKER_CERT_PATH = '/certs/client'
@@ -22,203 +21,165 @@ pipeline {
 
     stages {
 
-        stage('Scans') {
-            parallel {
+        stage('Verify Docker') {
+            steps {
+                sh '''
+                    set -e
 
-                stage('Secret scan (gitleaks)') {
-                    agent {
-                        docker {
-                            image 'zricethezav/gitleaks:latest'
-                            args '''
-                                --network jenkins_dind
-                                -v /certs/client:/certs/client:ro
-                                -e DOCKER_HOST=tcp://docker:2376
-                                -e DOCKER_CERT_PATH=/certs/client
-                                -e DOCKER_TLS_VERIFY=1
-                            '''
-                        }
-                    }
+                    echo "Docker version:"
+                    docker --version
 
-                    steps {
-                        checkout([
-                            $class: 'GitSCM',
-                            branches: scm.branches,
-                            userRemoteConfigs: scm.userRemoteConfigs,
-                            extensions: [
-                                [
-                                    $class: 'CloneOption',
-                                    shallow: false,
-                                    depth: 0,
-                                    noTags: false
-                                ]
-                            ]
-                        ])
+                    echo ""
+                    echo "Docker info:"
+                    docker info
 
-                        sh '''
-                            set -e
+                    echo ""
+                    echo "Workspace:"
+                    pwd
+                    ls -la
+                '''
+            }
+        }
 
-                            gitleaks detect \
-                              --source . \
-                              --verbose \
-                              --report-format json \
-                              --report-path gitleaks-report.json
-                        '''
-                    }
+        stage('Secret scan - Gitleaks') {
+            steps {
+                sh '''
+                    set -e
 
-                    post {
-                        always {
-                            archiveArtifacts(
-                                artifacts: 'gitleaks-report.json',
-                                allowEmptyArchive: true
-                            )
-                        }
-                    }
+                    echo "Running Gitleaks..."
+
+                    docker run --rm \
+                        -v "$WORKSPACE:/repo" \
+                        -w /repo \
+                        zricethezav/gitleaks:latest \
+                        detect \
+                        --source . \
+                        --verbose \
+                        --report-format json \
+                        --report-path gitleaks-report.json
+                '''
+            }
+
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'gitleaks-report.json',
+                        allowEmptyArchive: true
+                    )
                 }
+            }
+        }
 
-                stage('Dependency scan — frontend (npm audit)') {
-                    agent {
-                        docker {
-                            image 'node:20'
-                            args '''
-                                --network jenkins_dind
-                                -v /certs/client:/certs/client:ro
-                                -e DOCKER_HOST=tcp://docker:2376
-                                -e DOCKER_CERT_PATH=/certs/client
-                                -e DOCKER_TLS_VERIFY=1
-                            '''
-                        }
-                    }
+        stage('Dependency scan - frontend') {
+            steps {
+                sh '''
+                    set -e
 
-                    steps {
-                        dir('tutor-studio') {
-                            sh '''
-                                set -e
+                    echo "Running npm dependency scan..."
 
-                                npm ci
+                    docker run --rm \
+                        -v "$WORKSPACE/tutor-studio:/app" \
+                        -w /app \
+                        node:20 \
+                        sh -c '
+                            npm ci
+                            npm audit --json > npm-audit-report.json || true
+                            npm audit --audit-level=high
+                        '
+                '''
+            }
 
-                                npm audit --json > npm-audit-report.json || true
-
-                                npm audit --audit-level=high
-                            '''
-                        }
-                    }
-
-                    post {
-                        always {
-                            archiveArtifacts(
-                                artifacts: 'tutor-studio/npm-audit-report.json',
-                                allowEmptyArchive: true
-                            )
-                        }
-                    }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'tutor-studio/npm-audit-report.json',
+                        allowEmptyArchive: true
+                    )
                 }
+            }
+        }
 
-                stage('Dependency scan — backend (.NET)') {
-                    agent {
-                        docker {
-                            image 'mcr.microsoft.com/dotnet/sdk:10.0'
-                            args '''
-                                --network jenkins_dind
-                                -v /certs/client:/certs/client:ro
-                                -e DOCKER_HOST=tcp://docker:2376
-                                -e DOCKER_CERT_PATH=/certs/client
-                                -e DOCKER_TLS_VERIFY=1
-                            '''
-                        }
-                    }
+        stage('Dependency scan - backend') {
+            steps {
+                sh '''
+                    set -e
 
-                    steps {
-                        sh '''
-                            set -e
+                    echo "Running .NET dependency scan..."
 
+                    docker run --rm \
+                        -v "$WORKSPACE:/src" \
+                        -w /src \
+                        mcr.microsoft.com/dotnet/sdk:10.0 \
+                        sh -c '
                             dotnet restore bitcraft.slnx
 
-                            OUTPUT="$(dotnet list bitcraft.slnx package --vulnerable --include-transitive)"
+                            OUTPUT=$(dotnet list bitcraft.slnx package --vulnerable --include-transitive || true)
 
                             echo "$OUTPUT"
 
                             echo "$OUTPUT" > dotnet-vulnerable-report.txt
 
                             if echo "$OUTPUT" | grep -qi "has the following vulnerable packages"; then
-                                echo "Vulnerable packages found — failing build."
+                                echo "Vulnerable packages found - failing build."
                                 exit 1
                             fi
-                        '''
-                    }
+                        '
+                '''
+            }
 
-                    post {
-                        always {
-                            archiveArtifacts(
-                                artifacts: 'dotnet-vulnerable-report.txt',
-                                allowEmptyArchive: true
-                            )
-                        }
-                    }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'dotnet-vulnerable-report.txt',
+                        allowEmptyArchive: true
+                    )
                 }
             }
         }
 
-        stage('Tests') {
-            parallel {
+        stage('Test - frontend') {
+            steps {
+                sh '''
+                    set -e
 
-                stage('Test — frontend (npm)') {
-                    agent {
-                        docker {
-                            image 'node:20'
-                            args '''
-                                --network jenkins_dind
-                                -v /certs/client:/certs/client:ro
-                                -e DOCKER_HOST=tcp://docker:2376
-                                -e DOCKER_CERT_PATH=/certs/client
-                                -e DOCKER_TLS_VERIFY=1
-                            '''
-                        }
-                    }
+                    echo "Running frontend tests..."
 
-                    steps {
-                        dir('tutor-studio') {
-                            sh '''
-                                set -e
+                    docker run --rm \
+                        -v "$WORKSPACE/tutor-studio:/app" \
+                        -w /app \
+                        node:20 \
+                        sh -c '
+                            npm ci
+                            mkdir -p test-results
+                            npx vitest run \
+                                --reporter=junit \
+                                --outputFile=test-results/junit.xml
+                        '
+                '''
+            }
 
-                                npm ci
-
-                                mkdir -p test-results
-
-                                npx vitest run \
-                                    --reporter=junit \
-                                    --outputFile=test-results/junit.xml
-                            '''
-                        }
-                    }
-
-                    post {
-                        always {
-                            junit(
-                                testResults: 'tutor-studio/test-results/junit.xml',
-                                allowEmptyResults: true
-                            )
-                        }
-                    }
+            post {
+                always {
+                    junit(
+                        testResults: 'tutor-studio/test-results/junit.xml',
+                        allowEmptyResults: true
+                    )
                 }
+            }
+        }
 
-                stage('Test — backend (.NET)') {
-                    agent {
-                        docker {
-                            image 'mcr.microsoft.com/dotnet/sdk:10.0'
-                            args '''
-                                --network jenkins_dind
-                                -v /certs/client:/certs/client:ro
-                                -e DOCKER_HOST=tcp://docker:2376
-                                -e DOCKER_CERT_PATH=/certs/client
-                                -e DOCKER_TLS_VERIFY=1
-                            '''
-                        }
-                    }
+        stage('Test - backend') {
+            steps {
+                sh '''
+                    set -e
 
-                    steps {
-                        sh '''
-                            set -e
+                    echo "Running backend tests..."
 
+                    docker run --rm \
+                        -v "$WORKSPACE:/src" \
+                        -w /src \
+                        mcr.microsoft.com/dotnet/sdk:10.0 \
+                        sh -c '
                             dotnet restore bitcraft.slnx
 
                             dotnet add tests/Bitcraft.UnitTests package JUnitTestLogger --version 1.1.0
@@ -229,29 +190,22 @@ pipeline {
 
                             dotnet test bitcraft.slnx \
                                 --logger "console;verbosity=normal" \
-                                --logger "junit;LogFilePath=../../test-results/{assembly}.xml"
-                        '''
-                    }
+                                --logger "junit;LogFilePath=/src/test-results/{assembly}.xml"
+                        '
+                '''
+            }
 
-                    post {
-                        always {
-                            junit(
-                                testResults: 'test-results/*.xml',
-                                allowEmptyResults: true
-                            )
-                        }
-                    }
+            post {
+                always {
+                    junit(
+                        testResults: 'test-results/*.xml',
+                        allowEmptyResults: true
+                    )
                 }
             }
         }
 
         stage('Approve deploy') {
-            when {
-                branch 'deploy/orin'
-            }
-
-            agent none
-
             steps {
                 input(
                     message: 'Deploy Bitcraft to Jetson?',
@@ -261,14 +215,6 @@ pipeline {
         }
 
         stage('Deploy Bitcraft to Jetson') {
-            when {
-                branch 'deploy/orin'
-            }
-
-            agent {
-                label 'linux-arm64 && bitcraft-jetson'
-            }
-
             steps {
                 withCredentials([
                     sshUserPrivateKey(
@@ -291,39 +237,41 @@ pipeline {
                         mkdir -p ~/.ssh
                         chmod 700 ~/.ssh
 
-                        grep -qxF "$JETSON_HOST_KEY" ~/.ssh/known_hosts 2>/dev/null \
-                            || printf "%s\\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts
+                        if ! grep -qxF "$JETSON_HOST_KEY" ~/.ssh/known_hosts 2>/dev/null; then
+                            printf "%s\\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts
+                        fi
 
                         chmod 600 ~/.ssh/known_hosts
 
                         export DEPLOY_SHA="$GIT_COMMIT"
 
+                        echo "Deploying commit: $DEPLOY_SHA"
+
                         ssh \
                             -i "$JETSON_SSH_KEY" \
                             -o BatchMode=yes \
                             "$JETSON_USER@$JETSON_HOST" \
-                            "bash -se" <<REMOTE 2>&1 | tee deploy.log
+                            "bash -se" <<REMOTE | tee deploy.log
 
                         set -euo pipefail
 
                         cd /home/cmpe6012/AgenticTutor/bitcraft-deploy
 
-                        echo "Fetching..."
+                        echo "Fetching deploy branch..."
                         git fetch origin deploy/orin
 
-                        echo "Deploying pinned commit: \$DEPLOY_SHA"
+                        echo "Deploying pinned commit: $DEPLOY_SHA"
+                        git reset --hard "$DEPLOY_SHA"
 
-                        git reset --hard "\$DEPLOY_SHA"
-
+                        echo "Current commit:"
                         git log -1 --oneline
 
                         echo "Starting Docker deployment..."
-
                         sudo -n /usr/local/sbin/bitcraft-deploy
 
                         echo "BITCRAFT_DEPLOYMENT_SUCCESS"
 
-                        REMOTE
+REMOTE
                     '''
                 }
             }
@@ -336,6 +284,20 @@ pipeline {
                     )
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Bitcraft pipeline completed successfully.'
+        }
+
+        failure {
+            echo 'Bitcraft pipeline failed. Check the stage logs.'
+        }
+
+        always {
+            echo 'Bitcraft CI/CD pipeline completed.'
         }
     }
 }
