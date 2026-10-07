@@ -154,6 +154,7 @@ pipeline {
                         sh -c '
                             npm ci
                             mkdir -p test-results
+                            npx vitest run tests/DocumentCreateDialog.test.tsx --reporter=verbose
                             TZ=Australia/Perth npx vitest run \
                                 --reporter=default \
                                 --outputFile=test-results/junit.xml \
