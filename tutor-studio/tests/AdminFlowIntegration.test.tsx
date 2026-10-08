@@ -328,6 +328,7 @@ describe("Admin integration workflow", () => {
           json: expect.objectContaining({
             providerType: 0,
             endpoint: "http://localhost:11434",
+            runtimeEngineId: "engine-1",
           }),
         }),
       );
@@ -463,6 +464,7 @@ describe("Admin integration workflow", () => {
           json: expect.objectContaining({
             providerType: 0,
             endpoint: "http://localhost:11434",
+            runtimeEngineId: "engine-1",
           }),
         }),
       );
@@ -540,5 +542,91 @@ describe("Admin integration workflow", () => {
           options?.method === "POST",
       ),
     ).toBe(true);
+  });
+
+  it("shows Configured tag and allows clearing stored API key on edit", async () => {
+    const user = userEvent.setup();
+
+    const keyedEngine = {
+      id: "engine-keyed",
+      name: "Keyed OpenAI",
+      providerType: 1,
+      endpoint: "https://api.openai.com/v1",
+      hasApiKey: true,
+      isEnabled: true,
+    };
+
+    mockedApiFetch.mockImplementation(async (path, options = {}) => {
+      if (
+        path === "/api/admin/runtime-engines" &&
+        (!options.method || options.method === "GET")
+      ) {
+        return [keyedEngine];
+      }
+
+      if (
+        path === "/api/admin/runtime-engines/engine-keyed" &&
+        options.method === "PUT"
+      ) {
+        return {
+          ...keyedEngine,
+          hasApiKey: false,
+        };
+      }
+
+      throw new Error(
+        `Unexpected apiFetch call: ${path} ${options.method ?? "GET"}`,
+      );
+    });
+
+    render(<RuntimeEnginesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Keyed OpenAI")).toBeInTheDocument();
+      expect(screen.getByText("Configured")).toBeInTheDocument();
+    });
+
+    const editBtn = screen.getByRole("button", { name: "Edit engine" });
+    await user.click(editBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog"),
+      ).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Configured");
+
+    const clearSwitch = screen.getByRole("switch", {
+      name: /clear stored key/i,
+    });
+    expect(clearSwitch).toBeInTheDocument();
+    expect(clearSwitch).not.toBeChecked();
+
+    await user.click(clearSwitch);
+    expect(clearSwitch).toBeChecked();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /save engine/i,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockedApiFetch).toHaveBeenCalledWith(
+        "/api/admin/runtime-engines/engine-keyed",
+        expect.objectContaining({
+          method: "PUT",
+          json: expect.objectContaining({
+            name: "Keyed OpenAI",
+            providerType: 1,
+            endpoint: "https://api.openai.com/v1",
+            clearApiKey: true,
+            isEnabled: true,
+          }),
+        }),
+      );
+    });
   });
 });

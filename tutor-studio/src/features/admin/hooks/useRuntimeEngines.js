@@ -78,6 +78,7 @@ export default function useRuntimeEngines(form) {
         providerType: engine.providerType,
         endpoint: engine.endpoint,
         apiKey: undefined,
+        clearApiKey: false,
         isEnabled: engine.isEnabled,
       });
       setOpen(true);

@@ -183,12 +183,22 @@ export default function RuntimeEnginesPage() {
             <Input placeholder="http://localhost:8080/v1" />
           </Form.Item>
           <Form.Item
-            label="API key"
+            label={
+              <Space>
+                <span>API key</span>
+                {editingEngine?.hasApiKey ? <Tag color="blue">Configured</Tag> : null}
+              </Space>
+            }
             name="apiKey"
             extra="Leave empty to keep the stored key when editing. Stored as a raw value at rest; optional for local Llama.CPP/Ollama."
           >
             <Input placeholder="sk-..." />
           </Form.Item>
+          {editingEngine?.hasApiKey ? (
+            <Form.Item label="Clear stored key" name="clearApiKey" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          ) : null}
           <Form.Item label="Enabled" name="isEnabled" valuePropName="checked"><Switch /></Form.Item>
         </Form>
       </Drawer>

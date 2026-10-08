@@ -91,6 +91,7 @@ export default function useModelCatalog(kind, form) {
             providerType: Number(engine.providerType ?? 0),
             endpoint: engine.endpoint.trim(),
             apiKey: engine.apiKey?.trim() || null,
+            runtimeEngineId: engine.id,
           },
         });
 
