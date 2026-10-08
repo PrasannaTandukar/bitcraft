@@ -101,6 +101,44 @@ public class TutorKnowledgeSourcesController(ISender sender) : ControllerBase
             : TutoringMapping.ToActionResult(result.Error);
     }
 
+    [HttpGet("~/api/tutors/{tutorId:guid}/knowledge-overview")]
+    [ProducesResponseType(typeof(TutorKnowledgeOverviewResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TutorKnowledgeOverviewResponse>> GetOverview(
+        Guid tutorId,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new KnowledgeSourceFeatures.GetTutorKnowledgeOverviewQuery(tutorId), cancellationToken);
+        if (result.IsFailure) return TutoringMapping.ToActionResult(result.Error);
+
+        var value = result.Value;
+        return Ok(new TutorKnowledgeOverviewResponse(
+            value.DirectDocuments.Select(document => document.ToResponse()).ToList(),
+            value.Folders.Select(folder => new TutorKnowledgeFolderResponse(
+                folder.LinkId, folder.TutorId, folder.FolderId, folder.FolderName)).ToList(),
+            value.EffectiveDocuments.Select(document => new TutorKnowledgeEffectiveDocumentResponse(
+                document.DocumentId,
+                document.DocumentName,
+                document.AttachedThrough,
+                document.ReadinessStatus,
+                document.IsVectorized,
+                document.IsStale,
+                document.ChunkCount,
+                document.EmbeddingModelId,
+                document.EmbeddingModelName,
+                document.ProviderModelName,
+                document.EmbeddingDimensions,
+                document.ReadyForSnapshot,
+                document.Reason)).ToList(),
+            value.EffectiveDocumentCount,
+            value.ActiveRevisionNumber,
+            value.ActiveSnapshotId,
+            value.ActiveSnapshotMatchesCurrentKnowledge,
+            value.QueryEmbeddingModelId,
+            value.QueryEmbeddingModelName,
+            value.QueryProviderModelName,
+            value.QueryEmbeddingDimensions));
+    }
+
     [HttpPost("~/api/tutors/{tutorId:guid}/document-folders")]
     [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
     [ProducesResponseType(typeof(TutorKnowledgeFolderResponse), StatusCodes.Status201Created)]

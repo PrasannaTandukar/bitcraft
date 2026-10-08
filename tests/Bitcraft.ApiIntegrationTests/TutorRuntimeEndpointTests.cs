@@ -64,6 +64,22 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         var stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>(
             $"/api/runtime/tutors/{tutor.Slug}/conversations/{conversation.Id}");
         Assert.Equal(new[] { "user", "assistant" }, stored!.Messages.Select(value => value.Role));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var durable = await scope.ServiceProvider.GetRequiredService<ITutorConversationRepository>()
+                .GetAsync(conversation.Id, owner, tutor.TutorId, default);
+            var provenance = durable!.Messages.Single(value => value.Role == "assistant").Provenance!;
+            Assert.Equal(tutor.SnapshotId, provenance.TutorConfigurationSnapshotId);
+            Assert.Equal(tutor.RevisionId, provenance.TutorRevisionId);
+            var source = Assert.Single(completed.Message!.Sources);
+            var evidence = Assert.Single(provenance.KnowledgeEvidence);
+            Assert.Equal(source.ChunkId, evidence.DocumentChunkId);
+            Assert.Equal(source.DocumentId, evidence.DocumentId);
+            Assert.Equal(source.DocumentName, evidence.DocumentName);
+            Assert.Equal("Bounded source content.", evidence.ContentExcerpt);
+            Assert.Equal(source.Score, evidence.CosineSimilarity);
+            Assert.Equal(1, evidence.RetrievalRank);
+        }
 
         using var followUp = new HttpRequestMessage(HttpMethod.Post,
             $"/api/runtime/tutors/{tutor.Slug}/ask/stream")
@@ -304,6 +320,18 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.Equal(tutor.RevisionId, pinned.Revision.Id);
         using var fresh = await client.PostAsJsonAsync(path, new AskTutorRuntimeRequest("New conversation"));
         Assert.Equal(newSnapshotId, (await fresh.Content.ReadFromJsonAsync<TutorRuntimeAskResponse>())!.SnapshotId);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var durable = await scope.ServiceProvider.GetRequiredService<ITutorConversationRepository>()
+                .GetAsync(response.ConversationId!.Value, owner, tutor.TutorId, default);
+            Assert.All(durable!.Messages.Where(value => value.Role == "assistant"), message =>
+            {
+                Assert.NotNull(message.Provenance);
+                Assert.Equal(tutor.SnapshotId, message.Provenance.TutorConfigurationSnapshotId);
+                Assert.Equal(tutor.RevisionId, message.Provenance.TutorRevisionId);
+                Assert.Equal(response.Model.Id, message.Provenance.InteractionModelId);
+            });
+        }
     }
 
     [Fact]
@@ -348,8 +376,8 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         var repo2 = scope2.ServiceProvider.GetRequiredService<ITutorConversationRepository>();
         var first = (await repo1.GetAsync(id, owner, tutor.TutorId, default))!;
         var second = (await repo2.GetAsync(id, owner, tutor.TutorId, default))!;
-        first.CompleteTurn("{}", "winner", null, "answer", "model", "Ollama");
-        second.CompleteTurn("{}", "stale", null, "answer", "model", "Ollama");
+        first.CompleteTurn("{}", "winner", null, "answer", "model", "Ollama", null);
+        second.CompleteTurn("{}", "stale", null, "answer", "model", "Ollama", null);
         Assert.True(await repo1.SaveAsync(first, default));
         Assert.False(await repo2.SaveAsync(second, default));
         using var scope3 = factory.Services.CreateScope();
@@ -384,6 +412,11 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
             Assert.Equal("TutorConversation.Conflict", (await conflict.Content.ReadFromJsonAsync<ApiError>())!.Code);
             var stored = await client.GetFromJsonAsync<Bitcraft.Api.Contracts.Tutoring.TutorConversationResponse>($"/api/runtime/tutors/{tutor.Slug}/conversations/{id}");
             Assert.Equal(2, stored!.Messages.Count);
+            using var scope = factory.Services.CreateScope();
+            var durable = await scope.ServiceProvider.GetRequiredService<ITutorConversationRepository>().GetAsync(id, owner, tutor.TutorId, default);
+            var completedMessage = Assert.Single(durable!.Messages, message => message.Provenance is not null);
+            Assert.Equal("assistant", completedMessage.Role);
+            Assert.Equal(tutor.SnapshotId, completedMessage.Provenance!.TutorConfigurationSnapshotId);
             foreach (var response in responses) response.Dispose();
         }
         finally { recorder.BeforeExecuteAsync = null; }
@@ -503,7 +536,10 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.DoesNotContain("modelSettings", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("effectiveDocumentIds", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("embedding\"", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Bounded source content", json, StringComparison.Ordinal);
+        Assert.NotNull(result.Provenance);
+        Assert.Equal("Bounded source content.", Assert.Single(result.Provenance.Knowledge.RetrievedChunks).Excerpt);
+        using var responseBody = JsonDocument.Parse(json);
+        Assert.DoesNotContain("Bounded source content", responseBody.RootElement.GetProperty("sources").GetRawText(), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -699,6 +735,8 @@ public sealed partial class TutorRuntimeEndpointTests(BitcraftApiFactory factory
         Assert.Equal(image.Width, decoded.Width);
         var descriptors = await client.GetFromJsonAsync<List<TutorRuntimeDescriptorResponse>>("/api/runtime/tutors");
         Assert.True(Assert.Single(descriptors!, value => value.TutorId == tutor.TutorId).Model.SupportsImageInput);
+        var readiness = await client.GetFromJsonAsync<List<TutorRuntimeReadinessResponse>>("/api/runtime/tutors/readiness");
+        Assert.True(Assert.Single(readiness!, value => value.TutorId == tutor.TutorId).IsChatReady);
         ClearProviderRequests();
         var request = new AskTutorRuntimeRequest("Why does this circuit fail?", AttachmentIds: [image.Id]);
         using var answer = await client.PostAsJsonAsync($"/api/runtime/tutors/{tutor.Slug}/ask", request);

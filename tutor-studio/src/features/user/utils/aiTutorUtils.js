@@ -41,6 +41,3 @@ export function getTutorRuntimeError(error) {
     "The tutor could not answer right now. Please try again.",
   );
 }
-
-export const sourcePercent = (score) =>
-  `${Math.round(Math.max(0, Math.min(1, score)) * 100)}%`;

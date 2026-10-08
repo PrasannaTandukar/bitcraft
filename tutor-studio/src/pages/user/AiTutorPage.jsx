@@ -1,10 +1,10 @@
-import { MessageOutlined, PlusOutlined } from "@ant-design/icons";
-import { Alert, App, Button, Drawer, Empty, Spin, Typography } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import { Alert, App, Button, Drawer, Spin, Typography } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PageHeader from "../../components/PageHeader.jsx";
-import { streamRuntimeTutor, listRuntimeTutors, listTutorConversations, createTutorConversation, getTutorConversation, deleteTutorConversation } from "../../features/user/utils/aiTutorApi.js";
+import { streamRuntimeTutor, listRuntimeTutors, listRuntimeTutorReadiness, listTutorConversations, createTutorConversation, getTutorConversation, deleteTutorConversation } from "../../features/user/utils/aiTutorApi.js";
 import { getTutorRuntimeError } from "../../features/user/utils/aiTutorUtils.js";
 import ChatComposer from "../../features/user/components/ChatComposer.jsx";
 import ChatMessage from "../../features/user/components/ChatMessage.jsx";
@@ -13,6 +13,7 @@ import ConversationHeader from "../../features/user/components/ConversationHeade
 import ConversationHistoryPanel from "../../features/user/components/ConversationHistoryPanel.jsx";
 import TutorRuntimeHeader from "../../features/user/components/TutorRuntimeHeader.jsx";
 import TutorSelector from "../../features/user/components/TutorSelector.jsx";
+import RuntimeTutorEmptyState from "../../features/user/components/RuntimeTutorEmptyState.jsx";
 import "../../styles/AiTutor.css";
 
 const welcomeMessage = (tutor) => tutor ? [{
@@ -30,6 +31,7 @@ export default function AiTutorPage() {
   const { roles = [] } = useSelector((state) => state.auth);
   const canManage = roles.includes("Editor") || roles.includes("Admin");
   const [tutors, setTutors] = useState([]);
+  const [tutorReadiness, setTutorReadiness] = useState([]);
   const [selectedTutorId, setSelectedTutorId] = useState("");
   const [conversations, setConversations] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -60,9 +62,10 @@ export default function AiTutorPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    listRuntimeTutors(controller.signal)
-      .then((loaded) => {
+    Promise.all([listRuntimeTutors(controller.signal), listRuntimeTutorReadiness(controller.signal)])
+      .then(([loaded, readiness]) => {
         const values = loaded ?? [];
+        setTutorReadiness(readiness ?? []);
         setTutors(values);
         const requestedTutorId = searchParams.get("tutorId");
         const requested = requestedTutorId ? values.find((tutor) => tutor.tutorId === requestedTutorId) || null : null;
@@ -248,6 +251,10 @@ export default function AiTutorPage() {
           }));
         } else if (type === "message.completed") {
           completedResponse = event.message;
+          if (completedResponse) setMessages((current) => current.map((message) => message.id === assistantMessage.id
+            ? { ...message, content: completedResponse.answer, streaming: false, local: false,
+              provenance: completedResponse.provenance ?? null, sources: completedResponse.sources,
+              toolActivities: completedResponse.toolActivities } : message));
         }
       });
     })
@@ -256,9 +263,16 @@ export default function AiTutorPage() {
         const stored = await getTutorConversation(slug, completedResponse.conversationId, controller.signal);
         const listed = await listTutorConversations(slug, controller.signal);
         if (!controller.signal.aborted) {
+          // A different tab may already have appended another turn. Keep completion metadata
+          // on this answer only; saved history remains authoritative for every other message.
+          const previousIds = new Set(messages.map((message) => message.id));
+          const completedAssistant = stored.messages.find((message) => !previousIds.has(message.id)
+            && message.role === "assistant" && message.content === completedResponse.answer
+            && (!completedResponse.provenance || message.provenance?.capturedUtc === completedResponse.provenance.capturedUtc));
           displayConversation(stored);
-          setMessages((current) => current.map((message, index) => index === current.length - 1
-            ? { ...message, sources: completedResponse.sources, toolActivities: completedResponse.toolActivities }
+          setMessages((current) => current.map((message) => message.id === completedAssistant?.id
+            ? { ...message, sources: completedResponse.sources, toolActivities: completedResponse.toolActivities,
+              renderKey: assistantMessage.id }
             : message));
           setConversations(listed);
         }
@@ -300,13 +314,15 @@ export default function AiTutorPage() {
         {loadError ? <Alert type="error" title="Tutor chat" description={loadError} showIcon /> : null}
         {loadingTutors ? <div className="workspace-loading"><Spin size="large" description="Loading active tutors" /></div> : null}
         {!loadingTutors && !loadError && !tutors.length && !requestedTutorUnavailable ? (
-          <Empty image={<MessageOutlined className="runtime-empty-icon" />} description="No tutors are ready for chat">
-            <Typography.Paragraph type="secondary">Activate a revision with a prompt, interaction model, and configuration snapshot first.</Typography.Paragraph>
-            {canManage ? <Button type="primary" onClick={() => navigate("/tutors")}>Configure tutors</Button> : null}
-          </Empty>
+          <RuntimeTutorEmptyState readiness={tutorReadiness} canManage={canManage} onConfigure={(tutorId, tab) => navigate(tutorId ? `/tutors/${tutorId}?tab=${tab}` : "/tutors")} />
         ) : null}
         {!loadingTutors && !loadError && requestedTutorUnavailable ? (
-          <Alert type="warning" title="This tutor is not ready for chat" description="Activate a valid revision with its configuration snapshot before trying again." action={canManage ? <Button size="small" onClick={() => navigate(`/tutors/${requestedTutorUnavailable}?tab=revisions`)}>Configure tutor</Button> : null} showIcon />
+          (() => {
+            const readiness = tutorReadiness.find((item) => item.tutorId === requestedTutorUnavailable);
+            const reason = readiness?.reasons?.[0];
+            const tab = reason?.code === "KnowledgeNotVectorized" || reason?.code?.startsWith("KnowledgeEmbedding") ? "knowledge" : "revisions";
+            return <Alert type="warning" title="This tutor is not ready for chat" description={reason?.message || "This tutor is not available for chat."} action={canManage ? <Button size="small" onClick={() => navigate(`/tutors/${requestedTutorUnavailable}?tab=${tab}`)}>Configure tutor</Button> : null} showIcon />;
+          })()
         ) : null}
 
         {!loadingTutors && tutors.length ? (
@@ -323,7 +339,7 @@ export default function AiTutorPage() {
                   onOpenHistory={() => setHistoryDrawerOpen(true)} onOpenSettings={() => setSettingsDrawerOpen(true)} />
                 <div className="runtime-messages">
                   {loadingConversation ? <div className="runtime-conversation-loading"><Spin size="small" /> <Typography.Text type="secondary">Loading conversation</Typography.Text></div> : messages.map((message) => <ChatMessage
-                      key={message.id}
+                      key={message.renderKey ?? message.id}
                       message={message}
                       tutorName={selectedTutor?.tutorName || "Tutor"}
                       showSources={showSources}

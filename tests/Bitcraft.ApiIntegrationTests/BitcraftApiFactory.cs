@@ -57,16 +57,21 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
-            if (SessionTestPostgres is not null)
+            // Keep each host's Npgsql data source/type cache separate. The opt-in legacy
+            // migration test recreates its disposable database (including vector type OIDs).
+            var postgresConnection = SessionTestPostgres is null ? null :
+                new Npgsql.NpgsqlConnectionStringBuilder(SessionTestPostgres) { ApplicationName = databaseName }.ConnectionString;
+            if (postgresConnection is not null)
             {
                 // Opt-in only: callers must supply a disposable test database.
                 using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-                    .UseNpgsql(SessionTestPostgres, provider => provider.UseVector()).Options);
+                    .UseNpgsql(postgresConnection, provider => provider.UseVector()).Options);
                 db.Database.Migrate();
             }
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll<AppDbContext>();
             services.RemoveAll<IDocumentVectorizationReader>();
+            services.RemoveAll<IRevisionEffectiveSetReader>();
             services.RemoveAll<IRuntimeModelDiagnostic>();
             services.RemoveAll<ITutorAgentExecutor>();
             services.RemoveAll<IRuntimeChatClientFactory>();
@@ -78,9 +83,9 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             {
                 var options = new DbContextOptionsBuilder<AppDbContext>()
                     .AddInterceptors(serviceProvider.GetRequiredService<EntitySaveChangesInterceptor>());
-                if (SessionTestPostgres is not null)
+                if (postgresConnection is not null)
                 {
-                    options.UseNpgsql(SessionTestPostgres, provider => provider.UseVector());
+                    options.UseNpgsql(postgresConnection, provider => provider.UseVector());
                     return UseLegacySessionJsonb ? new LegacySessionAppDbContext(options.Options) : new AppDbContext(options.Options);
                 }
                 options.UseInMemoryDatabase(databaseName, databaseRoot);
@@ -89,6 +94,7 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<TestDocumentVectorizationReader>();
             services.AddSingleton<IDocumentVectorizationReader>(serviceProvider =>
                 serviceProvider.GetRequiredService<TestDocumentVectorizationReader>());
+            services.AddScoped<IRevisionEffectiveSetReader, TestRevisionEffectiveSetReader>();
             services.AddSingleton<TestRuntimeModelDiagnostic>();
             services.AddSingleton<IRuntimeModelDiagnostic>(provider =>
                 provider.GetRequiredService<TestRuntimeModelDiagnostic>());
@@ -185,7 +191,15 @@ internal sealed class TestTutorAgentExecutor(TutorAgentExecutor executor, TestTu
 
 internal sealed class TestRuntimeChatClientFactory : IRuntimeChatClientFactory
 {
-    public Result<IChatClient> Create(TutorAgentModelConfiguration model) => Result.Success<IChatClient>(new TestChatClient());
+    public ConcurrentDictionary<Guid, ProvenanceTestChatClient> ProvenanceClients { get; } = new();
+    public Result<IChatClient> Create(TutorAgentModelConfiguration model)
+    {
+        if (!model.ProviderModelName.StartsWith("provenance-", StringComparison.Ordinal))
+            return Result.Success<IChatClient>(new TestChatClient());
+        var client = new ProvenanceTestChatClient(model.ProviderModelName);
+        ProvenanceClients[model.ModelId] = client;
+        return Result.Success<IChatClient>(client);
+    }
 
     private sealed class TestChatClient : IChatClient
     {
@@ -232,6 +246,7 @@ internal sealed class TestEmbeddingProvider : IEmbeddingProvider
 internal sealed class TestKnowledgeRetriever : IKnowledgeRetriever
 {
     public ConcurrentQueue<KnowledgeSearchRequest> Requests { get; } = new();
+    public ConcurrentDictionary<Guid, IReadOnlyList<KnowledgeChunk>> DocumentChunks { get; } = new();
 
     public Task<List<KnowledgeChunk>> SearchNearestChunksAsync(
         IReadOnlyCollection<Guid> documentIds,
@@ -247,6 +262,9 @@ internal sealed class TestKnowledgeRetriever : IKnowledgeRetriever
         CancellationToken cancellationToken = default)
     {
         Requests.Enqueue(request);
+        if (request.DocumentIds.Any(DocumentChunks.ContainsKey))
+            return Task.FromResult(request.DocumentIds.SelectMany(id => DocumentChunks.GetValueOrDefault(id) ?? [])
+                .Take(request.TopK).ToList());
         var chunks = request.DocumentIds
             .Take(request.TopK)
             .Select((documentId, index) => new KnowledgeChunk
@@ -291,6 +309,50 @@ internal sealed class TestDocumentVectorizationReader : IDocumentVectorizationRe
         CancellationToken cancellationToken = default) => Task.FromResult(
         Metadata.GetValueOrDefault(documentId) ??
         new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null));
+
+    public Task<IReadOnlyDictionary<Guid, DocumentVectorizationMetadata>> GetMetadataAsync(
+        IReadOnlyCollection<Guid> documentIds,
+        CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyDictionary<Guid, DocumentVectorizationMetadata>>(
+        documentIds.Distinct().ToDictionary(id => id, id => Metadata.GetValueOrDefault(id) ??
+            new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null)));
+}
+
+internal sealed class TestRevisionEffectiveSetReader(
+    AppDbContext db,
+    IDocumentVectorizationReader vectorization) : IRevisionEffectiveSetReader
+{
+    public async Task<EffectiveDocumentSet> GetEffectiveSetAsync(
+        Guid tutorId,
+        CancellationToken cancellationToken = default,
+        Guid? queryEmbeddingModelId = null)
+    {
+        var ids = await db.TutorDocuments.Where(link => link.TutorId == tutorId).Select(link => link.DocumentId).ToListAsync(cancellationToken);
+        ids.AddRange(await db.TutorKnowledgeSources.Where(link => link.TutorId == tutorId).Select(link => link.DocumentId).ToListAsync(cancellationToken));
+        var folderIds = await db.TutorDocumentFolders.Where(link => link.TutorId == tutorId).Select(link => link.DocumentFolderId).ToListAsync(cancellationToken);
+        if (folderIds.Count > 0)
+        {
+            var folders = await db.DocumentFolders.Select(folder => new { folder.Id, folder.ParentFolderId }).ToListAsync(cancellationToken);
+            var allFolderIds = folderIds.ToHashSet();
+            var expanded = true;
+            while (expanded)
+            {
+                expanded = false;
+                foreach (var folder in folders.Where(folder => folder.ParentFolderId.HasValue && allFolderIds.Contains(folder.ParentFolderId.Value)))
+                    expanded |= allFolderIds.Add(folder.Id);
+            }
+            ids.AddRange(await db.Documents.Where(document => document.FolderId.HasValue && allFolderIds.Contains(document.FolderId.Value))
+                .Select(document => document.Id).ToListAsync(cancellationToken));
+        }
+        var distinctIds = ids.Distinct().Order().ToList();
+        var bindings = new List<EffectiveKnowledgeBinding>();
+        foreach (var id in distinctIds)
+        {
+            var metadata = await vectorization.GetMetadataAsync(id, cancellationToken);
+            if (metadata.EmbeddingModelId is { } modelId && metadata.EmbeddingDimensions is { } dimensions)
+                bindings.Add(new EffectiveKnowledgeBinding(id, modelId, dimensions, metadata.ProviderModelName));
+        }
+        return new EffectiveDocumentSet(distinctIds, bindings);
+    }
 }
 
 internal sealed class TestAppDbContext(DbContextOptions<AppDbContext> options) : AppDbContext(options)

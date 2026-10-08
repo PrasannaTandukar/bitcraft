@@ -4,6 +4,7 @@ using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Contracts.Knowledge;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Application.Features.Documents;
 using Bitcraft.Application.Features.Benchmarking;
 using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Application.Features.Tutoring;
@@ -78,7 +79,36 @@ internal static class TutoringMapping
         document.CreatedUtc,
         document.CreatedById,
         document.ModifiedUtc,
-        document.ModifiedById);
+        document.ModifiedById,
+        null);
+
+    public static DocumentSummaryResponse ToSummaryResponse(this DocumentFeatures.DocumentListItem item)
+    {
+        var document = item.Document;
+        var metadata = item.Vectorization;
+        return new DocumentSummaryResponse(
+            document.Id,
+            document.Name,
+            document.SourcePath,
+            document.MimeType,
+            document.FolderId,
+            !string.IsNullOrWhiteSpace(document.RawText),
+            document.RawText?.Length ?? 0,
+            document.CreatedUtc,
+            document.CreatedById,
+            document.ModifiedUtc,
+            document.ModifiedById,
+            metadata is null ? null : new DocumentVectorizationMetadataResponse(
+                metadata.IsVectorized,
+                metadata.IsStale,
+                metadata.ChunkCount,
+                metadata.LastVectorizedUtc,
+                metadata.EmbeddingModelId,
+                metadata.EmbeddingModelName,
+                metadata.ProviderModelName,
+                metadata.EmbeddingProvider,
+                metadata.EmbeddingDimensions));
+    }
 
     public static DocumentDetailResponse ToDetailResponse(this Document document) => new(
         document.Id,
@@ -147,7 +177,21 @@ internal static class TutoringMapping
         MemorySaved: result.MemorySaved,
         ToolActivities: (result.ToolActivities ?? []).Select(activity => new TutorToolCallActivityResponse(
             activity.ToolName, activity.StartedUtc, activity.CompletedUtc, activity.Status.ToString(),
-            activity.DurationMs, activity.ResultSummary, activity.ErrorCategory)).ToList());
+            activity.DurationMs, activity.ResultSummary, activity.ErrorCategory)).ToList())
+    { Provenance = result.Provenance?.ToResponse() };
+
+    public static Bitcraft.Api.Contracts.Tutoring.TutorMessageProvenanceResponse ToResponse(
+        this Bitcraft.Application.Common.Models.TutorMessageProvenanceResponse value) => new(
+        new(value.Knowledge.RetrievedChunkCount, value.Knowledge.RetrievedChunks.Select(chunk =>
+            new Bitcraft.Api.Contracts.Tutoring.TutorRetrievedChunkEvidenceResponse(chunk.DocumentName,
+                chunk.ChunkIndex, chunk.RetrievalRank, chunk.Excerpt, chunk.SimilarityScore)
+            { DocumentGroupKey = chunk.DocumentGroupKey }).ToList(), value.Knowledge.SimilarityMetric),
+        new(value.Memory.ContextProvided, value.Memory.RetrievedItemCount),
+        value.Tools.Select(tool => new Bitcraft.Api.Contracts.Tutoring.TutorToolProvenanceResponse(
+            tool.ToolName, tool.Status, tool.Succeeded, tool.DurationMs, tool.ErrorCategory)).ToList(),
+        new(value.Runtime.TutorId, value.Runtime.TutorRevisionId, value.Runtime.RevisionNumber,
+            value.Runtime.SnapshotId, value.Runtime.InteractionModelId, value.Runtime.ProviderModelName, value.Runtime.ProviderType),
+        value.CapturedUtc);
 
     public static TutorRuntimeStreamEventResponse ToResponse(this TutorRuntimeStreamEvent value)
     {
@@ -170,7 +214,7 @@ internal static class TutoringMapping
                 value.ToolActivity.StartedUtc, value.ToolActivity.CompletedUtc,
                 value.ToolActivity.Status.ToString(), value.ToolActivity.DurationMs,
                 value.ToolActivity.ResultSummary, value.ToolActivity.ErrorCategory),
-            value.Result?.ToResponse(),
+            value.Kind == TutorRuntimeStreamEventKind.MessageCompleted ? value.Result?.ToResponse() : null,
             value.Error is null ? null : new ApiError(value.Error.Code, value.Error.Description));
     }
 

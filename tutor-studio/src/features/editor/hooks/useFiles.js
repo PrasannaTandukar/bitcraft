@@ -3,7 +3,6 @@ import { getApiErrorDescription } from "../../../api/client.js";
 import {
   createDocument,
   deleteDocument,
-  getVectorizationStatus,
   listDocumentFolders,
   listDocuments,
   moveDocument,
@@ -64,23 +63,11 @@ export default function useFilesWorkspace(initialUploadOpen = false) {
         .map(normalizeDocument);
       setDocuments(nextDocuments);
       setFolders(folderValues.filter((item) => item?.id));
-      setStatuses({});
-
-      const statusResults = await Promise.allSettled(
-        nextDocuments.map((document) =>
-          getVectorizationStatus(document.id, controller.signal),
-        ),
-      );
-      if (!controller.signal.aborted) {
-        const nextStatuses = {};
-        statusResults.forEach((result, index) => {
-          nextStatuses[nextDocuments[index].id] =
-            result.status === "fulfilled" && result.value
-              ? result.value
-              : { unavailable: true };
-        });
-        setStatuses(nextStatuses);
-      }
+      const nextStatuses = Object.fromEntries(nextDocuments.map((document) => [
+        document.id,
+        document.vectorization ?? { unavailable: true },
+      ]));
+      setStatuses(nextStatuses);
     } catch (requestError) {
       if (requestError.name !== "AbortError") {
         setError(

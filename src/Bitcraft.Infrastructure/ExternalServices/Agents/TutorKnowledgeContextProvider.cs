@@ -199,11 +199,13 @@ public sealed class TutorKnowledgeContextProvider(
             .Select(chunk => (Chunk: chunk, Score: CalculateCosineSimilarity(queryEmbedding, chunk.Embedding)))
             .Where(candidate => double.IsFinite(candidate.Score) && candidate.Score >= MinimumUsefulSimilarityScore)
             .OrderByDescending(candidate => candidate.Score)
-            .Take(Math.Clamp(request.TopK, 1, MaximumTopK));
+            .Take(Math.Clamp(request.TopK, 1, MaximumTopK)).ToList();
+        var documentNames = await documents.GetDisplayNamesAsync(
+            candidates.Select(candidate => candidate.Chunk.DocumentId).Distinct().ToArray(), cancellationToken);
         var sources = new List<TutorRuntimeSource>();
         foreach (var (chunk, score) in candidates)
         {
-            var documentName = (await documents.GetByIdAsync(chunk.DocumentId, cancellationToken))?.Name;
+            documentNames.TryGetValue(chunk.DocumentId, out var documentName);
             sources.Add(new TutorRuntimeSource(
                 chunk.DocumentId,
                 documentName,
@@ -213,7 +215,7 @@ public sealed class TutorKnowledgeContextProvider(
                 TrimContent(chunk.Content)));
         }
 
-        var referenceMaterial = BuildReferenceMaterial(sources);
+        var referenceMaterial = BuildReferenceMaterial(sources, out var contextSources);
         var metadata = new TutorRuntimeEmbeddingModelMetadata(
             model.Id,
             model.Name,
@@ -221,7 +223,7 @@ public sealed class TutorKnowledgeContextProvider(
             model.EmbeddingDimensions,
             engine.Id,
             engine.Name);
-        return Result.Success(new TutorKnowledgeResult(metadata, sources, referenceMaterial));
+        return Result.Success(new TutorKnowledgeResult(metadata, sources, referenceMaterial) { ContextSources = contextSources });
     }
 
     private static bool TryParseDocumentIds(string? json, out IReadOnlyList<Guid> documentIds)
@@ -280,8 +282,11 @@ public sealed class TutorKnowledgeContextProvider(
             "good evening" or "how are you" or "how are you doing";
     }
 
-    private static string? BuildReferenceMaterial(IReadOnlyList<TutorRuntimeSource> sources)
+    private static string? BuildReferenceMaterial(IReadOnlyList<TutorRuntimeSource> sources,
+        out IReadOnlyList<TutorRuntimeSource> contextSources)
     {
+        var supplied = new List<TutorRuntimeSource>();
+        contextSources = supplied;
         if (sources.Count == 0)
         {
             return null;
@@ -299,6 +304,7 @@ public sealed class TutorKnowledgeContextProvider(
                 break;
             }
             blocks.Add(block);
+            supplied.Add(source);
             length += separatorLength + block.Length;
         }
         return blocks.Count == 0 ? null : string.Join("\n\n", blocks);

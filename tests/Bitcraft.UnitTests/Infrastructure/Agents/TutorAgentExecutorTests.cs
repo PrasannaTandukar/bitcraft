@@ -74,6 +74,10 @@ public sealed class TutorAgentExecutorTests
             events.Single(value => value.Kind == TutorAgentStreamEventKind.ToolStarted).ToolActivity!.Status);
         Assert.Equal(TutorToolCallStatus.Succeeded,
             events.Single(value => value.Kind == TutorAgentStreamEventKind.ToolCompleted).ToolActivity!.Status);
+        var provenance = Bitcraft.Application.Features.Tutoring.TutorMessageProvenanceCapture.Capture(request, result.Value);
+        Assert.Equal(Bitcraft.Domain.Tutoring.TutorToolExecutionStatus.Succeeded,
+            Assert.Single(provenance.ToolEvidence).Status);
+        Assert.Single(provenance.KnowledgeEvidence);
     }
     [Fact]
     public async Task RegisteredFunctionExecutesThroughMeaiLoopAndReturnsActivity()

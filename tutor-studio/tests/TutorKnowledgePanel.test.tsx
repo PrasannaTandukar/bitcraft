@@ -32,6 +32,8 @@ vi.mock("../src/features/editor/hooks/tutorApi.js", () => ({
   detachTutorDocumentFolder: vi.fn(),
   listTutorDocumentFolders: vi.fn(),
   listTutorDocuments: vi.fn(),
+  getTutorKnowledgeOverview: vi.fn(),
+  captureActiveRevisionKnowledgeSnapshot: vi.fn(),
 }));
 
 import { useNavigate } from "react-router-dom";
@@ -44,6 +46,8 @@ import {
   detachTutorDocumentFolder,
   listTutorDocumentFolders,
   listTutorDocuments,
+  getTutorKnowledgeOverview,
+  captureActiveRevisionKnowledgeSnapshot,
 } from "../src/features/editor/hooks/tutorApi.js";
 
 
@@ -58,6 +62,8 @@ const mockDetachTutorDocument = vi.mocked(detachTutorDocument);
 const mockDetachTutorDocumentFolder = vi.mocked(detachTutorDocumentFolder);
 const mockListTutorDocumentFolders = vi.mocked(listTutorDocumentFolders);
 const mockListTutorDocuments = vi.mocked(listTutorDocuments);
+const mockGetTutorKnowledgeOverview = vi.mocked(getTutorKnowledgeOverview);
+const mockCaptureSnapshot = vi.mocked(captureActiveRevisionKnowledgeSnapshot);
 
 // ---------------------------------------------------------------------------
 // Fixtures / helpers
@@ -109,11 +115,33 @@ function setDefaultResolvedValues(overrides: {
   attachedDocuments?: any[];
   attachedFolders?: any[];
 } = {}) {
-  mockListDocuments.mockResolvedValue(overrides.documents ?? baseDocuments);
+  const docs = overrides.documents ?? baseDocuments;
+  mockListDocuments.mockResolvedValue(docs.map((document) => ({
+    ...document,
+    vectorization: Object.hasOwn(document, "vectorization")
+      ? document.vectorization
+      : vectorizationById[document.id] ?? { isVectorized: false, isStale: false, chunkCount: 0 },
+  })));
   mockListDocumentFolders.mockResolvedValue(overrides.folders ?? baseFolders);
   mockListTutorDocuments.mockResolvedValue(overrides.attachedDocuments ?? baseAttachedDocuments);
   mockListTutorDocumentFolders.mockResolvedValue(overrides.attachedFolders ?? baseAttachedFolders);
   mockGetVectorizationStatus.mockImplementation(async (documentId: string) => vectorizationById[documentId] ?? null);
+  const folders = overrides.folders ?? baseFolders;
+  const direct = overrides.attachedDocuments ?? baseAttachedDocuments;
+  const attachedFolders = overrides.attachedFolders ?? baseAttachedFolders;
+  const folderIds = new Set(attachedFolders.map((folder) => folder.folderId));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const folder of folders) if (folder.parentFolderId && folderIds.has(folder.parentFolderId) && !folderIds.has(folder.id)) { folderIds.add(folder.id); changed = true; }
+  }
+  const effectiveIds = new Set([...direct.map((document) => document.documentId), ...docs.filter((document) => folderIds.has(document.folderId)).map((document) => document.id)]);
+  const effectiveDocuments = [...effectiveIds].map((documentId) => {
+    const doc = docs.find((document) => document.id === documentId) ?? direct.find((document) => document.documentId === documentId);
+    const status = vectorizationById[documentId];
+    return { documentId, documentName: doc?.name ?? doc?.documentName ?? "Document", attachedThrough: direct.some((document) => document.documentId === documentId) ? "Direct" : "Folder", readinessStatus: status?.isStale ? "Stale" : status?.isVectorized ? "Ready" : "NotVectorized", isVectorized: Boolean(status?.isVectorized), isStale: Boolean(status?.isStale), chunkCount: status?.isVectorized ? 4 : 0, readyForSnapshot: Boolean(status?.isVectorized && !status?.isStale), reason: null };
+  });
+  mockGetTutorKnowledgeOverview.mockResolvedValue({ directDocuments: direct, folders: attachedFolders, effectiveDocuments, effectiveDocumentCount: effectiveDocuments.length, activeRevisionNumber: 1, activeSnapshotId: "snapshot1", activeSnapshotMatchesCurrentKnowledge: true, queryEmbeddingModelId: "embed1", queryEmbeddingModelName: "Ada", queryProviderModelName: "ada-model", queryEmbeddingDimensions: 768 });
 }
 
 function setup(overrides: Record<string, any> = {}) {
@@ -127,7 +155,9 @@ async function waitForLoaded() {
 }
 
 function getResourceRow(nameText: string): HTMLElement {
-  const label = screen.getByText(nameText);
+  const cardTitle = nameText === "Folder One" || nameText === "Folder Two" ? "Attached folders" : "Attached documents";
+  const attachedCard = screen.getByText(cardTitle).closest(".ant-card") as HTMLElement;
+  const label = within(attachedCard).getByText(nameText);
   const row = label.closest(".tutor-resource-row") as HTMLElement;
   if (!row) throw new Error(`Resource row not found for: ${nameText}`);
   return row;
@@ -204,49 +234,42 @@ describe("TutorKnowledgePanel - loading and errors", () => {
   });
 
   it("shows an error alert with the API fallback when a request rejects", async () => {
-    mockListDocuments.mockRejectedValue(new Error("network down"));
+    mockGetTutorKnowledgeOverview.mockRejectedValue(new Error("network down"));
     setup();
     expect(await screen.findByText("Could not load tutor knowledge.")).toBeInTheDocument();
   });
 
-  it("ignores AbortError rejections: no error shown, ends up not loading with empty lists", async () => {
+  it("does not turn an aborted/failed load into attachment empty states", async () => {
     const abortError = new Error("aborted");
     abortError.name = "AbortError";
-    mockListDocuments.mockRejectedValue(abortError);
+    mockGetTutorKnowledgeOverview.mockRejectedValue(abortError);
     setup();
 
     await waitForLoaded();
-    // Note: the info banner ("The next activation will capture...") always
-    // renders and also has role="alert", so asserting on that role alone
-    // can't distinguish "no error" from "the ever-present info banner".
-    // Check for the absence of the actual error text instead.
-    expect(screen.queryByText("Could not load tutor knowledge.")).not.toBeInTheDocument();
-    expect(screen.getByText("No documents are attached directly")).toBeInTheDocument();
+    expect(screen.getByText("Could not load tutor knowledge.")).toBeInTheDocument();
+    expect(screen.getByText("The current attachment state could not be determined. No attachment or effective-document counts are available.")).toBeInTheDocument();
+    expect(screen.queryByText("No documents are attached directly")).not.toBeInTheDocument();
+    expect(screen.queryByText(/will capture .* effective document/)).not.toBeInTheDocument();
   });
 
-  it("does not fetch vectorization status when canManage is false", async () => {
+  it("does not fetch per-document vectorization status when canManage is false", async () => {
     setup({ canManage: false });
     await waitForLoaded();
     expect(mockGetVectorizationStatus).not.toHaveBeenCalled();
   });
 
-  it("fetches vectorization status for each document when canManage is true", async () => {
+  it("uses vectorization metadata from the document list instead of fetching status per document", async () => {
     setup({ canManage: true });
     await waitForLoaded();
-    expect(mockGetVectorizationStatus).toHaveBeenCalledWith("d1", expect.any(AbortSignal));
-    expect(mockGetVectorizationStatus).toHaveBeenCalledWith("d4", expect.any(AbortSignal));
+    expect(mockGetVectorizationStatus).not.toHaveBeenCalled();
   });
 
-  it("treats a per-document vectorization status failure as null rather than failing the whole load", async () => {
-    mockGetVectorizationStatus.mockImplementation(async (documentId: string) => {
-      if (documentId === "d4") throw new Error("status service down");
-      return vectorizationById[documentId] ?? null;
-    });
+  it("shows status check failed when a list item has no vectorization metadata", async () => {
+    setDefaultResolvedValues({ documents: baseDocuments.map((document) => ({ ...document, vectorization: document.id === "d4" ? null : vectorizationById[document.id] })) });
     setup();
     await waitForLoaded();
-    // The rest of the panel still renders normally.
-    expect(screen.getByText("Knowledge")).toBeInTheDocument();
-    expect(screen.queryByRole("alert", { name: /could not load/i })).not.toBeInTheDocument();
+    await selectFromDropdown(userEvent.setup(), "Select a source document", "Doc Four · Status check failed");
+    expect(screen.getByText("Vectorization status could not be checked. Retry from Files before attaching this document.")).toBeInTheDocument();
   });
 });
 
@@ -271,6 +294,37 @@ describe("TutorKnowledgePanel - effective document count", () => {
     expect(
       screen.getByText("The next activation will capture 0 effective documents.")
     ).toBeInTheDocument();
+  });
+
+  it("renders explicit backend effective documents and their vectorization state", async () => {
+    setDefaultResolvedValues();
+    mockGetTutorKnowledgeOverview.mockResolvedValue({
+      directDocuments: baseAttachedDocuments, folders: [], effectiveDocumentCount: 2,
+      effectiveDocuments: [
+        { documentId: "d1", documentName: "Doc One", attachedThrough: "Direct", readinessStatus: "Ready", isVectorized: true, isStale: false, chunkCount: 4, readyForSnapshot: true },
+        { documentId: "d2", documentName: "Doc Two", attachedThrough: "Folder One", readinessStatus: "NotVectorized", isVectorized: false, isStale: false, chunkCount: 0, readyForSnapshot: false, reason: "Not vectorized" },
+      ], activeRevisionNumber: 1, activeSnapshotId: "snap1", activeSnapshotMatchesCurrentKnowledge: false,
+    } as any);
+    setup();
+    await waitForLoaded();
+    expect(screen.getByText(/4 chunks/)).toBeInTheDocument();
+    expect(screen.getAllByText("Not vectorized").length).toBeGreaterThan(0);
+    expect(screen.getByText("The next activation will capture 2 effective documents.")).toBeInTheDocument();
+  });
+
+  it("offers a fresh snapshot for ready knowledge without changing the active revision", async () => {
+    setDefaultResolvedValues({ attachedDocuments: [{ documentId: "d1", documentName: "Doc One", isVectorized: true }] });
+    mockGetTutorKnowledgeOverview.mockResolvedValue({
+      directDocuments: baseAttachedDocuments, folders: [], effectiveDocumentCount: 1,
+      effectiveDocuments: [{ documentId: "d1", documentName: "Doc One", attachedThrough: "Direct", readinessStatus: "Ready", isVectorized: true, isStale: false, chunkCount: 4, readyForSnapshot: true }],
+      activeRevisionNumber: 1, activeSnapshotId: "snap1", activeSnapshotMatchesCurrentKnowledge: false,
+    } as any);
+    mockCaptureSnapshot.mockResolvedValue({});
+    const user = userEvent.setup();
+    setup();
+    await waitForLoaded();
+    await user.click(screen.getByRole("button", { name: "Capture new snapshot" }));
+    await waitFor(() => expect(mockCaptureSnapshot).toHaveBeenCalledWith("tutor1"));
   });
 
   it("counts documents inside nested (descendant) attached folders", async () => {
@@ -363,7 +417,7 @@ describe("TutorKnowledgePanel - attach document", () => {
     const user = userEvent.setup();
     setup();
     await waitForLoaded();
-    await selectFromDropdown(user, "Select a source document", "Doc Two · Not ready");
+    await selectFromDropdown(user, "Select a source document", "Doc Two · Not vectorized");
     expect(screen.getByRole("button", { name: /^(link |loading )?attach$/i })).toBeDisabled();
     expect(screen.getByText("Vectorize this document in Files before attaching it.")).toBeInTheDocument();
   });
@@ -372,7 +426,7 @@ describe("TutorKnowledgePanel - attach document", () => {
     const user = userEvent.setup();
     setup();
     await waitForLoaded();
-    await selectFromDropdown(user, "Select a source document", "Doc Three · Not ready");
+    await selectFromDropdown(user, "Select a source document", "Doc Three · Not vectorized");
     expect(screen.getByRole("button", { name: /^(link |loading )?attach$/i })).toBeDisabled();
     expect(screen.getByText("Vectorize this document in Files before attaching it.")).toBeInTheDocument();
   });
@@ -476,13 +530,13 @@ describe("TutorKnowledgePanel - detach", () => {
     const user = userEvent.setup();
     setup();
     await waitForLoaded();
-    const callsBefore = mockListTutorDocuments.mock.calls.length;
+    const callsBefore = mockGetTutorKnowledgeOverview.mock.calls.length;
 
     await user.click(within(getResourceRow("Doc One")).getByRole("button", { name: /detach/i }));
     await user.click(await screen.findByRole("button", { name: "OK" }));
 
     await waitFor(() => expect(mockDetachTutorDocument).toHaveBeenCalledWith("tutor1", "d1"));
-    await waitFor(() => expect(mockListTutorDocuments.mock.calls.length).toBeGreaterThan(callsBefore));
+    await waitFor(() => expect(mockGetTutorKnowledgeOverview.mock.calls.length).toBeGreaterThan(callsBefore));
   });
 
   it("does not call detachTutorDocument if the confirmation is cancelled", async () => {
@@ -502,13 +556,13 @@ describe("TutorKnowledgePanel - detach", () => {
     setDefaultResolvedValues({ attachedFolders: [{ folderId: "f1", folderName: "Folder One" }] });
     setup();
     await waitForLoaded();
-    const callsBefore = mockListTutorDocumentFolders.mock.calls.length;
+    const callsBefore = mockGetTutorKnowledgeOverview.mock.calls.length;
 
     await user.click(within(getResourceRow("Folder One")).getByRole("button", { name: /detach/i }));
     await user.click(await screen.findByRole("button", { name: "OK" }));
 
     await waitFor(() => expect(mockDetachTutorDocumentFolder).toHaveBeenCalledWith("tutor1", "f1"));
-    await waitFor(() => expect(mockListTutorDocumentFolders.mock.calls.length).toBeGreaterThan(callsBefore));
+    await waitFor(() => expect(mockGetTutorKnowledgeOverview.mock.calls.length).toBeGreaterThan(callsBefore));
   });
 
   it("shows an error when detaching fails", async () => {
@@ -562,8 +616,9 @@ describe("TutorKnowledgePanel - attached list content", () => {
     });
     setup();
     await waitForLoaded();
-    expect(screen.getByText("Vectorized")).toBeInTheDocument();
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    const attachedCard = screen.getByText("Attached documents").closest(".ant-card") as HTMLElement;
+    expect(within(attachedCard).getByText("Vectorized")).toBeInTheDocument();
+    expect(within(attachedCard).getByText("Not ready")).toBeInTheDocument();
   });
 
   it("shows an empty state when no documents are attached", async () => {

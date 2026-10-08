@@ -237,17 +237,23 @@ public sealed class TutorRuntime(
             return Failure("TutorRuntime.GenerationFailed", "The tutor could not generate an answer.");
         }
 
+        TutorMessageProvenanceResponse? provenance = null;
         if (request.PersistConversation || conversation is not null)
         {
+            // Generation may finish just as the caller disconnects. Do not complete a
+            // durable turn with evidence if cancellation was already requested.
+            cancellationToken.ThrowIfCancellationRequested();
             if (conversations is null || generated.Value.AgentSessionJson is null)
                 return Failure("TutorRuntime.GenerationFailed", "The conversation could not be saved.");
             if (conversation is null)
                 return Failure("TutorRuntime.GenerationFailed", "The conversation could not be saved.");
+            var captured = TutorMessageProvenanceCapture.Capture(agentRequest, generated.Value);
             conversation.CompleteTurn(generated.Value.AgentSessionJson, request.UserQuestion?.Trim() ?? "", request.AttachmentIds,
-                generated.Value.Answer.Trim(), generated.Value.ProviderModelName, generated.Value.ProviderType.ToString());
+                generated.Value.Answer.Trim(), generated.Value.ProviderModelName, generated.Value.ProviderType.ToString(), captured);
             if (isNewConversation) await conversations.AddAsync(conversation, cancellationToken);
             else if (!await conversations.SaveAsync(conversation, cancellationToken))
                 return Failure("TutorConversation.Conflict", "This conversation changed during the request. Reload it before sending again.");
+            provenance = TutorMessageProvenancePresentation.Map(captured, revision.VersionNumber);
         }
         var retrieval = generated.Value.Knowledge ?? TutorKnowledgeResult.Empty;
         var memory = generated.Value.Memory ?? TutorMemoryResult.Empty;
@@ -268,13 +274,13 @@ public sealed class TutorRuntime(
                 snapshot.ModelCapabilities.HasFlag(ModelCapabilities.FunctionCalling),
                 snapshot.ModelCapabilities.HasFlag(ModelCapabilities.StructuredOutput)),
             retrieval.EmbeddingModel,
-            retrieval.Sources.Count > 0,
+            retrieval.KnowledgeUsed,
             retrieval.Sources,
             new TutorRuntimeUsageMetadata(generated.Value.Usage.GenerationLatencyMs,
                 generated.Value.Usage.InputTokenCount, generated.Value.Usage.OutputTokenCount,
                 generated.Value.Usage.TotalTokenCount),
             retrieval.ReferenceMaterial, conversation?.Id, memory.MemoryUsed, memory.MemorySaved,
-            memory.Sources, generated.Value.ToolActivities));
+            memory.Sources, generated.Value.ToolActivities) { Provenance = provenance });
     }
 
     private static TutorRuntimeStreamEvent ToRuntimeStreamEvent(TutorAgentStreamEvent value,
