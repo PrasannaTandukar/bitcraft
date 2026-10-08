@@ -8,11 +8,12 @@ using Bitcraft.Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Bitcraft.Infrastructure.Identity;
 
-public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, IConfiguration configuration)
+public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRole> roleManager, IConfiguration configuration, ILogger<IdentityService> logger)
     : IIdentityService, IRoleManagementService
 {
     public async Task<Result<IReadOnlyList<UserRoleMembership>>> ListUsersAsync(CancellationToken cancellationToken = default)
@@ -55,12 +56,26 @@ public class IdentityService(UserManager<AppUser> userManager, RoleManager<AppRo
     public async Task<AuthResult> LoginAsync(string email, string password)
     {
         var user = await userManager.FindByEmailAsync(email);
+
         if (user == null || !await userManager.CheckPasswordAsync(user, password))
         {
-            return new AuthResult { Succeeded = false, Errors = new[] { "Invalid email or password." } };
+            logger.LogWarning(
+                "login_failed email={Email}",
+                email);
+
+            return new AuthResult
+            {
+                Succeeded = false,
+                Errors = new[] { "Invalid email or password." }
+            };
         }
 
         var roles = await userManager.GetRolesAsync(user);
+
+        logger.LogInformation(
+            "login_success user_id={UserId} email={Email}",
+            user.Id,
+            user.Email);
 
         return new AuthResult
         {

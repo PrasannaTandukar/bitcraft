@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi;
 using System.Threading.RateLimiting;
-
+using Prometheus;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -121,6 +121,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+
+app.UseRouting();
+app.UseHttpMetrics();   // request count and duration by status code, method, route
+
+// Serve /metrics on a separate internal-only port, not on the public API port.
+new KestrelMetricServer(port: 9464).Start();
 
 app.UseAuthentication();
 app.UseCors("AllowFrontend");
