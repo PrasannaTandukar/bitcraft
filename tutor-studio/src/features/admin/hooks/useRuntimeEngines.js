@@ -109,12 +109,14 @@ export default function useRuntimeEngines(form) {
     setTesting(true);
     setTestResult(null);
     try {
+      const isClearingKey = values.clearApiKey === true;
       const result = await apiFetch(`${API_PATH}/test`, {
         method: "POST",
         json: {
           providerType: Number(values.providerType ?? 0),
           endpoint: values.endpoint.trim(),
           apiKey: values.apiKey?.trim() || null,
+          runtimeEngineId: isClearingKey ? null : (editingEngine?.id ?? null),
         },
       });
       setTestResult(result);
@@ -130,7 +132,7 @@ export default function useRuntimeEngines(form) {
     } finally {
       setTesting(false);
     }
-  }, [form, message]);
+  }, [editingEngine, form, message]);
 
   const close = useCallback(() => {
     if (saving || testing) return;

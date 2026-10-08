@@ -598,6 +598,49 @@ describe("Admin integration workflow", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Configured");
 
+    // Verify testing connection in edit mode sends runtimeEngineId for server-side key prefill
+    mockedApiFetch.mockImplementation(async (path, options = {}) => {
+      if (
+        path === "/api/admin/runtime-engines/test" &&
+        options.method === "POST"
+      ) {
+        return {
+          isSuccess: true,
+          latencyMs: 12,
+          message: "Connection verified via prefill.",
+          availableModels: ["gpt-4o"],
+        };
+      }
+      if (
+        path === "/api/admin/runtime-engines/engine-keyed" &&
+        options.method === "PUT"
+      ) {
+        return {
+          ...keyedEngine,
+          hasApiKey: false,
+        };
+      }
+      throw new Error(`Unexpected apiFetch call: ${path} ${options.method ?? "GET"}`);
+    });
+
+    const testBtn = screen.getByRole("button", { name: /test connection/i });
+    await user.click(testBtn);
+
+    await waitFor(() => {
+      expect(mockedApiFetch).toHaveBeenCalledWith(
+        "/api/admin/runtime-engines/test",
+        expect.objectContaining({
+          method: "POST",
+          json: expect.objectContaining({
+            providerType: 1,
+            endpoint: "https://api.openai.com/v1",
+            apiKey: null,
+            runtimeEngineId: "engine-keyed",
+          }),
+        }),
+      );
+    });
+
     const clearSwitch = screen.getByRole("switch", {
       name: /clear stored key/i,
     });

@@ -190,9 +190,13 @@ export default function RuntimeEnginesPage() {
               </Space>
             }
             name="apiKey"
-            extra="Leave empty to keep the stored key when editing. Stored as a raw value at rest; optional for local Llama.CPP/Ollama."
+            extra={
+              editingEngine?.hasApiKey
+                ? "Leave empty to keep the stored key when editing. Stored as a raw value at rest; optional for local Llama.CPP/Ollama."
+                : "Stored as a raw value at rest; optional for local Llama.CPP/Ollama."
+            }
           >
-            <Input placeholder="sk-..." />
+            <Input placeholder={editingEngine?.hasApiKey ? "•••••••• (stored key preserved)" : "sk-..."} />
           </Form.Item>
           {editingEngine?.hasApiKey ? (
             <Form.Item label="Clear stored key" name="clearApiKey" valuePropName="checked">
