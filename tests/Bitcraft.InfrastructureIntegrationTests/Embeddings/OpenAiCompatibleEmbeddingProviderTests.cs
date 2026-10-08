@@ -26,12 +26,12 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
         });
 
         var vector = await provider.GenerateEmbeddingAsync(new EmbeddingGenerationRequest(
-            "query", "embed-model", "https://runtime.invalid/proxy", "embedding-reference",
+            "query", "embed-model", "https://runtime.invalid/proxy", "ref:embedding-reference",
             "OpenAICompatible"));
 
         Assert.Equal([0.1f, 0.2f], vector);
         Assert.Equal("resolved-ephemeral-value", credential);
-        Assert.NotEqual("embedding-reference", credential);
+        Assert.NotEqual("ref:embedding-reference", credential);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
 
         var exception = await Assert.ThrowsAsync<EmbeddingProviderException>(() =>
             provider.GenerateEmbeddingAsync(new EmbeddingGenerationRequest("query", "embed-model",
-                "https://runtime.invalid", "missing-reference", "OpenAI")));
+                "https://runtime.invalid", "ref:missing-reference", "OpenAI")));
 
         Assert.False(called);
         Assert.DoesNotContain("missing-reference", exception.Message);
@@ -66,6 +66,31 @@ public sealed class OpenAiCompatibleEmbeddingProviderTests
 
         Assert.DoesNotContain("private document", exception.Message);
         Assert.DoesNotContain("credential material", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("http://localhost:7997", "/embeddings")]
+    [InlineData("http://localhost:7997/v1", "/v1/embeddings")]
+    [InlineData("http://localhost:7997/embeddings", "/embeddings")]
+    public async Task GenerateEmbeddingAsync_SupportsBothRootAndPrefixedRoutes(string endpoint, string expectedPath)
+    {
+        Uri? calledUri = null;
+        var configuration = new ConfigurationBuilder().Build();
+        var provider = Create(configuration, request =>
+        {
+            calledUri = request.RequestUri;
+            if (request.RequestUri?.AbsolutePath == "/v1/embeddings" && endpoint == "http://localhost:7997")
+            {
+                return Json(HttpStatusCode.NotFound, "{}");
+            }
+            return Json(HttpStatusCode.OK, "{\"data\":[{\"embedding\":[0.5,0.6]}]}");
+        });
+
+        var vector = await provider.GenerateEmbeddingAsync(new EmbeddingGenerationRequest(
+            "text", "embed-model", endpoint, ProviderType: "OpenAICompatible"));
+
+        Assert.Equal([0.5f, 0.6f], vector);
+        Assert.Equal(expectedPath, calledUri?.AbsolutePath);
     }
 
     private static OpenAiCompatibleEmbeddingProvider Create(IConfiguration configuration,

@@ -183,6 +183,25 @@ public sealed class RuntimeChatClientFactoryTests
         Assert.Equal(expectedPath, http.Handler.Uri?.AbsolutePath);
     }
 
+    [Fact]
+    public async Task ModelCatalogProbeFallsBackToRootRouteWhenV1ModelsReturns404()
+    {
+        var handler = new FallbackProbeHandler();
+        var http = new CustomHttpFactory(handler);
+        var config = new ConfigurationBuilder().Build();
+        var model = TutorAgentExecutorTests.Request(RuntimeEngineProviderType.OpenAICompatible).Model with
+        {
+            Endpoint = "http://localhost:7997"
+        };
+        var result = await new RuntimeChatClientFactory(http,
+            new ConfigurationRuntimeApiKeyResolver(config), config).ProbeAvailableModelsAsync(model);
+
+        Assert.True(result.IsSuccess, result.Error.Description);
+        Assert.Equal(["infinity-model-1"], result.Value);
+        Assert.Equal("/models", handler.LastUri?.AbsolutePath);
+        Assert.Equal(2, handler.RequestCount);
+    }
+
     [Theory]
     [InlineData(RuntimeEngineProviderType.Ollama)]
     [InlineData(RuntimeEngineProviderType.OpenAI)]
@@ -436,5 +455,37 @@ public sealed class RuntimeChatClientFactoryTests
             };
         }
         protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
+    }
+
+    private sealed class CustomHttpFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
+    }
+
+    private sealed class FallbackProbeHandler : HttpMessageHandler
+    {
+        public Uri? LastUri { get; private set; }
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            LastUri = request.RequestUri;
+            if (request.RequestUri?.AbsolutePath == "/v1/models")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
+                {
+                    Content = new StringContent("""{"error":"Not Found"}""", Encoding.UTF8, "application/json")
+                });
+            }
+            if (request.RequestUri?.AbsolutePath == "/models")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"object":"list","data":[{"id":"infinity-model-1"}]}""", Encoding.UTF8, "application/json")
+                });
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
+        }
     }
 }

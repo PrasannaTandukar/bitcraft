@@ -27,6 +27,7 @@ artifacts:
   - plan.standard-benchmark-hardening.md
   - plan.benchmarking-observability-and-custom-suites.md
   - plan.benchmark-run-view-and-controls.md
+  - plan.endpoint-resilience-and-merge-coherence.md
   # Archived 2026-09-21 (WS9 step 5): plan.benchmark-wizard-fixes.md,
   # plan.agent-process-failures.md, plan.wizard-flow-revert.md,
   # plan.benchmarking-ux-consolidation.md, plan.branch-closeout.md,
