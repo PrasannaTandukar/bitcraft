@@ -2,14 +2,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Bitcraft.Infrastructure.ExternalServices.Embeddings;
 
 public class OllamaEmbeddingProvider(
     IHttpClientFactory httpClientFactory,
-    IConfiguration configuration,
     ILogger<OllamaEmbeddingProvider> logger) : IEmbeddingProvider
 {
     public async Task<float[]> GenerateEmbeddingAsync(
@@ -29,9 +27,8 @@ public class OllamaEmbeddingProvider(
             throw new ArgumentException("Embedding text is required.", nameof(embeddingRequest));
         }
 
-        var model = string.IsNullOrWhiteSpace(embeddingRequest.Model)
-            ? configuration["ModelProviders:Ollama:EmbeddingModel"] ?? configuration["OLLAMA_EMBED_MODEL"]
-            : embeddingRequest.Model.Trim();
+        // OD-4: the RuntimeEngine entity is the single source of truth for endpoint and model.
+        var model = embeddingRequest.Model?.Trim();
 
         if (string.IsNullOrWhiteSpace(model))
         {
@@ -40,10 +37,7 @@ public class OllamaEmbeddingProvider(
                 "An Ollama embedding model is not configured.");
         }
 
-        var baseUrl = embeddingRequest.RuntimeEndpoint
-            ?? configuration["ModelProviders:Ollama:BaseUrl"]
-            ?? configuration["OLLAMA_BASE_URL"]
-            ?? "http://localhost:11434";
+        var baseUrl = embeddingRequest.RuntimeEndpoint;
 
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) ||
             (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))

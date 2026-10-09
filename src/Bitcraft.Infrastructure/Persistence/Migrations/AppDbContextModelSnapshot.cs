@@ -299,6 +299,120 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.ToTable("BenchmarkTemplates", (string)null);
                 });
 
+            modelBuilder.Entity("Bitcraft.Domain.Benchmarking.StandardBenchmarkRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BenchmarkKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTime?>("CancelledUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CompletedTasks")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("CompletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EngineName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("EngineRunId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EngineVersion")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FailureDescription")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("InteractionModelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LastProgressUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("NProblems")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NShots")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<double?>("OverallScore")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("ProgressPercent")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ProgressStage")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("QueuedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StartedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TaskCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TaskScoresJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("TasksJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<int?>("TotalTasks")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("InteractionModelId");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.HasIndex("BenchmarkKey", "QueuedUtc");
+
+                    b.ToTable("StandardBenchmarkRuns", (string)null);
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Chat.ChatAttachment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -742,9 +856,10 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ApiKeySecretRef")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                    b.Property<string>("ApiKey")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("ApiKeySecretRef");
 
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("uuid");
@@ -1755,6 +1870,32 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                     b.Navigation("ModifiedBy");
 
                     b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Benchmarking.StandardBenchmarkRun", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Modeling.InteractionModel", "InteractionModel")
+                        .WithMany()
+                        .HasForeignKey("InteractionModelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("InteractionModel");
+
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Chat.ChatAttachment", b =>

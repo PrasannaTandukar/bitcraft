@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
@@ -148,7 +148,7 @@ public sealed class TutorKnowledgeContextProvider(
                     request.UserQuery.Trim(),
                     providerModelName,
                     engine.Endpoint,
-                    engine.ApiKeySecretRef,
+                    engine.ApiKey,
                     engine.ProviderType.ToString()),
                 cancellationToken);
         }

@@ -73,6 +73,13 @@ export function getApiErrorDescription(error, fallback = "The request could not 
   }
 
   if (body && typeof body === "object") {
+    // ProblemDetails errors dictionary: e.g. { errors: { "Cases[0].InputText": ["Input text is required."] } }
+    if (body.errors && typeof body.errors === "object") {
+      const errorValues = Object.values(body.errors).flat().filter(isSafeErrorText);
+      if (errorValues.length > 0) {
+        return errorValues.join(" ");
+      }
+    }
     for (const key of ["description", "title", "message"]) {
       if (isSafeErrorText(body[key])) return body[key].trim();
     }

@@ -81,7 +81,7 @@ export default function BenchmarkingPage() {
     } : null,
     {
       key: "history",
-      label: "Run history",
+      label: "Evaluations",
       children: <BenchmarkRunHistory tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} selectedTutorId={selectedTutorId} selectedRunId={selectedRunId} onSelectTutor={(tutorId) => updateHistoryLocation(tutorId)} onOpenRun={(runId) => updateHistoryLocation(selectedTutorId, runId)} onCloseRun={() => updateHistoryLocation(selectedTutorId)} />,
     },
     canManage ? { key: "templates", label: "Templates", children: <BenchmarkTemplatesPanel /> } : null,

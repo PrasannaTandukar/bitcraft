@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -98,7 +99,9 @@ def test_execute_tool_with_unknown_tool_returns_not_found() -> None:
     }
 
 
-def test_execute_tool_with_deepeval_benchmark_returns_summary_and_case_metrics() -> None:
+def test_execute_tool_with_deepeval_benchmark_returns_summary_and_case_metrics() -> (
+    None
+):
     response = client.post(
         "/internal/tools/execute",
         json={
@@ -107,7 +110,7 @@ def test_execute_tool_with_deepeval_benchmark_returns_summary_and_case_metrics()
                 "template_key": "single-turn-llm-eval-v1",
                 "consistency_runs": 2,
                 "guidance_path": "docs/benchmarking-templates.md",
-                "metrics_json": "[{\"key\":\"faithfulness\",\"enabled\":true,\"threshold\":0.85},{\"key\":\"answer_relevancy\",\"enabled\":true,\"threshold\":0.75},{\"key\":\"hallucination\",\"enabled\":true,\"threshold\":0.85}]",
+                "metrics_json": '[{"key":"faithfulness","enabled":true,"threshold":0.85},{"key":"answer_relevancy","enabled":true,"threshold":0.75},{"key":"hallucination","enabled":true,"threshold":0.85}]',
                 "cases": [
                     {
                         "case_id": "case-1",
@@ -116,7 +119,7 @@ def test_execute_tool_with_deepeval_benchmark_returns_summary_and_case_metrics()
                         "actual_output": "The capital of France is Paris.",
                         "expected_output": "Paris",
                         "context_text": "France is a country in Europe. Paris is the capital and largest city of France.",
-                        "metadata_json": "{\"difficulty\":\"easy\"}",
+                        "metadata_json": '{"difficulty":"easy"}',
                     }
                 ],
             },
@@ -143,8 +146,14 @@ def test_execute_tool_with_deepeval_benchmark_returns_summary_and_case_metrics()
     assert summary["quality_gate_threshold"] == 0.8167
     assert "timing_breakdown_ms" in summary
     raw_result = json.loads(payload["raw_result_json"])
-    assert raw_result["summary"]["timing_breakdown_ms"]["result_packaging_ms"] == summary["timing_breakdown_ms"]["result_packaging_ms"]
-    assert json.loads(payload["summary"]["summary_json"])["template_key"] == "single-turn-llm-eval-v1"
+    assert (
+        raw_result["summary"]["timing_breakdown_ms"]["result_packaging_ms"]
+        == summary["timing_breakdown_ms"]["result_packaging_ms"]
+    )
+    assert (
+        json.loads(payload["summary"]["summary_json"])["template_key"]
+        == "single-turn-llm-eval-v1"
+    )
 
 
 def test_execute_tool_with_malformed_metric_threshold_returns_safe_response() -> None:
@@ -155,7 +164,7 @@ def test_execute_tool_with_malformed_metric_threshold_returns_safe_response() ->
             "payload": {
                 "template_key": "single-turn-llm-eval-v1",
                 "consistency_runs": 1,
-                "metrics_json": "[{\"key\":\"faithfulness\",\"enabled\":true,\"threshold\":\"bad\"}]",
+                "metrics_json": '[{"key":"faithfulness","enabled":true,"threshold":"bad"}]',
                 "cases": [
                     {
                         "case_id": "case-1",
@@ -187,7 +196,7 @@ def test_execute_tool_with_non_boolean_enabled_does_not_enable_metric() -> None:
             "payload": {
                 "template_key": "single-turn-llm-eval-v1",
                 "consistency_runs": 1,
-                "metrics_json": "[{\"key\":\"faithfulness\",\"enabled\":\"false\",\"threshold\":0.85},{\"key\":\"answer_relevancy\",\"enabled\":true,\"threshold\":0.75}]",
+                "metrics_json": '[{"key":"faithfulness","enabled":"false","threshold":0.85},{"key":"answer_relevancy","enabled":true,"threshold":0.75}]',
                 "cases": [
                     {
                         "case_id": "case-1",
@@ -235,7 +244,11 @@ def test_execute_tool_with_empty_cases_returns_validation_error() -> None:
 
 
 def _judge_model_payload() -> dict:
-    return {"provider": "ollama", "model_name": "llama3.1", "base_url": "http://localhost:11434"}
+    return {
+        "provider": "ollama",
+        "model_name": "llama3.1",
+        "base_url": "http://localhost:11434",
+    }
 
 
 def test_llm_benchmark_with_unsupported_key_returns_structured_error() -> None:
@@ -247,11 +260,12 @@ def test_llm_benchmark_with_unsupported_key_returns_structured_error() -> None:
         },
     )
 
-    assert response.status_code == 200
+    # WS1: validation now fails before a runner subprocess is spawned, so the
+    # sidecar returns 400 with a structured error instead of a 200 result.
+    assert response.status_code == 400
     payload = response.json()
-    assert payload["overall_score"] is None
-    assert payload["task_count"] == 0
-    assert "Unsupported benchmark_key" in payload["error"]
+    assert payload["code"] == "Sidecar.BenchmarkInvalid"
+    assert "Unsupported benchmark_key" in payload["description"]
 
 
 def test_llm_benchmark_human_eval_without_opt_in_returns_safety_error() -> None:
@@ -264,10 +278,10 @@ def test_llm_benchmark_human_eval_without_opt_in_returns_safety_error() -> None:
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 400
     payload = response.json()
-    assert payload["overall_score"] is None
-    assert "allow_code_execution" in payload["error"]
+    assert payload["code"] == "Sidecar.BenchmarkInvalid"
+    assert "allow_code_execution" in payload["description"]
 
 
 def test_llm_benchmark_with_missing_judge_model_returns_validation_error() -> None:
@@ -291,3 +305,200 @@ def test_llm_benchmark_n_shots_out_of_range_returns_validation_error() -> None:
 
     assert response.status_code == 422
 
+
+def test_llm_benchmark_negative_n_problems_returns_validation_error() -> None:
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "mmlu",
+            "judge_model": _judge_model_payload(),
+            "n_problems": -1,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_llm_benchmark_n_problems_defaults_and_schema_accepts_zero() -> None:
+    # n_problems defaults to 10 and accepts 0 (= run the full dataset).
+    # The schema must accept both the default and the explicit 0; the start
+    # endpoint now returns 202 with a run handle instead of a result.
+    for n_problems in (None, 0):
+        body = {
+            "benchmark_key": "gsm8k",
+            "judge_model": _judge_model_payload(),
+        }
+        if n_problems is not None:
+            body["n_problems"] = n_problems
+        response = client.post("/internal/tools/llm-benchmark", json=body)
+
+        # 202 = accepted and dispatched; 409 = the single runner slot is held
+        # by a previous test's run. Both prove the schema accepted the value.
+        assert response.status_code in (202, 409)
+        if response.status_code == 202:
+            payload = response.json()
+            assert payload["run_id"]
+            assert payload["status_path"]
+
+
+def test_llm_benchmark_with_anthropic_judge_returns_structured_error() -> None:
+    # Consolidation plan OD-2: Anthropic is out of the active dialect set.
+    # The backend only sends ollama/openai, so an anthropic judge must fail
+    # with a structured error instead of reaching a real model.
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "gsm8k",
+            "judge_model": {
+                "provider": "anthropic",
+                "model_name": "claude-3-5-sonnet",
+                "base_url": "http://localhost:11434",
+            },
+        },
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "Sidecar.BenchmarkInvalid"
+    assert "Unsupported judge provider" in payload["description"]
+
+
+def test_llm_benchmark_schema_accepts_api_key_in_judge_model() -> None:
+    # WS5: the judge model carries the stored key value in `api_key`. The
+    # schema must accept the field; the start endpoint returns 202 with a
+    # handle (or 409 when the single runner slot is held).
+    response = client.post(
+        "/internal/tools/llm-benchmark",
+        json={
+            "benchmark_key": "gsm8k",
+            "judge_model": {
+                "provider": "openai",
+                "model_name": "gpt-4o-mini",
+                "base_url": "http://localhost:9999",
+                "api_key": "stored-benchmark-key",
+            },
+        },
+    )
+
+    assert response.status_code in (202, 409)
+    if response.status_code == 202:
+        payload = response.json()
+        assert payload["run_id"]
+
+
+def test_llm_benchmark_hosted_openai_without_api_key_returns_structured_error() -> None:
+    # WS5: hosted api.openai.com without a key must fail with the guard
+    # message instead of sending an unauthenticated request. The guard is
+    # exercised directly on the judge model because full benchmark runs
+    # require the deepeval dataset stack.
+    from app.schemas import SidecarJudgeModelConfig
+    from app.tools.deepeval_llm_benchmarks import _SidecarJudgeLLM
+
+    judge = _SidecarJudgeLLM(
+        SidecarJudgeModelConfig(
+            provider="openai",
+            model_name="gpt-4o-mini",
+            base_url="https://api.openai.com/v1",
+            api_key=None,
+        )
+    )
+
+    try:
+        judge._call("ping")
+        raised = False
+    except RuntimeError as error:
+        raised = "api_key" in str(error)
+
+    assert raised
+
+
+# ---------------------------------------------------------------------------
+# WS1 runner-process contract (D-R1/D-R2/D-R3, D-R5, D-R6)
+# ---------------------------------------------------------------------------
+
+
+def test_llm_benchmark_unknown_task_names_hard_fail() -> None:
+    # AC4/D-R5: unknown task names must fail with the offending names listed.
+    # No silent fallback to the full default task set.
+    from app.schemas import SidecarJudgeModelConfig, SidecarLlmBenchmarkRequest
+    from app.tools.deepeval_llm_benchmarks import (
+        BenchmarkValidationError,
+        _resolve_tasks,
+    )
+
+    request = SidecarLlmBenchmarkRequest(
+        benchmark_key="mmlu",
+        judge_model=SidecarJudgeModelConfig(provider="ollama", model_name="llama3.1"),
+        tasks=["not_a_task"],
+    )
+
+    try:
+        _resolve_tasks("mmlu", request.tasks)
+        raised = ""
+    except BenchmarkValidationError as error:
+        raised = str(error)
+
+    assert "not_a_task" in raised
+    assert "Unknown tasks" in raised
+
+
+def test_llm_benchmark_resolve_tasks_returns_none_when_not_requested() -> None:
+    # No task filter means the full default task set; the resolver returns None.
+    from app.tools.deepeval_llm_benchmarks import _resolve_tasks
+
+    assert _resolve_tasks("mmlu", None) is None
+    assert _resolve_tasks("mmlu", []) is None
+
+
+def test_llm_benchmark_generate_samples_returns_plain_list() -> None:
+    # AC6/D-R6: deepeval expects list[str], not a (completions, cost) tuple.
+    from app.schemas import SidecarJudgeModelConfig
+    from app.tools.deepeval_llm_benchmarks import _SidecarJudgeLLM
+
+    judge = _SidecarJudgeLLM(
+        SidecarJudgeModelConfig(
+            provider="ollama", model_name="llama3.1", base_url="http://localhost:1"
+        )
+    )
+    # The model's call closure binds judge._call at build time, so stub the
+    # transport on the judge before building.
+    judge._call = lambda prompt: "completion"  # type: ignore[assignment]
+    model = judge.build()
+
+    samples = model.generate_samples("prompt", 3, 0.0)
+
+    assert isinstance(samples, list)
+    assert samples == ["completion", "completion", "completion"]
+
+
+def test_llm_benchmark_status_endpoint_returns_404_for_unknown_run() -> None:
+    # AC3: the status endpoint reports unknown run ids as 404.
+    response = client.get(f"/internal/benchmarks/{uuid.uuid4()}/status")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "Sidecar.BenchmarkRunNotFound"
+
+
+def test_llm_benchmark_busy_slot_returns_409() -> None:
+    # AC2/D-R2: a second start while the single runner slot is held returns 409.
+    from app.tools import deepeval_llm_benchmarks as bench
+
+    original = bench._last_status_path
+    try:
+        bench._last_status_path = "does-not-exist.json"
+        # A missing status file is treated as a free slot, so force the held
+        # state directly to exercise the 409 mapping without spawning a runner.
+        bench._slot_held = lambda: True  # type: ignore[assignment]
+        response = client.post(
+            "/internal/tools/llm-benchmark",
+            json={
+                "benchmark_key": "gsm8k",
+                "judge_model": _judge_model_payload(),
+            },
+        )
+
+        assert response.status_code == 409
+        assert response.json()["code"] == "Sidecar.BenchmarkBusy"
+    finally:
+        bench._last_status_path = original
+        importlib.reload(bench)

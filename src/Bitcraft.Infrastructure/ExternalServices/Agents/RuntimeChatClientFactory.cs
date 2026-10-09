@@ -126,23 +126,54 @@ public sealed class RuntimeChatClientFactory(
 
             var timeoutSeconds = configuration.GetValue<int?>($"ModelProviders:{model.ProviderType}:GenerateTimeoutSeconds")
                 ?? configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
-            var options = new OpenAIClientOptions
+
+            async Task<Result<IReadOnlyList<string>>> QueryOpenAiModelsAsync(Uri baseUri)
             {
-                Endpoint = OpenAiEndpoint(endpoint),
-                Transport = new HttpClientPipelineTransport(httpClient),
-                NetworkTimeout = TimeSpan.FromSeconds(Math.Max(1, timeoutSeconds)),
-                RetryPolicy = new ClientRetryPolicy(maxRetries: 0)
-            };
-            if (key.Value is null)
-                options.AddPolicy(new RemoveAuthenticationPolicy(), PipelinePosition.BeforeTransport);
-            var sdk = new OpenAIClient(new ApiKeyCredential(key.Value ?? "unused"), options);
-            var responseModels = await sdk.GetOpenAIModelClient().GetModelsAsync(cancellationToken);
-            return Result.Success<IReadOnlyList<string>>(responseModels.Value
-                .Select(entry => entry.Id)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.Ordinal)
-                .ToList());
+                var options = new OpenAIClientOptions
+                {
+                    Endpoint = baseUri,
+                    Transport = new HttpClientPipelineTransport(httpClient),
+                    NetworkTimeout = TimeSpan.FromSeconds(Math.Max(1, timeoutSeconds)),
+                    RetryPolicy = new ClientRetryPolicy(maxRetries: 0)
+                };
+                if (key.Value is null)
+                    options.AddPolicy(new RemoveAuthenticationPolicy(), PipelinePosition.BeforeTransport);
+                var sdk = new OpenAIClient(new ApiKeyCredential(key.Value ?? "unused"), options);
+                var responseModels = await sdk.GetOpenAIModelClient().GetModelsAsync(cancellationToken);
+                return Result.Success<IReadOnlyList<string>>(responseModels.Value
+                    .Select(entry => entry.Id)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)
+                    .ToList());
+            }
+
+            var primaryEndpoint = OpenAiEndpoint(endpoint);
+            try
+            {
+                return await QueryOpenAiModelsAsync(primaryEndpoint);
+            }
+            catch (ClientResultException ex) when (ex.Status == 404)
+            {
+                // If primary /v1/models 404s and endpoint was bare root, retry against root base directly
+                var rootEndpoint = OpenAiEndpoint(endpoint, preferRoot: true);
+                if (rootEndpoint != primaryEndpoint)
+                {
+                    try
+                    {
+                        return await QueryOpenAiModelsAsync(rootEndpoint);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        // Fall through to return failure
+                    }
+                }
+                throw;
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -155,12 +186,14 @@ public sealed class RuntimeChatClientFactory(
         }
     }
 
-    private static Uri OpenAiEndpoint(Uri endpoint)
+    private static Uri OpenAiEndpoint(Uri endpoint, bool preferRoot = false)
     {
         var raw = endpoint.AbsoluteUri.TrimEnd('/');
         if (raw.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
-            raw = raw[..^"/chat/completions".Length];
-        else if (!raw.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+            raw = raw[..^"/chat/completions".Length].TrimEnd('/');
+        else if (raw.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+            raw = preferRoot ? raw[..^"/v1".Length].TrimEnd('/') : raw;
+        else if (!preferRoot)
             raw += "/v1";
         return new Uri(raw + "/");
     }

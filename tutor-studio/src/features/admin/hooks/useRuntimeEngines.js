@@ -77,7 +77,8 @@ export default function useRuntimeEngines(form) {
         name: engine.name,
         providerType: engine.providerType,
         endpoint: engine.endpoint,
-        apiKeySecretRef: engine.apiKeySecretRef ?? undefined,
+        apiKey: undefined,
+        clearApiKey: false,
         isEnabled: engine.isEnabled,
       });
       setOpen(true);
@@ -108,12 +109,14 @@ export default function useRuntimeEngines(form) {
     setTesting(true);
     setTestResult(null);
     try {
+      const isClearingKey = values.clearApiKey === true;
       const result = await apiFetch(`${API_PATH}/test`, {
         method: "POST",
         json: {
           providerType: Number(values.providerType ?? 0),
           endpoint: values.endpoint.trim(),
-          apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+          apiKey: values.apiKey?.trim() || null,
+          runtimeEngineId: isClearingKey ? null : (editingEngine?.id ?? null),
         },
       });
       setTestResult(result);
@@ -129,7 +132,7 @@ export default function useRuntimeEngines(form) {
     } finally {
       setTesting(false);
     }
-  }, [form, message]);
+  }, [editingEngine, form, message]);
 
   const close = useCallback(() => {
     if (saving || testing) return;
@@ -148,7 +151,8 @@ export default function useRuntimeEngines(form) {
         name: values.name.trim(),
         providerType: Number(values.providerType),
         endpoint: values.endpoint.trim(),
-        apiKeySecretRef: values.apiKeySecretRef?.trim() || null,
+        apiKey: values.apiKey?.trim() || null,
+        clearApiKey: values.clearApiKey === true,
         isEnabled: values.isEnabled,
       };
       try {

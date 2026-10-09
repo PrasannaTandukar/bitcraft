@@ -180,7 +180,7 @@ Archived plans are invisible to normal tool calls. A separate optional parameter
 
 ### `.gitignore`
 
-No changes needed — `plans/` is tracked, like inboxes. `plans/archive/` is also tracked.
+No changes needed — `plans/` is a tracked static-document surface. Inboxes are local-only and ignored by Git. `plans/archive/` is also tracked.
 
 ### Owner: AI Ops (MCP extension), Dev Ops (folder structure review)
 
@@ -367,7 +367,7 @@ Existing metrics questions from old `METRICS.md` section are **removed** from ag
 - `.github/governance/RESEARCH_MCP_VALE_SECURITY.md` (Researcher deliverable)
 
 **Gitignore:**
-- No changes. `plans/` and `protocols/` are tracked.
+- No changes. `plans/` and `protocols/` are tracked static-document surfaces. Inboxes are local-only.
 
 ---
 

@@ -9,7 +9,46 @@ services:
       backend:
         condition: service_healthy
   backend:
-    environment:
-      ModelProviders__Ollama__BaseUrl: "http://host.docker.internal:11434"
+    # The backend reads model endpoints from the RuntimeEngines table (OD-4).
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      benchmark-sidecar:
+        condition: service_healthy
+    environment:
+      Benchmarking__DeepEval__Transport: "uds"
+      Benchmarking__DeepEval__SocketPath: "/var/run/bitcraft/sidecar.sock"
+    volumes:
+      - benchmark_sidecar_socket:/var/run/bitcraft
+
+  benchmark-sidecar:
+    build:
+      context: .
+      dockerfile: sidecar/Dockerfile
+    container_name: bitcraft-benchmark-sidecar
+    environment:
+      DEEPEVAL_DISABLE_DOTENV: "1"
+      # C3: block deepeval's PostHog telemetry egress (privacy doc: no
+      # first-party analytics by default).
+      DEEPEVAL_TELEMETRY_OPT_OUT: "1"
+      # Transport: uds (default, no TCP port) or http. The HTTP listener binds
+      # the container network only; no host port is mapped. Port 48317 is
+      # deliberately uncommon to avoid host/container port clashes.
+      BITCRAFT_SIDECAR_TRANSPORT: "uds"
+      BITCRAFT_SIDECAR_HTTP_PORT: "48317"
+    volumes:
+      - benchmark_dataset_cache:/root/.cache/huggingface
+      - benchmark_sidecar_socket:/var/run/bitcraft
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import socket; s=socket.socket(socket.AF_UNIX,
+            socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock');
+            s.close()\"",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+      start_period: 5s

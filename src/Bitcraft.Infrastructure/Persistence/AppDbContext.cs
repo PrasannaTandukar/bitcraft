@@ -37,6 +37,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<BenchmarkTemplate> BenchmarkTemplates => Set<BenchmarkTemplate>();
     public DbSet<BenchmarkRun> BenchmarkRuns => Set<BenchmarkRun>();
     public DbSet<BenchmarkRunCase> BenchmarkRunCases => Set<BenchmarkRunCase>();
+    public DbSet<StandardBenchmarkRun> StandardBenchmarkRuns => Set<StandardBenchmarkRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

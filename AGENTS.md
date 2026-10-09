@@ -61,10 +61,11 @@ Run the narrowest relevant validation first. Broaden only when the change touche
 
 ## GitHub Copilot Agentic Stack
 
-If you are GitHub Copilot in VS Code, the full agent department roster, prompt files, skills, instructions, inboxes, and governance docs live under `.github/`. Start with:
+If you are GitHub Copilot in VS Code, the agent roster, skills, instructions, inboxes, and governance docs live under `.github/`. Start with:
 
 - `.github/copilot-instructions.md` for always-on rules.
-- `.github/agents/ROSTER.md` for the agent department directory.
+- `.github/agents/ROSTER.md` for the five-agent roster (Secretary, Planner, Lead Dev, Sec Ops, AI Ops).
+- `.github/skills/` for workflow entrypoints and reusable procedures.
 - `.github/governance/PROJECT_BRIEF.md`, `.github/governance/DEVELOPER_GUIDE.md`, `.github/governance/METRICS.md`, `.github/governance/MODEL_ROUTING.md` for governance.
 - `.github/inboxes/<agent-slug>/inbox.md` for prioritized per-agent backlog.
 
@@ -72,4 +73,4 @@ Other coding agents only need this file plus repository code.
 
 ## PR Conventions
 
-Branch naming and merge policy are owned by Dev Ops and humans, not by agents. Do not push or open PRs from an agent session.
+Branch naming and merge policy are owned by Sec Ops (guidance) and humans (approval and execution), not by agents. Do not push or open PRs from an agent session.

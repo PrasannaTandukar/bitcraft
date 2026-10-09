@@ -1,12 +1,12 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-21
 creator: ai-ops
 editor: lead-dev
 ai_gen: true
 name: bitcraft-test-hardening
-description: 'Create or improve Bitcraft tests for backend behavior, security, authorization, ownership, privacy, and regression coverage. Use when asked to test, validate, harden, reproduce bugs, or add xUnit coverage.'
-argument-hint: '[changed area, feature, bug, or risk]'
+description: "Create or improve Bitcraft tests for backend behavior, security, authorization, ownership, privacy, and regression coverage. Use when asked to test, validate, harden, reproduce bugs, or add xUnit coverage."
+argument-hint: "[changed area, feature, bug, or risk]"
 ---
 
 # Bitcraft Test Hardening
@@ -42,3 +42,9 @@ Use this skill to add high-signal tests without broad test churn.
 - Do not test framework internals.
 - Do not create brittle tests that assert incidental ordering or exact internal implementation unless that is the contract.
 - Do not modify production code unless the user asks for fixes too.
+
+## Output
+
+- Tests added, with project and names.
+- Test run result.
+- Next step: "Run the `bitcraft-review` skill for branch `<branch>`. Scope: <changed files>."

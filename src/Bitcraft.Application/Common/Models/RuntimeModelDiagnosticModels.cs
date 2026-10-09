@@ -5,7 +5,7 @@ namespace Bitcraft.Application.Common.Models;
 public sealed record RuntimeModelCatalogDiagnosticRequest(
     RuntimeEngineProviderType ProviderType,
     string Endpoint,
-    string? ApiKeySecretRef);
+    string? ApiKey);
 
 public sealed record RuntimeModelCatalogDiagnostic(IReadOnlyList<string> AvailableModels);
 
@@ -13,7 +13,7 @@ public sealed record RuntimeModelGenerationDiagnosticRequest(
     Guid RuntimeEngineId,
     RuntimeEngineProviderType ProviderType,
     string Endpoint,
-    string? ApiKeySecretRef,
+    string? ApiKey,
     Guid ModelId,
     string ProviderModelName,
     ModelCapabilities Capabilities,

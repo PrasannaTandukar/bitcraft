@@ -65,24 +65,47 @@ public class OpenAiCompatibleEmbeddingProvider(
         var providerType = Enum.TryParse<RuntimeEngineProviderType>(embeddingRequest.ProviderType,
             ignoreCase: true, out var parsedProvider) ? parsedProvider : RuntimeEngineProviderType.OpenAI;
         var resolvedKey = apiKeys.Resolve(new TutorAgentModelConfiguration(Guid.Empty, providerType,
-            baseUri.AbsoluteUri, embeddingRequest.ApiKeySecretRef, Guid.Empty, model, ModelCapabilities.None));
+            baseUri.AbsoluteUri, embeddingRequest.ApiKey, Guid.Empty, model, ModelCapabilities.None));
         if (resolvedKey.IsFailure)
             throw new EmbeddingProviderException(EmbeddingProviderFailureKind.RequestFailed,
                 "The embedding credential reference could not be resolved.");
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, BuildEmbeddingsUri(baseUri));
-        if (!string.IsNullOrWhiteSpace(resolvedKey.Value))
+        HttpRequestMessage CreateRequest(Uri targetUri)
         {
-            requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", resolvedKey.Value);
+            var msg = new HttpRequestMessage(HttpMethod.Post, targetUri);
+            if (!string.IsNullOrWhiteSpace(resolvedKey.Value))
+            {
+                msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", resolvedKey.Value);
+            }
+            msg.Content = JsonContent.Create(new OpenAiEmbeddingRequest(model, embeddingRequest.Text.Trim()));
+            return msg;
         }
 
-        var requestBody = new OpenAiEmbeddingRequest(model, embeddingRequest.Text.Trim());
-        requestMessage.Content = JsonContent.Create(requestBody);
+        var primaryUri = BuildEmbeddingsUri(baseUri);
+        using var requestMessage = CreateRequest(primaryUri);
 
         HttpResponseMessage response;
         try
         {
             response = await client.SendAsync(requestMessage, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                var fallbackUri = BuildEmbeddingsUri(baseUri, preferRoot: true);
+                if (fallbackUri != primaryUri)
+                {
+                    using var fallbackRequest = CreateRequest(fallbackUri);
+                    var fallbackResponse = await client.SendAsync(fallbackRequest, cancellationToken);
+                    if (fallbackResponse.IsSuccessStatusCode)
+                    {
+                        response.Dispose();
+                        response = fallbackResponse;
+                    }
+                    else
+                    {
+                        fallbackResponse.Dispose();
+                    }
+                }
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -150,18 +173,28 @@ public class OpenAiCompatibleEmbeddingProvider(
         }
     }
 
-    private static Uri BuildEmbeddingsUri(Uri baseUri)
+    private static Uri BuildEmbeddingsUri(Uri baseUri, bool preferRoot = false)
     {
         var raw = baseUri.ToString().TrimEnd('/');
         if (raw.EndsWith("/embeddings", StringComparison.OrdinalIgnoreCase))
         {
+            if (preferRoot && raw.EndsWith("/v1/embeddings", StringComparison.OrdinalIgnoreCase))
+            {
+                var stripped = raw[..^"/v1/embeddings".Length].TrimEnd('/');
+                return new Uri($"{stripped}/embeddings");
+            }
             return new Uri(raw);
         }
         if (raw.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
         {
+            if (preferRoot)
+            {
+                var stripped = raw[..^"/v1".Length].TrimEnd('/');
+                return new Uri($"{stripped}/embeddings");
+            }
             return new Uri($"{raw}/embeddings");
         }
-        return new Uri($"{raw}/v1/embeddings");
+        return preferRoot ? new Uri($"{raw}/embeddings") : new Uri($"{raw}/v1/embeddings");
     }
 
     private sealed record OpenAiEmbeddingRequest(

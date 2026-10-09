@@ -1,4 +1,4 @@
-using Bitcraft.Application.Common.Interfaces;
+﻿using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Modeling;
@@ -241,7 +241,7 @@ public static class InteractionModelFeatures
             if (image.IsFailure) return Result.Failure<ImageInputTestResponse>(image.Error);
             // A diagnostic of the saved runtime/model. It never infers or updates capabilities.
             var result = await diagnostic.GenerateAsync(new RuntimeModelGenerationDiagnosticRequest(
-                engine.Id, engine.ProviderType, engine.Endpoint, engine.ApiKeySecretRef,
+                engine.Id, engine.ProviderType, engine.Endpoint, engine.ApiKey,
                 model.Id, model.ProviderModelName, model.Capabilities,
                 "Briefly describe the attached image in one sentence.",
                 [new(image.Value.Metadata.MimeType, image.Value.Data)], 128), cancellationToken);

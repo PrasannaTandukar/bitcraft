@@ -62,14 +62,15 @@ class SidecarError(BaseModel):
 
 
 class SidecarJudgeModelConfig(BaseModel):
-    """Identifies the model to benchmark. No credentials are embedded here:
-    `api_key_env` names an environment variable that must already be set in
-    the sidecar process; the key value itself is never part of the request."""
+    """Identifies the model to benchmark. `api_key` carries the stored
+    runtime-engine key sent by the backend over the local Unix socket. The
+    key transits the local socket only. It never reaches the network and
+    never appears in logs."""
 
-    provider: str  # "ollama" | "openai" | "anthropic"
+    provider: str  # "ollama" | "openai" (Anthropic removed, consolidation plan OD-2)
     model_name: str
     base_url: str | None = None
-    api_key_env: str | None = None
+    api_key: str | None = None
 
 
 class SidecarLlmBenchmarkRequest(BaseModel):
@@ -77,6 +78,12 @@ class SidecarLlmBenchmarkRequest(BaseModel):
     judge_model: SidecarJudgeModelConfig
     tasks: list[str] | None = None
     n_shots: int = Field(default=0, ge=0, le=5)
+    # Caps the number of problems evaluated. 0 means "no cap" and runs the
+    # full default dataset for the benchmark. For task-based benchmarks
+    # (MMLU, HellaSwag, BBH, DROP, TruthfulQA) deepeval applies the cap per
+    # task, not across all tasks combined; for single-dataset benchmarks
+    # (GSM8K) it takes the first N problems sequentially.
+    n_problems: int = Field(default=10, ge=0)
     # HumanEval executes model-generated Python code to check pass/fail.
     # This must be explicitly opted into and should never be enabled against
     # an untrusted model or outside a sandboxed execution context.
@@ -90,4 +97,31 @@ class SidecarLlmBenchmarkResponse(BaseModel):
     engine_version: str
     notes: str
     error: str | None = None
+    # Per-task scores for task-based benchmarks (decision D-R7). The runner
+    # reads this field to write the terminal status; it must exist or the
+    # runner raises AttributeError after evaluate() and never settles.
+    task_scores: list[SidecarTaskScore] | None = None
+    # Progress counts (WS2). Null when the engine could not report them.
+    completed_tasks: int | None = None
+    total_tasks: int | None = None
 
+
+class SidecarTaskScore(BaseModel):
+    """Per-task score reported by a task-based benchmark (decision D-R7)."""
+
+    task: str
+    score: float
+
+
+class SidecarLlmBenchmarkStartResponse(BaseModel):
+    """Handle returned when a runner subprocess is spawned (decisions D-R1/D-R3).
+
+    The backend polls GET /internal/benchmarks/{run_id}/status until the
+    status document reaches `completed` or `failed`.
+    """
+
+    run_id: str
+    status_path: str
+    # Runner stdout/stderr capture (DR-6). None only for responses produced
+    # before log capture existed.
+    log_path: str | None = None

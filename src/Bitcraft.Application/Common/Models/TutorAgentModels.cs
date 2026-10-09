@@ -8,7 +8,7 @@ public sealed record TutorAgentModelConfiguration(
     Guid RuntimeEngineId,
     RuntimeEngineProviderType ProviderType,
     string Endpoint,
-    string? ApiKeySecretRef,
+    string? ApiKey,
     Guid ModelId,
     string ProviderModelName,
     ModelCapabilities Capabilities);

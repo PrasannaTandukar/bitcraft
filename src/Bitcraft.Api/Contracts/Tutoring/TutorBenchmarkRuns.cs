@@ -97,3 +97,75 @@ public sealed record TutorBenchmarkRunResponse(
     string? SummaryJson,
     string? SystemMetricsJson,
     string? RawResultJson);
+
+/// <summary>Request to launch a standardized LLM benchmark run for an interaction model.</summary>
+public sealed record ExecuteStandardBenchmarkRequest(
+    Guid InteractionModelId,
+    string BenchmarkKey,
+    IReadOnlyList<string>? Tasks = null,
+    int NShots = 0,
+    int NProblems = 10);
+
+/// <summary>Admin-visible projection of a standardized benchmark run. Never exposes engine credentials.</summary>
+public sealed record StandardBenchmarkRunResponse(
+    Guid Id,
+    Guid InteractionModelId,
+    string? InteractionModelName,
+    string BenchmarkKey,
+    string? TasksJson,
+    int NShots,
+    int NProblems,
+    string Status,
+    DateTime QueuedUtc,
+    DateTime? StartedUtc,
+    DateTime? CompletedUtc,
+    string? EngineName,
+    string? EngineVersion,
+    double? OverallScore,
+    int TaskCount,
+    string? TaskScoresJson,
+    string? Notes,
+    string? ProgressStage,
+    int? CompletedTasks,
+    int? TotalTasks,
+    double? ProgressPercent,
+    DateTime? LastProgressUtc,
+    string? FailureCode,
+    string? FailureDescription,
+    int Priority,
+    DateTime? CancelledUtc);
+
+/// <summary>Lightweight standardized benchmark run progress response for polling UI state.</summary>
+public sealed record StandardBenchmarkRunProgressResponse(
+    Guid Id,
+    string Status,
+    string? ProgressStage,
+    double? OverallScore,
+    int TaskCount,
+    int? CompletedTasks,
+    int? TotalTasks,
+    double? ProgressPercent,
+    DateTime QueuedUtc,
+    DateTime? StartedUtc,
+    DateTime? CompletedUtc,
+    DateTime? LastProgressUtc,
+    string? FailureCode,
+    string? FailureDescription);
+
+/// <summary>Metadata for one standardized benchmark suite in the catalog.</summary>
+public sealed record StandardBenchmarkSuiteResponse(
+    string Key,
+    string DisplayName,
+    string Description,
+    bool SupportsTasks,
+    bool SupportsShots,
+    bool SupportsProblemCap,
+    int MaxShots,
+    bool Enabled,
+    string Modality);
+
+/// <summary>Sets the queue priority of a standardized benchmark run. Lower values run first.</summary>
+public sealed record SetStandardBenchmarkRunPriorityRequest(int Priority);
+
+/// <summary>Scrubbed, capped runner log for one standardized benchmark run.</summary>
+public sealed record StandardBenchmarkRunLogResponse(Guid RunId, string Log);

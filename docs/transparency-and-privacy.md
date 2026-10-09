@@ -71,14 +71,17 @@ Bitcraft is intended to be deployable in a self-hosted posture. Operators should
 
 ### Runtime Data Flows
 
-- Document vectorization sends document text to the configured Ollama endpoint at `OLLAMA_BASE_URL`.
+- Document vectorization sends document text to the runtime engine endpoint configured by the administrator (Ollama or an OpenAI-compatible runtime).
 - Uploaded document binaries are processed transiently for extraction; Bitcraft persists extracted text and safe metadata, not the original binary or browser-local path.
 - In the default Docker stack, the API sends benchmark requests to the sidecar over a Unix domain socket mounted at `/var/run/bitcraft/sidecar.sock`.
+- For hosted OpenAI standard benchmarks, the API includes the stored runtime-engine API key in the sidecar request payload. The key transits the local Unix socket only. It never reaches the network through this path and is never written to logs.
 - The current sidecar benchmark tool executes deterministic local scoring inside the sidecar process and does not require a DeepEval cloud login.
 
 ### No First-Party Analytics By Default
 
 The current codebase does not configure first-party product analytics or telemetry collectors. If deployment-specific telemetry is added later, it should be documented in this file and in the relevant deployment instructions.
+
+DeepEval 4.2.x posts usage telemetry to PostHog on every benchmark evaluation unless opted out. The benchmark sidecar sets `DEEPEVAL_TELEMETRY_OPT_OUT=1` (Dockerfile and both compose files), so no deepeval telemetry leaves the deployment by default.
 
 ### Operator Responsibility
 

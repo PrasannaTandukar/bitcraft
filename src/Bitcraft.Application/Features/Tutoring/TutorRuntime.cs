@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Bitcraft.Application.Common.Interfaces;
@@ -197,7 +197,7 @@ public sealed class TutorRuntime(
                     interaction.Engine.Id,
                     interaction.Engine.ProviderType,
                     interaction.Engine.Endpoint,
-                    interaction.Engine.ApiKeySecretRef,
+                    interaction.Engine.ApiKey,
                     interaction.Model.Id,
                     interaction.ProviderModelName,
                     snapshot.ModelCapabilities),

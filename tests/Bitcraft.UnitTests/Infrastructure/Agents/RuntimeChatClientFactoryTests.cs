@@ -183,6 +183,25 @@ public sealed class RuntimeChatClientFactoryTests
         Assert.Equal(expectedPath, http.Handler.Uri?.AbsolutePath);
     }
 
+    [Fact]
+    public async Task ModelCatalogProbeFallsBackToRootRouteWhenV1ModelsReturns404()
+    {
+        var handler = new FallbackProbeHandler();
+        var http = new CustomHttpFactory(handler);
+        var config = new ConfigurationBuilder().Build();
+        var model = TutorAgentExecutorTests.Request(RuntimeEngineProviderType.OpenAICompatible).Model with
+        {
+            Endpoint = "http://localhost:7997"
+        };
+        var result = await new RuntimeChatClientFactory(http,
+            new ConfigurationRuntimeApiKeyResolver(config), config).ProbeAvailableModelsAsync(model);
+
+        Assert.True(result.IsSuccess, result.Error.Description);
+        Assert.Equal(["infinity-model-1"], result.Value);
+        Assert.Equal("/models", handler.LastUri?.AbsolutePath);
+        Assert.Equal(2, handler.RequestCount);
+    }
+
     [Theory]
     [InlineData(RuntimeEngineProviderType.Ollama)]
     [InlineData(RuntimeEngineProviderType.OpenAI)]
@@ -262,16 +281,21 @@ public sealed class RuntimeChatClientFactoryTests
     {
         var http = new RecordingHttpFactory(provider);
         // Ephemeral opaque test data, never a provider credential.
-        var resolvedValue = Guid.NewGuid().ToString("N");
+        var rawKeyValue = Guid.NewGuid().ToString("N");
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ModelProviders:Secrets:runtime-reference"] = resolvedValue,
             [$"ModelProviders:{provider}:GenerateTimeoutSeconds"] = "17"
         }).Build();
         var factory = new RuntimeChatClientFactory(http, new ConfigurationRuntimeApiKeyResolver(configuration), configuration);
         var request = TutorAgentExecutorTests.Request(provider);
-        request = request with { Model = request.Model with { ApiKeySecretRef = "runtime-reference" },
-            Images = [TutorAgentExecutorTests.Image()], Temperature = 0.25, TopP = 0.9, MaxOutputTokens = 123 };
+        request = request with
+        {
+            Model = request.Model with { ApiKey = rawKeyValue },
+            Images = [TutorAgentExecutorTests.Image()],
+            Temperature = 0.25,
+            TopP = 0.9,
+            MaxOutputTokens = 123
+        };
         var result = await CreateExecutor(factory).ExecuteAsync(request);
         Assert.True(result.IsSuccess, result.Error.Description);
         Assert.Equal("Answer", result.Value.Answer);
@@ -279,7 +303,7 @@ public sealed class RuntimeChatClientFactoryTests
         Assert.Equal("runtime.test", http.Handler.Uri?.Host);
         Assert.Equal(path, http.Handler.Uri?.AbsolutePath);
         Assert.Equal(TimeSpan.FromSeconds(17), http.Client?.Timeout);
-        Assert.Equal(resolvedValue, http.Handler.Credential);
+        Assert.Equal(rawKeyValue, http.Handler.Credential);
         Assert.Equal("configured-model", http.Handler.Body.GetProperty("model").GetString());
         Assert.True(http.Handler.Disposed);
 
@@ -321,15 +345,22 @@ public sealed class RuntimeChatClientFactoryTests
     }
 
     [Fact]
-    public void MissingSecretReferenceFailsWithoutNetworkOrRawReferenceFallback()
+    public async Task StoredRawKeyIsForwardedVerbatimWithoutNetworkLeak()
     {
         var http = new RecordingHttpFactory(RuntimeEngineProviderType.OpenAI);
-        var config = new ConfigurationBuilder().Build();
-        var model = TutorAgentExecutorTests.Request().Model with { ApiKeySecretRef = "missing-reference" };
-        var result = new RuntimeChatClientFactory(http, new ConfigurationRuntimeApiKeyResolver(config), config).Create(model);
-        Assert.Equal("TutorAgent.SecretNotFound", result.Error.Code);
-        Assert.DoesNotContain("missing-reference", result.Error.Description);
-        Assert.Null(http.Client);
+        var rawKeyValue = "stored-raw-key";
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ModelProviders:OpenAI:GenerateTimeoutSeconds"] = "17"
+        }).Build();
+        var request = TutorAgentExecutorTests.Request(RuntimeEngineProviderType.OpenAI);
+        request = request with { Model = request.Model with { ApiKey = rawKeyValue } };
+        var executor = CreateExecutor(new RuntimeChatClientFactory(http, new ConfigurationRuntimeApiKeyResolver(configuration), configuration));
+        var result = await executor.ExecuteAsync(request);
+        Assert.True(result.IsSuccess, result.Error?.Description);
+        Assert.Equal(rawKeyValue, http.Handler.Credential);
+        Assert.DoesNotContain(rawKeyValue, result.Value.Answer);
+        Assert.True(http.Handler.Disposed);
     }
 
     [Theory]
@@ -412,11 +443,11 @@ public sealed class RuntimeChatClientFactoryTests
                 : request.RequestUri?.AbsolutePath.EndsWith("/models", StringComparison.Ordinal) == true
                     ? """{"object":"list","data":[{"id":"model-b","object":"model","created":1,"owned_by":"test"},{"id":"model-a","object":"model","created":1,"owned_by":"test"}]}"""
                 : provider switch
-            {
-                RuntimeEngineProviderType.Ollama => """{"model":"reported-model","message":{"role":"assistant","content":"Answer","thinking":"transient thinking"},"done":true,"prompt_eval_count":10,"eval_count":4}""" + "\n",
-                RuntimeEngineProviderType.Anthropic => """{"model":"reported-model","content":[{"type":"text","text":"Answer"}],"usage":{"input_tokens":10,"output_tokens":4}}""",
-                _ => """{"id":"test-response","object":"chat.completion","created":1,"model":"reported-model","choices":[{"index":0,"message":{"role":"assistant","content":"Answer"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}"""
-            };
+                {
+                    RuntimeEngineProviderType.Ollama => """{"model":"reported-model","message":{"role":"assistant","content":"Answer","thinking":"transient thinking"},"done":true,"prompt_eval_count":10,"eval_count":4}""" + "\n",
+                    RuntimeEngineProviderType.Anthropic => """{"model":"reported-model","content":[{"type":"text","text":"Answer"}],"usage":{"input_tokens":10,"output_tokens":4}}""",
+                    _ => """{"id":"test-response","object":"chat.completion","created":1,"model":"reported-model","choices":[{"index":0,"message":{"role":"assistant","content":"Answer"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14}}"""
+                };
             return new HttpResponseMessage(status)
             {
                 Content = new StringContent(status == HttpStatusCode.OK ? response : provider == RuntimeEngineProviderType.Ollama
@@ -424,5 +455,37 @@ public sealed class RuntimeChatClientFactoryTests
             };
         }
         protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
+    }
+
+    private sealed class CustomHttpFactory(HttpMessageHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
+    }
+
+    private sealed class FallbackProbeHandler : HttpMessageHandler
+    {
+        public Uri? LastUri { get; private set; }
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            LastUri = request.RequestUri;
+            if (request.RequestUri?.AbsolutePath == "/v1/models")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
+                {
+                    Content = new StringContent("""{"error":"Not Found"}""", Encoding.UTF8, "application/json")
+                });
+            }
+            if (request.RequestUri?.AbsolutePath == "/models")
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"object":"list","data":[{"id":"infinity-model-1"}]}""", Encoding.UTF8, "application/json")
+                });
+            }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
+        }
     }
 }

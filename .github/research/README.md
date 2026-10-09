@@ -22,7 +22,7 @@ Dedicated folder for research deliverables. Active reports at the root; complete
 
 ## Lifecycle
 
-1. Research is run via `research.prompt.md`.
+1. Research is run via the `bitcraft-research` skill (inside Secretary or Planner).
 2. Report is written using `templates/research.template.md`.
 3. Recommendations are converted to inbox items.
 4. When the research is no longer the active reference (decision made or superseded), move the report to `archive/`.

@@ -26,7 +26,7 @@ Bitcraft does not use a `.copilotignore` file because that primitive does not ex
 ## Bitcraft Operational Rules
 
 1. **No secrets in repository.** Secrets, tokens, dataset paths, model weights, and production endpoints are excluded by `.gitignore` (`*.env`, `.env.local`, `.env.*.local`, `.conda/`, etc.) and must never enter the working tree.
-2. **Sensitive ad-hoc files use scratch suffixes.** `.gitignore` blocks `*.session.md`, `*.draft.md`, `*.transcript.md` so agents can write transient analyses without committing them.
+2. **Agent inboxes and sensitive ad-hoc files are local-only.** `.gitignore` blocks `.github/inboxes/`, `*.session.md`, `*.draft.md`, and `*.transcript.md` so agents can use transient coordination without committing it.
 3. **Developer-local documentation.** `docs/dev/` is ignored by Git and populated locally by humans/developers. Agents may read it only when the active workflow calls for local documentation lookup, and must tolerate it being absent.
 4. **Identity, customer, and tutor user content.** None of this lives in the repository today. If it ever does, the path must be added to both `.gitignore` and to workspace `files.exclude`/`search.exclude` so Copilot does not retrieve it for context.
 5. **MCP servers must enforce their own scope.** The repository read-only MCP server constrains tools to approved repository governance, agent, inbox, and developer-local documentation paths. New MCP tools must follow the same pattern (no free-form paths).

@@ -20,13 +20,13 @@ Captured from chat. This document records human-confirmed answers so plans, prom
   1. An explicit user message in the current chat session granting access for the current task, OR
   2. The source is listed in `.github/config/approved-external-sources.yaml` (pre-approved allow-list).
 - **Format**: The allow-list is YAML, not Markdown, per D-8. The file exists and is initially empty (`sources: []`) until the human adds entries.
-- **Action**: AI Ops keeps `research.prompt.md` and the `bitcraft-research` skill pointed at this YAML file.
+- **Action**: AI Ops keeps the `bitcraft-research` skill pointed at this YAML file.
 
 ## D-3 — Plan Folder Naming And Branch Rule
 
 - **Decision**: The active plan branch slug is derived directly from the working Git branch name (lowercased, `/` → `-`). Agents do not create new Git branches.
 - **Protected branches**: If the working branch is `dev`, `main`, or `test`, agents must HALT and notify the human; no plan folder is created from those names.
-- **Captured in**: `.github/governance/BRANCH_CONVENTION.md`. Supersedes the open Dev Ops "propose a branch convention" inbox item.
+- **Captured in**: `.github/governance/BRANCH_CONVENTION.md`. Supersedes the open "propose a branch convention" inbox item (then Dev Ops; now Sec Ops).
 
 ## D-4 — Fetch MCP Server (Per-Request Vs Allow-List)
 

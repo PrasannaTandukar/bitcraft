@@ -133,7 +133,7 @@ public static class DependencyInjection
         services.AddScoped<ITutorMemoryStore, PgvectorTutorMemoryStore>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Embeddings.OllamaEmbeddingProvider>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider>();
-        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.CompositeEmbeddingProvider>();
+        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.Embeddings.CompositeEmbeddingProvider>();
         services.AddScoped<IRuntimeApiKeyResolver, ConfigurationRuntimeApiKeyResolver>();
         services.AddScoped<IRuntimeChatClientFactory, RuntimeChatClientFactory>();
         services.AddScoped<IRuntimeModelDiagnostic, RuntimeModelDiagnostic>();
@@ -150,7 +150,14 @@ public static class DependencyInjection
             .AddHttpMessageHandler(() => new TutorAgentHttpStatusHandler())
             .RemoveAllLoggers();
         services.AddKnowledgePersistence(configuration);
-        services.Configure<DeepEvalBenchmarkOptions>(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName));
+        services.AddOptions<DeepEvalBenchmarkOptions>()
+            .Bind(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddOptions<Bitcraft.Application.Features.Benchmarking.StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions>()
+            .Bind(configuration.GetSection(Bitcraft.Application.Features.Benchmarking.StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();
@@ -166,6 +173,9 @@ public static class DependencyInjection
         services.AddScoped<ITutorBenchmarkOutputGenerator, TutorBenchmarkOutputGenerator>();
         services.AddSingleton<IBenchmarkRunQueue, InMemoryBenchmarkRunQueue>();
         services.AddHostedService<BenchmarkRunWorker>();
+        services.AddScoped<IStandardBenchmarkRunRepository, StandardBenchmarkRunRepository>();
+        services.AddSingleton<IStandardBenchmarkRunQueue, InMemoryStandardBenchmarkRunQueue>();
+        services.AddHostedService<StandardBenchmarkRunWorker>();
 
         // External model providers
         var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 30;

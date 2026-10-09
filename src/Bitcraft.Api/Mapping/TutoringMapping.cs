@@ -1,10 +1,11 @@
-using Bitcraft.Api.Contracts;
+﻿using Bitcraft.Api.Contracts;
 using Bitcraft.Api.Contracts.Admin;
 using Bitcraft.Api.Contracts.Documents;
 using Bitcraft.Api.Contracts.Knowledge;
 using Bitcraft.Api.Contracts.Tutoring;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Features.Documents;
+using Bitcraft.Application.Features.Benchmarking;
 using Bitcraft.Application.Features.Knowledge;
 using Bitcraft.Application.Features.Tutoring;
 using Bitcraft.Domain.Benchmarking;
@@ -177,14 +178,14 @@ internal static class TutoringMapping
         ToolActivities: (result.ToolActivities ?? []).Select(activity => new TutorToolCallActivityResponse(
             activity.ToolName, activity.StartedUtc, activity.CompletedUtc, activity.Status.ToString(),
             activity.DurationMs, activity.ResultSummary, activity.ErrorCategory)).ToList())
-        { Provenance = result.Provenance?.ToResponse() };
+    { Provenance = result.Provenance?.ToResponse() };
 
     public static Bitcraft.Api.Contracts.Tutoring.TutorMessageProvenanceResponse ToResponse(
         this Bitcraft.Application.Common.Models.TutorMessageProvenanceResponse value) => new(
         new(value.Knowledge.RetrievedChunkCount, value.Knowledge.RetrievedChunks.Select(chunk =>
             new Bitcraft.Api.Contracts.Tutoring.TutorRetrievedChunkEvidenceResponse(chunk.DocumentName,
                 chunk.ChunkIndex, chunk.RetrievalRank, chunk.Excerpt, chunk.SimilarityScore)
-                { DocumentGroupKey = chunk.DocumentGroupKey }).ToList(), value.Knowledge.SimilarityMetric),
+            { DocumentGroupKey = chunk.DocumentGroupKey }).ToList(), value.Knowledge.SimilarityMetric),
         new(value.Memory.ContextProvided, value.Memory.RetrievedItemCount),
         value.Tools.Select(tool => new Bitcraft.Api.Contracts.Tutoring.TutorToolProvenanceResponse(
             tool.ToolName, tool.Status, tool.Succeeded, tool.DurationMs, tool.ErrorCategory)).ToList(),
@@ -298,7 +299,7 @@ internal static class TutoringMapping
         engine.Name,
         engine.ProviderType,
         engine.Endpoint,
-        HasApiKeySecret: !string.IsNullOrWhiteSpace(engine.ApiKeySecretRef),
+        HasApiKey: !string.IsNullOrWhiteSpace(engine.ApiKey),
         engine.IsEnabled,
         engine.CreatedUtc,
         engine.CreatedById,
@@ -492,4 +493,58 @@ internal static class TutoringMapping
         run.SummaryJson,
         run.SystemMetricsJson,
         run.RawResultJson);
+    public static StandardBenchmarkRunResponse ToResponse(this StandardBenchmarkRun run) => new(
+        run.Id,
+        run.InteractionModelId,
+        run.InteractionModel?.Name,
+        run.BenchmarkKey,
+        run.TasksJson,
+        run.NShots,
+        run.NProblems,
+        run.Status.ToString(),
+        run.QueuedUtc,
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.EngineName,
+        run.EngineVersion,
+        run.OverallScore,
+        run.TaskCount,
+        run.TaskScoresJson,
+        run.Notes,
+        run.ProgressStage,
+        run.CompletedTasks,
+        run.TotalTasks,
+        run.ProgressPercent,
+        run.LastProgressUtc,
+        run.FailureCode,
+        run.FailureDescription,
+        run.Priority,
+        run.CancelledUtc);
+
+    public static StandardBenchmarkSuiteResponse ToResponse(this StandardBenchmarkSuiteRegistry.SuiteInfo suite) => new(
+        suite.Key,
+        suite.DisplayName,
+        suite.Description,
+        suite.SupportsTasks,
+        suite.SupportsShots,
+        suite.SupportsProblemCap,
+        suite.MaxShots,
+        suite.Enabled,
+        suite.Modality.ToString().ToLowerInvariant());
+
+    public static StandardBenchmarkRunProgressResponse ToProgressResponse(this StandardBenchmarkRun run) => new(
+        run.Id,
+        run.Status.ToString(),
+        run.ProgressStage,
+        run.OverallScore,
+        run.TaskCount,
+        run.CompletedTasks,
+        run.TotalTasks,
+        run.ProgressPercent,
+        run.QueuedUtc,
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.LastProgressUtc,
+        run.FailureCode,
+        run.FailureDescription);
 }

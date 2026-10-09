@@ -39,21 +39,31 @@ SRC_DIR = REPO_ROOT / "src"
 # Clean Architecture: Domain and Application must not depend on Infrastructure or Api.
 # Application additionally must not reference external packages.
 FORBIDDEN_PROJECT_REFERENCES = {
-    "Bitcraft.Domain": ("Bitcraft.Infrastructure", "Bitcraft.Api", "Bitcraft.Application"),
+    "Bitcraft.Domain": (
+        "Bitcraft.Infrastructure",
+        "Bitcraft.Api",
+        "Bitcraft.Application",
+    ),
     "Bitcraft.Application": ("Bitcraft.Infrastructure", "Bitcraft.Api"),
 }
 FORBIDDEN_USINGS = {
-    "Bitcraft.Domain": ("Bitcraft.Infrastructure", "Bitcraft.Api", "Bitcraft.Application"),
+    "Bitcraft.Domain": (
+        "Bitcraft.Infrastructure",
+        "Bitcraft.Api",
+        "Bitcraft.Application",
+    ),
     "Bitcraft.Application": ("Bitcraft.Infrastructure", "Bitcraft.Api"),
 }
 # Application is the only project with a hard "no external packages" rule.
 NO_EXTERNAL_PACKAGES_PROJECTS = ("Bitcraft.Application",)
 # Packages explicitly approved inside Bitcraft.Application despite the
 # no-external-packages rule. Keep this list narrow; expansions require human approval.
-APPLICATION_PACKAGE_ALLOWLIST = frozenset({
-    "MediatR",
-    "Microsoft.Extensions.DependencyInjection.Abstractions",
-})
+APPLICATION_PACKAGE_ALLOWLIST = frozenset(
+    {
+        "MediatR",
+        "Microsoft.Extensions.DependencyInjection.Abstractions",
+    }
+)
 FRONTMATTER_PATTERN = re.compile(r"\A---\r?\n(?P<body>.*?)\r?\n---\r?\n", re.DOTALL)
 STACK_SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
 
@@ -63,7 +73,10 @@ mcp = FastMCP("bitcraft-mcp")
 def _safe_read(directory: Path, name: str, suffix: str = ".md") -> str:
     """Read ``directory / name + suffix`` while preventing path traversal."""
     candidate = (directory / f"{name}{suffix}").resolve()
-    if directory.resolve() not in candidate.parents and candidate.parent != directory.resolve():
+    if (
+        directory.resolve() not in candidate.parents
+        and candidate.parent != directory.resolve()
+    ):
         raise ValueError("Path is outside the allowed directory.")
     if not candidate.is_file():
         raise FileNotFoundError(f"{candidate.relative_to(REPO_ROOT)} does not exist.")
@@ -105,7 +118,9 @@ def _extract_stack_source_paths(stack_dir: Path, text: str) -> list[dict]:
     for raw_path in re.findall(r"^\s*path:\s*['\"]?([^'\"\r\n]+)", text, re.MULTILINE):
         candidate = (stack_root / raw_path).resolve()
         if stack_root not in candidate.parents and candidate.parent != stack_root:
-            source_paths.append({"path": raw_path, "exists": False, "error": "outside-stack"})
+            source_paths.append(
+                {"path": raw_path, "exists": False, "error": "outside-stack"}
+            )
             continue
         source_paths.append({"path": raw_path, "exists": candidate.is_file()})
     return source_paths
@@ -123,7 +138,13 @@ def _parse_inbox_items(text: str) -> list[dict]:
     for line in _strip_frontmatter(text).splitlines():
         if line.startswith("- ") and ":" in line:
             key, value = line[2:].split(":", 1)
-            normalized = key.strip().lower().replace("/", "_").replace(" ", "_").replace("-", "_")
+            normalized = (
+                key.strip()
+                .lower()
+                .replace("/", "_")
+                .replace(" ", "_")
+                .replace("-", "_")
+            )
             if normalized == "date":
                 if current:
                     items.append(current)
@@ -157,7 +178,7 @@ def read_inbox(agent_slug: str) -> str:
     """Read the prioritized backlog for one agent.
 
     Args:
-        agent_slug: Lowercase agent slug such as ``ai-ops`` or ``net-dev``.
+        agent_slug: Lowercase agent slug such as ``ai-ops`` or ``lead-dev``.
     """
     inbox_file = (INBOX_DIR / agent_slug / "inbox.md").resolve()
     if INBOX_DIR.resolve() not in inbox_file.parents:
@@ -172,7 +193,7 @@ def read_inbox_structured(agent_slug: str) -> dict:
     """Read one agent inbox as structured items parsed from the Markdown source.
 
     Args:
-        agent_slug: Lowercase agent slug such as ``ai-ops`` or ``net-dev``.
+        agent_slug: Lowercase agent slug such as ``ai-ops`` or ``lead-dev``.
     """
     inbox_text = read_inbox(agent_slug)
     inbox_file = (INBOX_DIR / agent_slug / "inbox.md").resolve()
@@ -264,7 +285,11 @@ def list_configs() -> list[str]:
     """List human-managed configuration files under .github/config/."""
     if not CONFIG_DIR.is_dir():
         return []
-    return sorted(p.name for p in CONFIG_DIR.iterdir() if p.is_file() and p.suffix.lower() in {".yaml", ".yml"})
+    return sorted(
+        p.name
+        for p in CONFIG_DIR.iterdir()
+        if p.is_file() and p.suffix.lower() in {".yaml", ".yml"}
+    )
 
 
 @mcp.tool()
@@ -283,7 +308,10 @@ def read_config(name: str) -> str:
     if Path(name).suffix.lower() not in {".yaml", ".yml"}:
         raise ValueError("only .yaml/.yml configuration files are exposed")
     target = (CONFIG_DIR / name).resolve()
-    if CONFIG_DIR.resolve() not in target.parents and target.parent != CONFIG_DIR.resolve():
+    if (
+        CONFIG_DIR.resolve() not in target.parents
+        and target.parent != CONFIG_DIR.resolve()
+    ):
         raise ValueError("config path escapes the configuration directory")
     if not target.is_file():
         raise FileNotFoundError(f"config not found: {name}")
@@ -302,6 +330,44 @@ def list_agents() -> list[str]:
 def read_roster() -> str:
     """Read the agent roster at .github/agents/ROSTER.md."""
     return _safe_read(AGENTS_DIR, "ROSTER")
+
+
+@mcp.tool()
+def list_skills() -> list[dict]:
+    """List Bitcraft skills under .github/skills/ with name and description.
+
+    Each entry carries the skill slug, its frontmatter ``name``, and
+    ``description`` so an agent can pick the right skill without reading
+    every SKILL.md. Entry skills (bitcraft-plan, bitcraft-develop,
+    bitcraft-review) are the workflow phase entrypoints.
+    """
+    if not SKILLS_DIR.is_dir():
+        return []
+    skills: list[dict] = []
+    for entry in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+        skill_file = entry / "SKILL.md"
+        if not skill_file.is_file():
+            continue
+        meta = _parse_frontmatter(skill_file.read_text(encoding="utf-8"))
+        skills.append(
+            {
+                "slug": entry.name,
+                "name": meta.get("name", entry.name),
+                "description": meta.get("description", ""),
+            }
+        )
+    return skills
+
+
+@mcp.tool()
+def read_skill(slug: str) -> str:
+    """Read one Bitcraft skill SKILL.md by folder slug (e.g. ``bitcraft-plan``).
+
+    Args:
+        slug: Folder name under ``.github/skills/``.
+    """
+    skill_dir = _safe_child_dir(SKILLS_DIR, slug)
+    return _safe_read(skill_dir, "SKILL")
 
 
 @mcp.tool()
@@ -348,12 +414,16 @@ def list_active_plans(include_archived: bool = False) -> list[dict]:
     if include_archived:
         archive_dir = PLANS_DIR / "archive"
         if archive_dir.is_dir():
-            for entry in sorted(p for p in archive_dir.iterdir() if p.is_dir() or p.is_file()):
+            for entry in sorted(
+                p for p in archive_dir.iterdir() if p.is_dir() or p.is_file()
+            ):
                 plans.append(
                     {
                         "branchSlug": entry.name,
                         "path": str(entry.relative_to(REPO_ROOT)),
-                        "hasPlanYaml": (entry / "plan.yaml").is_file() if entry.is_dir() else False,
+                        "hasPlanYaml": (entry / "plan.yaml").is_file()
+                        if entry.is_dir()
+                        else False,
                         "status": "archived",
                         "cil": "unknown",
                         "goal": "",
@@ -378,7 +448,9 @@ def read_plan(branch_slug: str) -> dict:
             ``batch-2-agentic-stack``.
     """
     if branch_slug in {"archive", "templates"}:
-        raise ValueError("branch_slug must be an active plan folder, not a reserved subfolder.")
+        raise ValueError(
+            "branch_slug must be an active plan folder, not a reserved subfolder."
+        )
 
     plan_dir = _safe_child_dir(PLANS_DIR, branch_slug)
     if not plan_dir.is_dir():
@@ -391,9 +463,15 @@ def read_plan(branch_slug: str) -> dict:
     return {
         "branchSlug": branch_slug,
         "path": str(plan_dir.relative_to(REPO_ROOT)),
-        "planYaml": plan_yaml.read_text(encoding="utf-8") if plan_yaml.is_file() else None,
-        "planMarkdown": plan_md.read_text(encoding="utf-8") if plan_md.is_file() else None,
-        "contextMarkdown": context_md.read_text(encoding="utf-8") if context_md.is_file() else None,
+        "planYaml": plan_yaml.read_text(encoding="utf-8")
+        if plan_yaml.is_file()
+        else None,
+        "planMarkdown": plan_md.read_text(encoding="utf-8")
+        if plan_md.is_file()
+        else None,
+        "contextMarkdown": context_md.read_text(encoding="utf-8")
+        if context_md.is_file()
+        else None,
     }
 
 
@@ -481,14 +559,20 @@ def verify_architecture_readonly() -> dict:
 
         forbidden_usings = FORBIDDEN_USINGS.get(project_name, ())
         for cs_file in project_dir.rglob("*.cs"):
-            if any(part in {"bin", "obj"} for part in cs_file.relative_to(project_dir).parts):
+            if any(
+                part in {"bin", "obj"}
+                for part in cs_file.relative_to(project_dir).parts
+            ):
                 continue
             try:
                 text = cs_file.read_text(encoding="utf-8")
             except OSError:
                 continue
             for using in using_pattern.findall(text):
-                if any(using == bad or using.startswith(f"{bad}.") for bad in forbidden_usings):
+                if any(
+                    using == bad or using.startswith(f"{bad}.")
+                    for bad in forbidden_usings
+                ):
                     violations.append(
                         {
                             "project": project_name,

@@ -61,8 +61,6 @@ services:
       ChatAttachments__RetentionHours: ${CHAT_ATTACHMENTS_RETENTION_HOURS:-24}
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
       Benchmarking__DeepEval__Transport: uds
       Benchmarking__DeepEval__SocketPath: /var/run/bitcraft/sidecar.sock
       BITCRAFT_ADMIN_EMAIL: ${BITCRAFT_ADMIN_EMAIL}
@@ -87,7 +85,18 @@ services:
     container_name: bitcraft-benchmark-sidecar
     environment:
       DEEPEVAL_DISABLE_DOTENV: "1"
+      # C3: block deepeval's PostHog telemetry egress (privacy doc: no
+      # first-party analytics by default).
+      DEEPEVAL_TELEMETRY_OPT_OUT: "1"
+      # Transport: uds (default, no TCP port) or http. The HTTP listener binds
+      # the container network only; no host port is mapped. Port 48317 is
+      # deliberately uncommon to avoid host/container port clashes.
+      BITCRAFT_SIDECAR_TRANSPORT: "uds"
+      BITCRAFT_SIDECAR_HTTP_PORT: "48317"
     volumes:
+      # DeepEval downloads benchmark datasets through the HuggingFace datasets
+      # library. The named cache keeps them across container rebuilds (O-1).
+      - benchmark_dataset_cache:/root/.cache/huggingface
       - benchmark_sidecar_socket:/var/run/bitcraft
     restart: unless-stopped
     healthcheck:
@@ -116,3 +125,4 @@ volumes:
   postgres_data: {}
   nuget-packages: {}
   benchmark_sidecar_socket: {}
+  benchmark_dataset_cache: {}

@@ -80,6 +80,36 @@ public class AuthenticationPolicyTests(BitcraftApiFactory factory) : IClassFixtu
         Assert.Contains(documents, document => document.Name == "Editor document");
     }
 
+    [Fact]
+    public async Task TestRuntimeEngineConnection_WithAuditorRole_ReturnsOk()
+    {
+        // Read-only probe is available to any authenticated user per human decision OD-1.
+        var client = factory.CreateClient();
+        await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
+
+        var response = await client.PostAsJsonAsync("/api/admin/runtime-engines/test", new
+        {
+            providerType = 0,
+            endpoint = "http://localhost:11434",
+            apiKey = (string?)null,
+            runtimeEngineId = (Guid?)null,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListRuntimeEngines_WithAuditorRole_ReturnsForbidden()
+    {
+        // Management stays AdminOnly; only the probe endpoint was opened up (OD-1/OD-2).
+        var client = factory.CreateClient();
+        await AuthorizeAsRoleAsync(client, AppRoles.Auditor);
+
+        var response = await client.GetAsync("/api/admin/runtime-engines");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private async Task AuthorizeAsRoleAsync(HttpClient client, string role)
     {
         var email = $"test-{Guid.NewGuid():N}@bitcraft.test";

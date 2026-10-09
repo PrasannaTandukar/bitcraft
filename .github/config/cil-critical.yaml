@@ -8,8 +8,7 @@ description: >
 agents_required:
   - primary specialist
   - lead-dev
-  - sec-ops
-  - dev-ops when infrastructure or deployment is touched
+  - sec-ops (mandatory; owns both security and infrastructure domains)
 
 research_required:
   - repository evidence for all affected layers
@@ -45,7 +44,6 @@ validation_required:
 review_required:
   - lead-dev
   - sec-ops (mandatory)
-  - dev-ops when infrastructure is touched
   - human final approval before merge or deployment
 
 human_escalation:

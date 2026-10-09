@@ -1,4 +1,4 @@
-namespace Bitcraft.Application.Common.Models;
+﻿namespace Bitcraft.Application.Common.Models;
 
 public sealed record BenchmarkEngineRequest(
     string TemplateKey,
@@ -66,3 +66,37 @@ public sealed record GeneratedBenchmarkOutput(
     long? InputTokenCount = null,
     long? OutputTokenCount = null,
     long? TotalTokenCount = null);
+
+public sealed record StandardBenchmarkTaskScore(string Task, double Score);
+
+public sealed record StandardBenchmarkHandle(string RunId);
+
+/// <summary>Terminal or in-flight status of a standardized benchmark run.</summary>
+public sealed record StandardBenchmarkStatus(
+    string State,
+    string? Stage,
+    double? OverallScore,
+    IReadOnlyList<StandardBenchmarkTaskScore>? TaskScores,
+    int TaskCount,
+    int? CompletedTasks,
+    int? TotalTasks,
+    string EngineVersion,
+    string Notes,
+    string? Error)
+{
+    public const string StateRunning = "running";
+    public const string StateCompleted = "completed";
+    public const string StateFailed = "failed";
+    public const string StateCancelled = "cancelled";
+}
+
+public sealed record StandardLlmBenchmarkRequest(
+    string BenchmarkKey,
+    string Provider,
+    string ModelName,
+    string? BaseUrl = null,
+    string? ApiKey = null,
+    IReadOnlyList<string>? Tasks = null,
+    int NShots = 0,
+    int NProblems = 10,
+    bool AllowCodeExecution = false);

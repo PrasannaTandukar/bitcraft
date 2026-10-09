@@ -25,7 +25,16 @@ public static class BenchmarkFeatures
         "faithfulness",
         "answer_relevancy",
         "hallucination",
-        "correctness"
+        "correctness",
+        "contextual_precision",
+        "contextual_recall",
+        "contextual_relevancy",
+        "pii_leakage",
+        "toxicity",
+        "bias",
+        "prompt_alignment",
+        "role_violation",
+        "g_eval"
     };
 
     public sealed record BenchmarkCaseInput(

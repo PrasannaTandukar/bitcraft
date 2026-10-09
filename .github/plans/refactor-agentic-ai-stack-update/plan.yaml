@@ -1,0 +1,32 @@
+# plan.yaml — agentic stack modernization
+branch: refactor/agentic-ai-stack-update
+created_at: 2026-09-17
+updated_at: 2026-09-17
+status: active # active | blocked | complete
+goal: Modernize and lean out the .github agentic stack (agents, prompts, skills, MCP spec) with human-reviewed iterations and no breaking changes.
+cil: high # low | medium | high | critical (see .github/config/cil-<level>.yaml)
+css: 7 # 0-10
+dis: 8 # 0-10
+agents:
+  lead: ai-ops
+  supporting: [planner, secretary]
+model_family: claude # claude | gpt | gemini | ollama
+progress: >
+  Done 2026-09-17: WS1 drift fixes, WS1b agent consolidation (10 to 5),
+  WS2 prompt-to-skill migration (10 prompts deleted, workflows live in skills),
+  WS3 skill consolidation (18 to 14, plus new bitcraft-planning and bitcraft-ste),
+  WS4 MCP spec split (implemented vs roadmap, verified against server.py).
+  Remaining: WS5 slim always-on context + STE sweep of steering docs, WS6 closing audit.
+human_locks:
+  - review and approve the full plan before any edits
+  - review and approve each phase output before the next phase starts
+  - approve any file deletion or skill/prompt merge
+notes: >
+  Scope is the agentic stack only (.github customizations, mcp-server spec surface).
+  Project feature work, unit test coverage, and handoffs are explicitly out of scope
+  for this iteration. Verified against VS Code docs updated 2026-09-16.
+  Progress 2026-09-17: WS1 drift fixes done. Agent consolidation 10 to 5 done
+  (Secretary, Planner, Lead Dev, Sec Ops, AI Ops). bitcraft-ste skill added and set
+  as the default writing style. markdownlint clean on 45 touched files.
+  WS2 prompt-to-skill migration, WS3 skill consolidation, and WS4 MCP spec split are done.
+  Next: human review of WS5 and WS6.

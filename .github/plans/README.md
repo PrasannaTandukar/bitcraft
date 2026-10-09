@@ -30,7 +30,7 @@ Branch-scoped task plans. One folder per active branch. Archives are out of norm
 
 - One active branch folder = one active task line. Multiple active branches are allowed but discouraged.
 - `plan.yaml` is the source of truth for agent/model selection, CSS/DIS/CIL, and status.
-- Prompts are NOT stored here. Prompts live under `.github/prompts/`.
+- Workflow entrypoints are skills under `.github/skills/` (prompt files were retired 2026-09-17); they are not stored here.
 - When a sub-task file is complete, move it to the branch-local `archive/`.
 - When the whole branch is complete, move the whole branch folder to `.github/plans/archive/`.
 - The MCP server exposes only active (non-archived) plans via `list_active_plans()` and `read_plan(branch_slug)`. Use `include_archived=True` only when explicitly searching history.
