@@ -237,7 +237,7 @@ pipeline {
                         variable: 'JETSON_HOST_KEY'
                     )
                 ]) {
-                    sh '''
+                    sh '''#!/usr/bin/env bash
                         set -euo pipefail
 
                         mkdir -p ~/.ssh
