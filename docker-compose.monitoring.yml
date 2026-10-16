@@ -43,7 +43,7 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
       GF_USERS_ALLOW_SIGN_UP: "false"
-
+      GF_SMTP_STARTTLS_POLICY: MandatoryStartTLS
       GF_SMTP_ENABLED: ${GRAFANA_SMTP_ENABLED}
       GF_SMTP_HOST: ${GRAFANA_SMTP_HOST}
       GF_SMTP_USER: ${GRAFANA_SMTP_USER}
@@ -62,11 +62,36 @@ services:
     depends_on:
       - prometheus
       - loki
+      #- mailserver
 
     restart: unless-stopped
+  # mailserver:
+  #   image: ghcr.io/docker-mailserver/docker-mailserver:latest
+  #   hostname: mail.example.test
+  #   environment:
+  #     ONE_DIR: 1
+  #     ENABLE_RSPAMD: 0
+  #     ENABLE_CLAMAV: 0
+  #     ENABLE_FAIL2BAN: 0
+  #     # let other containers on this compose network send without auth
+  #     PERMIT_DOCKER: connected-networks
+  #     # forward everything through your provider
+  #     RELAY_HOST: smtp-relay.brevo.com
+  #     RELAY_PORT: 587
+  #     RELAY_USER: ${SMTP_RELAY_USER}
+  #     RELAY_PASSWORD: ${SMTP_RELAY_PASSWORD}
+  #   volumes:
+  #     - mail_data:/var/mail/
+  #     - mail_state:/var/mail-state/
+  #     - mail_logs:/var/log/mail/
+  #     - ./docker-data/dms/config/:/tmp/docker-mailserver/
+  #   restart: unless-stopped
 
 volumes:
   prometheus_data:
   loki_data:
   alloy_data:
   grafana_data:
+  # mail_data:
+  # mail_state:
+  # mail_logs:
