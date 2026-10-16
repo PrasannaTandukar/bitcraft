@@ -65,7 +65,7 @@ pipeline {
                         cd /home/cmpe6012/AgenticTutor/bitcraft-deploy
 
                         echo "Fetching deploy branch..."
-                        git fetch origin deploy/orin
+                        git fetch origin feature/jenkins-pipeline
 
                         echo "Deploying pinned commit: $DEPLOY_SHA"
                         git reset --hard "$DEPLOY_SHA"
