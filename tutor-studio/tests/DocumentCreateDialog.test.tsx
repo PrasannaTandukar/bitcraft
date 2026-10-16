@@ -5,12 +5,6 @@ import { afterEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 describe("DocumentCreateDialog", () => {
-
-    afterEach(async () => {
-    cleanup();
-    // let antd's delayed state updates (Select focus/open) flush before teardown
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    });
     const folders = [
         {
             id: "folder-1",
