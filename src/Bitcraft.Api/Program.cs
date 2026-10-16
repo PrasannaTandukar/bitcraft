@@ -127,7 +127,14 @@ app.UseRouting();
 app.UseHttpMetrics();   // request count and duration by status code, method, route
 
 // Serve /metrics on a separate internal-only port, not on the public API port.
-new KestrelMetricServer(port: 9464).Start();
+//new KestrelMetricServer(port: 9464).Start();
+// Serve /metrics on a separate internal-only port.
+// Disable the listener in integration tests to avoid port conflicts.
+if (app.Configuration.GetValue<bool>("Metrics:Enabled"))
+{
+    var metricsPort = app.Configuration.GetValue<int?>("Metrics:Port") ?? 9464;
+    new KestrelMetricServer(port: metricsPort).Start();
+}
 
 app.UseAuthentication();
 app.UseCors("AllowFrontend");
