@@ -45,7 +45,7 @@ public sealed class ChatImageNormalizer(ChatAttachmentLimits limits) : IChatImag
                 MaxFrames = 2,
                 // v4 replaced PngDecoderOptions.PngCrcChunkHandling with this general setting.
                 // Strict matches the previous PngCrcChunkHandling.IgnoreNone behaviour.
-                SegmentIntegrityHandling = SegmentIntegrityHandling.Strict
+                //SegmentIntegrityHandling = SegmentIntegrityHandling.Strict
             };
             using var input = new MemoryStream(data.ToArray(), writable: false);
             var info = await Image.IdentifyAsync(options, input, cancellationToken);
@@ -64,7 +64,8 @@ public sealed class ChatImageNormalizer(ChatAttachmentLimits limits) : IChatImag
                 ? await PngDecoder.Instance.DecodeAsync<Rgba32>(new PngDecoderOptions
                 {
                     GeneralOptions = options,
-                    MaxUncompressedAncillaryChunkSizeBytes = 1024 * 1024
+                    MaxUncompressedAncillaryChunkSizeBytes = 1024 * 1024,
+                    PngCrcChunkHandling = PngCrcChunkHandling.IgnoreNone,
                 }, input, cancellationToken)
                 : await Image.LoadAsync<Rgba32>(options, input, cancellationToken);
             if (decoded.Frames.Count != 1)

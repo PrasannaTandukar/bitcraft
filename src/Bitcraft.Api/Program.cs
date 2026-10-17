@@ -7,9 +7,17 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi;
 using System.Threading.RateLimiting;
 using Prometheus;
+using Microsoft.AspNetCore.HttpLogging;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields =
+        HttpLoggingFields.RequestMethod |
+        HttpLoggingFields.RequestPath |
+        HttpLoggingFields.ResponseStatusCode;
+});
 var configuredUploadBytes = builder.Configuration.GetValue<long?>("Documents:MaxUploadBytes");
 var maximumUploadBytes = configuredUploadBytes is > 0
     ? configuredUploadBytes.Value
@@ -124,6 +132,7 @@ app.UseHttpsRedirection();
 
 
 app.UseRouting();
+app.UseHttpLogging(); // Individual HTTP request logs
 app.UseHttpMetrics();   // request count and duration by status code, method, route
 
 // Serve /metrics on a separate internal-only port, not on the public API port.

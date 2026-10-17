@@ -89,3 +89,4 @@ coverage/
 # Developer-local documentation stacks; humans/developers populate these locally.
 docs/dev/
 
+jenkins-workspace/
