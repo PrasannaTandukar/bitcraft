@@ -51,7 +51,7 @@ services:
       - dind-init
     ports:
       #connection between Jenkins webUI to host only on local network
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8080"
       #JNLP port to connect other containers running Jenkins if needed
       - "127.0.0.1:50000:50000"
     #Reference: https://www.jenkins.io/doc/book/installing/docker/
