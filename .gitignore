@@ -1,6 +1,6 @@
-# =========================
+# ====
 # JetBrains IDEs (Rider, IntelliJ, WebStorm)
-# =========================
+# ====
 .idea/
 *.iml
 *.iws
@@ -10,9 +10,9 @@ out/
 # Rider specific
 *.sln.iml
 
-# =========================
+# ====
 # .NET
-# =========================
+# ====
 bin/
 obj/
 *.user
@@ -28,18 +28,18 @@ obj/
 __pycache__/
 *.py[cod]
 
-# =========================
+# ====
 # Node / React
-# =========================
+# ====
 node_modules/
 dist/
 build/
 .next/
 out/
 
-# =========================
+# ====
 # Python
-# =========================
+# ====
 
 *.pyc
 
@@ -55,15 +55,15 @@ pnpm-debug.log*
 .env.*.local
 .conda/
 
-# =========================
+# ====
 # OS files
-# =========================
+# ====
 .DS_Store
 Thumbs.db
 
-# =========================
+# ====
 # Misc
-# =========================
+# ====
 coverage/
 .vscode/*
 !.vscode/mcp.json
@@ -73,9 +73,9 @@ coverage/
 !.vscode/launch.json
 .vs/
 
-# =========================
+# ====
 # GitHub / Copilot / Agentic AI
-# =========================
+# ====
 # Keep repository-level Copilot customizations versioned under .github/.
 # - .github/copilot-instructions.md, instructions/, agents/, skills/, agentic-ai/, mcp/, plans/, audits/, research/, and reviews/ are tracked static sources.
 # - .github/inboxes/ is local-only operational scratch and is intentionally ignored.
@@ -90,3 +90,4 @@ coverage/
 # Developer-local documentation stacks; humans/developers populate these locally.
 docs/dev/
 
+jenkins-workspace/

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import DocumentCreateDialog from "../src/features/editor/components/DocumentCreateDialog";
+import { afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
 
 describe("DocumentCreateDialog", () => {
     const folders = [

@@ -1,0 +1,2776 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="480" failures="0" errors="0" time="375.053193711">
+    <testsuite name="tests/AddUserDrawer.test.tsx" timestamp="2026-10-06T07:18:37.865Z" hostname="8d1ed33c0868" tests="9" failures="0" errors="0" skipped="0" time="3.870682836">
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; renders the email and password fields when open" time="1.018604543">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; shows validation errors when submitting an empty form" time="0.333531542">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; rejects an invalid email address" time="0.4372655">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; rejects a password that does not meet the complexity rules" time="0.571466292">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; submits valid values and closes the drawer on success" time="0.548468834">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; keeps the drawer open when submission fails" time="0.5017555">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; calls onClose when Cancel is clicked and no save is in progress" time="0.142941042">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; disables Cancel while a save is in progress" time="0.187593167">
+        </testcase>
+        <testcase classname="tests/AddUserDrawer.test.tsx" name="AddUserDrawer &gt; shows the registration error message" time="0.120256333">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/AdminFlowIntegration.test.tsx" timestamp="2026-10-06T07:18:37.868Z" hostname="8d1ed33c0868" tests="3" failures="0" errors="0" skipped="0" time="15.960859673">
+        <testcase classname="tests/AdminFlowIntegration.test.tsx" name="Admin integration workflow &gt; creates a runtime engine and makes it available to the model catalog" time="6.308683919">
+        </testcase>
+        <testcase classname="tests/AdminFlowIntegration.test.tsx" name="Admin integration workflow &gt; uses a runtime engine to discover provider models and create an embedding model" time="4.120486251">
+            <system-err>
+`NaN` is an invalid value for the `height` css style property.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/AdminFlowIntegration.test.tsx" name="Admin integration workflow &gt; uses the same runtime engine to create an interaction model" time="5.525462628">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/AiTutorProvenanceIntegration.test.tsx" timestamp="2026-10-06T07:18:37.869Z" hostname="8d1ed33c0868" tests="6" failures="0" errors="0" skipped="0" time="10.571158504">
+        <testcase classname="tests/AiTutorProvenanceIntegration.test.tsx" name="provenance in production Chat page state &gt; streams tokens, receives final provenance once and keeps the open disclosure through history refresh" time="4.832206127">
+            <system-err>
+`NaN` is an invalid value for the `height` css style property.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/AiTutorProvenanceIntegration.test.tsx" name="provenance in production Chat page state &gt; reopening a saved conversation renders the same persisted provenance" time="1.442403376">
+        </testcase>
+        <testcase classname="tests/AiTutorProvenanceIntegration.test.tsx" name="provenance in production Chat page state &gt; keeps final metadata on its own answer if another turn is already present in refreshed history" time="1.208521293">
+        </testcase>
+        <testcase classname="tests/AiTutorProvenanceIntegration.test.tsx" name="provenance in production Chat page state &gt; loads old messages with null provenance without fabricating an explanation" time="0.642644792">
+        </testcase>
+        <testcase classname="tests/AiTutorProvenanceIntegration.test.tsx" name="provenance in production Chat page state &gt; does not show completed provenance for failed generation" time="1.092843">
+        </testcase>
+        <testcase classname="tests/AiTutorProvenanceIntegration.test.tsx" name="provenance in production Chat page state &gt; preserves cancellation without claiming completed provenance" time="1.349592958">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ChatComposer.test.tsx" timestamp="2026-10-06T07:18:37.871Z" hostname="8d1ed33c0868" tests="14" failures="0" errors="0" skipped="0" time="2.671608751">
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; renders the message input and send button" time="0.913116542">
+            <system-err>
+`NaN` is an invalid value for the `height` css style property.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; shows the tutor name in the placeholder" time="0.261389041">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; shows the default placeholder when no tutor is selected" time="0.09675975">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; calls onChange with the updated message" time="0.56119475">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; calls onSend when the send button is clicked" time="0.110519458">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; calls onSend when Enter is pressed" time="0.11840375">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; does not send when Shift+Enter is pressed" time="0.121692">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; disables the input and send button when disabled" time="0.105452125">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; disables the send button when the value is empty" time="0.058260417">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; disables the send button when the value contains only whitespace" time="0.059882625">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; enables the send button when the value contains text" time="0.059076166">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; does not send when the form is submitted with an empty value" time="0.076620334">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; does not send when disabled even if the input has text" time="0.064858375">
+        </testcase>
+        <testcase classname="tests/ChatComposer.test.tsx" name="ChatComposer &gt; sets the maximum input length to 20000 characters" time="0.06076375">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ChatMessage.test.tsx" timestamp="2026-10-06T07:18:37.874Z" hostname="8d1ed33c0868" tests="17" failures="0" errors="0" skipped="0" time="0.951008584">
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders a user message" time="0.2263275">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders the tutor name for an assistant message" time="0.036480292">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders assistant content as Markdown" time="0.026925791">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders normal user content as plain text" time="0.016547583">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders the assistant message with the assistant CSS classes" time="0.0193185">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders the user message with the user CSS classes" time="0.014251667">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; does not render sources when showSources is false" time="0.016465459">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders sources for an assistant message when showSources is true" time="0.014872958">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; does not render sources for a user message even when showSources is true" time="0.020541292">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders an error alert when the message has an error" time="0.187281334">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; renders the original user message above the error" time="0.034843">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; calls onRetry with the message when Retry is clicked" time="0.095668417">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; disables the Retry button when retryDisabled is true" time="0.052238458">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; does not call onRetry when the Retry button is disabled" time="0.058352625">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; does not render a Retry button for a normal message" time="0.019720458">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; supports GitHub-flavoured Markdown" time="0.042718916">
+        </testcase>
+        <testcase classname="tests/ChatMessage.test.tsx" name="ChatMessage &gt; does not render the normal assistant message layout when there is an error" time="0.064647125">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ChatSettings.test.tsx" timestamp="2026-10-06T07:18:37.879Z" hostname="8d1ed33c0868" tests="5" failures="0" errors="0" skipped="0" time="0.839811126">
+        <testcase classname="tests/ChatSettings.test.tsx" name="ChatSettings &gt; renders the settings controls for its enclosing settings drawer" time="0.418486167">
+        </testcase>
+        <testcase classname="tests/ChatSettings.test.tsx" name="ChatSettings &gt; displays and configures the current retrieval depth" time="0.109461458">
+        </testcase>
+        <testcase classname="tests/ChatSettings.test.tsx" name="ChatSettings &gt; calls onTopKChange and renders its updated value" time="0.100603">
+        </testcase>
+        <testcase classname="tests/ChatSettings.test.tsx" name="ChatSettings &gt; reflects and updates the sources setting" time="0.163850125">
+        </testcase>
+        <testcase classname="tests/ChatSettings.test.tsx" name="ChatSettings &gt; does not call callbacks when initially rendered" time="0.035633">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/DocumentCreateDialog.test.tsx" timestamp="2026-10-06T07:18:37.880Z" hostname="8d1ed33c0868" tests="12" failures="0" errors="0" skipped="0" time="6.826050086">
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; renders the dialog and form fields" time="1.533664418">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; disables the Create button when the required fields are empty" time="0.4778475">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; enables the Create button when name and text are provided" time="0.461491292">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; calls onCreated with the document name, text, and null folder" time="0.318249417">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; calls onClose after successfully creating a document" time="0.3425035">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; trims whitespace from the document name" time="0.631094542">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; allows selecting a folder" time="1.119379833">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; displays an error when document creation fails" time="0.742821125">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; displays the default error message when creation fails without a message" time="0.471611417">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; calls onClose when Cancel is clicked" time="0.305274959">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; disables the form while saving" time="0.282623917">
+        </testcase>
+        <testcase classname="tests/DocumentCreateDialog.test.tsx" name="DocumentCreateDialog &gt; renders an empty folder list correctly" time="0.135905834">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/DocumentFolders.test.tsx" timestamp="2026-10-06T07:18:37.883Z" hostname="8d1ed33c0868" tests="34" failures="0" errors="0" skipped="0" time="37.165891475">
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; shows the All Documents tag with the total count" time="0.896739251">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; computes the Root / Unassigned count as totalCount minus all folder counts" time="0.334988667">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; clamps the Root / Unassigned count at zero when folder counts exceed the total" time="0.307875459">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; renders a checkable tag per folder with its own document count" time="0.205989042">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; defaults a folder&apos;s count to zero when missing from documentCounts" time="0.268549917">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; calls onSelectFolder(&apos;all&apos;) when the All Documents tag is clicked" time="1.613818001">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; calls onSelectFolder(&apos;root&apos;) when the Root / Unassigned tag is clicked" time="0.430746125">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; calls onSelectFolder(folder.id) when an unselected folder tag is clicked" time="0.406483209">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - filter tags &gt; calls onSelectFolder(&apos;all&apos;) when the already-selected folder tag is clicked again" time="0.398519833">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - management visibility &gt; shows the management list and create-folder input when canManage is true" time="0.940389125">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - management visibility &gt; hides the management list and create-folder input when canManage is false" time="0.155345167">
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - management visibility &gt; hides the management list when there are no folders, but still shows the create input" time="0.422474791">
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - management visibility &gt; hides Delete buttons when canDelete is false, but keeps Rename" time="0.5665535">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - management visibility &gt; shows Delete buttons when canDelete is true" time="0.534579458">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; opens an editable input pre-filled with the folder&apos;s current name" time="0.986891833">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; calls renameDocumentFolder with the trimmed new name on Save" time="3.077612294">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; returns to the read-only view after a successful rename" time="1.113723208">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; submits the rename when pressing Enter in the input" time="1.539243376">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; exits editing without renaming when Cancel is clicked" time="0.979479292">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; shows an error and stays in editing mode when the rename fails" time="0.955924001">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - rename &gt; shows a loading indicator on Save while the rename request is in flight" time="1.544662542">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - create folder &gt; disables Create folder until a non-blank name is entered" time="1.794373293">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - create folder &gt; calls createDocumentFolder with the trimmed name and clears the input on success" time="1.589400834">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - create folder &gt; submits on Enter in the new-folder input" time="0.758642667">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - create folder &gt; shows an error and keeps the typed name when creation fails" time="0.859928959">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - create folder &gt; shows a loading indicator on Create folder while the request is in flight" time="2.289704751">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - delete &gt; calls deleteDocumentFolder after confirming" time="1.432002959">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - delete &gt; does not call deleteDocumentFolder if the confirmation is cancelled" time="1.791447292">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - delete &gt; switches selection to &apos;all&apos; when deleting the currently selected folder" time="3.336016585">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - delete &gt; does not change selection when deleting a folder that isn&apos;t selected" time="1.691406376">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - delete &gt; shows an error when deletion fails" time="1.566733334">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - delete &gt; shows a loading indicator on the Delete button while the request is in flight" time="0.756934958">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+An update to DocumentFolders inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+An update to ActionButton inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Popconfirm inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - error alert &gt; does not show an alert when there is no error" time="0.311864583">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentFolders.test.tsx" name="DocumentFolders - error alert &gt; clears the error when the alert is dismissed" time="1.284246209">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/DocumentIntegration.test.tsx" timestamp="2026-10-06T07:18:37.908Z" hostname="8d1ed33c0868" tests="6" failures="0" errors="0" skipped="0" time="27.553575138">
+        <testcase classname="tests/DocumentIntegration.test.tsx" name="Document integration workflow &gt; shows a useful documents-list error when the combined metadata request fails" time="1.5666985">
+        </testcase>
+        <testcase classname="tests/DocumentIntegration.test.tsx" name="Document integration workflow &gt; loads vectorization states for 15 documents from the list response without per-row status requests" time="1.554517125">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentIntegration.test.tsx" name="Document integration workflow &gt; loads documents, creates a document, and previews its extracted text" time="13.888287465">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentIntegration.test.tsx" name="Document integration workflow &gt; handles document creation failures" time="5.724992086">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentIntegration.test.tsx" name="Document integration workflow &gt; handles document preview failures" time="1.536765751">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentIntegration.test.tsx" name="Document integration workflow &gt; loads a document, opens vectorization, vectorizes it, and updates its status" time="3.26542046">
+            <system-err>
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+Warning: [antd: List] The `List` component is deprecated and will be removed in the next major version. If you&apos;re using version 6.6.0 or later, please use `Listy` instead.
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/DocumentPreviewDialog.test.tsx" timestamp="2026-10-06T07:18:37.912Z" hostname="8d1ed33c0868" tests="21" failures="0" errors="0" skipped="0" time="4.196184836">
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; calls getDocument with the document id and an AbortSignal" time="0.456982209">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; shows a loading spinner while the request is in flight" time="0.091077375">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; hides the loading spinner once the request resolves" time="0.130771833">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; refetches when the document id changes" time="0.1197435">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; aborts the in-flight request when unmounted" time="0.054355667">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; shows an error alert when the response is not an object" time="0.076510209">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; shows an error alert when the response is a primitive" time="0.066119583">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; shows an error alert with the API error fallback when the request rejects" time="0.098505625">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - loading and fetch &gt; ignores AbortError rejections and does not show an error" time="0.147296166">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - detail rendering &gt; renders the filename, mime type, and character count" time="0.195448125">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - detail rendering &gt; falls back to &apos;Unnamed document&apos; and &apos;Unknown&apos; when name/mimeType are missing" time="0.191356876">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - detail rendering &gt; renders the extracted text when rawText is non-empty" time="0.135488958">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - detail rendering &gt; shows an empty state when rawText is empty" time="0.18473425">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - detail rendering &gt; shows an empty state when rawText is missing entirely" time="0.19205425">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; always shows the Close button and calls onClose when clicked" time="0.390119542">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; calls onClose when the drawer&apos;s header close icon is clicked" time="0.13516225">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; does not show a Replace/Add button while still loading, even if canManage is true" time="0.100143333">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; does not show a Replace/Add button when canManage is false" time="0.201377792">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; shows &apos;Add file content&apos; when canManage is true and there is no extracted text" time="0.248257625">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; shows &apos;Replace file content&apos; when canManage is true and extracted text exists" time="0.427960667">
+        </testcase>
+        <testcase classname="tests/DocumentPreviewDialog.test.tsx" name="DocumentPreviewDialog - footer actions &gt; calls onReplace with the document prop when the Replace/Add button is clicked" time="0.541650792">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/DocumentRow.test.tsx" timestamp="2026-10-06T07:18:37.916Z" hostname="8d1ed33c0868" tests="36" failures="0" errors="0" skipped="0" time="4.992419002">
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - file type icon &gt; shows PDF for a pdf mime type" time="0.758258792">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - file type icon &gt; shows PDF based on a .pdf filename even without a matching mime type" time="0.111704">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - file type icon &gt; shows DOC for a wordprocessingml mime type" time="0.096179501">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - file type icon &gt; shows DOC based on a .docx filename" time="0.092165667">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - file type icon &gt; falls back to TXT for anything else" time="0.070551833">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - file type icon &gt; falls back to TXT when name is missing entirely" time="0.0955155">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - date formatting &gt; prefers lastModifiedUtc over createdUtc when both are present" time="0.118725792">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - date formatting &gt; falls back to createdUtc when lastModifiedUtc is missing" time="0.108748459">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - date formatting &gt; shows &apos;Unknown date&apos; when neither date is present" time="0.114102542">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - date formatting &gt; shows &apos;Unknown date&apos; for an unparsable date value" time="0.086971542">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; renders the document name" time="0.088167542">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; falls back to &apos;Unnamed document&apos; when name is missing" time="0.152286875">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; falls back to &apos;Unknown type&apos; when mimeType is missing" time="0.146595542">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; includes the folder name in the secondary line when provided" time="0.0803395">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; does not append a folder segment when folderName is not provided" time="0.094203667">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; shows the formatted extracted-character count when hasRawText is true" time="0.093880625">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; treats a missing rawTextLength as zero" time="0.165580917">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - content &gt; shows &apos;No extracted text&apos; (in both tags) when hasRawText is false" time="0.106758458">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - status label &gt; shows that the status request failed when status.unavailable is true" time="0.085854041">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - status label &gt; shows &apos;Needs re-vectorization&apos; when status.isStale is true" time="0.060569334">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - status label &gt; shows &apos;Vectorized · N chunks&apos; when status.isVectorized is true" time="0.151187042">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - status label &gt; shows &apos;Checking vectorization&apos; when status is undefined" time="0.086810125">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - status label &gt; shows &apos;Not vectorized&apos; when status is an empty object" time="0.07850225">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - status label &gt; shows &apos;Not vectorized&apos; (not &apos;Checking...&apos;) when status is null" time="0.061348833">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; always renders a Preview button and calls onPreview with the document" time="0.29892725">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; shows &apos;Add file content&apos; (not Vectorize) when canManage and hasRawText is false" time="0.179262083">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; shows &apos;Vectorize&apos; (not Add file content) when canManage and hasRawText is true and not yet vectorized" time="0.154206459">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; shows &apos;Re-vectorize&apos; when the document is already vectorized" time="0.123446584">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; shows a Move to folder button when canManage is true and onMove is provided" time="0.128218959">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; hides the Move to folder button when onMove is not provided" time="0.098083792">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; hides Add/Vectorize/Move buttons entirely when canManage is false" time="0.123659125">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; shows a Delete button and calls onDelete when canDelete is true" time="0.22076025">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; hides the Delete button when canDelete is false" time="0.140882125">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; renders only Preview and Delete when canManage is false and canDelete is true" time="0.138654958">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; renders Preview, Vectorize, Move, and Delete when fully permitted with extracted text" time="0.146813334">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/DocumentRow.test.tsx" name="DocumentRow - action buttons &gt; renders Preview, Add file content, Move, and Delete when fully permitted without extracted text" time="0.123131791">
+            <system-err>
+Warning: [antd: Space] `direction` is deprecated. Please use `orientation` instead.
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/DocumentUploadDialog.test.tsx" timestamp="2026-10-06T07:18:37.932Z" hostname="8d1ed33c0868" tests="15" failures="0" errors="0" skipped="0" time="18.3973688">
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - rendering &gt; shows the upload title, OK text, and no warning when adding a new document" time="1.678188">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - rendering &gt; shows the replace title, OK text, and warning alert when a document is provided" time="0.488027542">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - rendering &gt; shows the Folder select only when adding a new document" time="0.253907292">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - rendering &gt; shows the supported-formats helper text using the configured max size label" time="0.247747708">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - rendering &gt; calls onClose when the header close icon is clicked while idle" time="1.1139575">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - validation &gt; shows a required-file validation error when submitting without a file" time="1.047880876">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - successful submission &gt; uploads a new document with no folder selected" time="1.012441751">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - successful submission &gt; uploads a new document with a selected folder" time="1.393696834">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - successful submission &gt; replaces an existing document&apos;s content" time="1.227690001">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - busy state &gt; shows a loading OK button, hides the close icon, and shows the uploading message while in flight" time="2.210968751">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - error handling &gt; shows the API error fallback and does not call onSaved when the request rejects outright" time="0.919503418">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - error handling &gt; re-enables the close icon after a failed request" time="1.547442876">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - error handling &gt; ignores AbortError rejections: no error alert, busy resets, onSaved not called" time="3.209267209">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - error handling &gt; still calls onSaved with a shape-invalid response, alongside the error alert (documents current behavior)" time="1.056458626">
+        </testcase>
+        <testcase classname="tests/DocumentUploadDialog.test.tsx" name="DocumentUploadDialog - cleanup &gt; aborts the in-flight request when unmounted" time="0.980650959">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/MessageProvenance.test.tsx" timestamp="2026-10-06T07:18:37.935Z" hostname="8d1ed33c0868" tests="15" failures="0" errors="0" skipped="0" time="2.020205917">
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; starts collapsed, counts unique documents and groups independent excerpts" time="0.516672">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; counts same-name distinct documents independently using message-local keys" time="0.069517792">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; does not invent a unique-document count for older payloads without grouping keys" time="0.084024959">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; has no Sources control for zero retrieval and truthfully explains a plain response" time="0.072721583">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; shows captured knowledge, memory, actual tool success and historical runtime" time="0.104381833">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; records failed and timed-out tools without raw error details" time="0.053236333">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; opens disclosures with the keyboard and switches panels without losing button focus" time="0.133761375">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; clamps long excerpts and allows a deliberate expansion" time="0.14513475">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; shows raw cosine similarity only under retrieval details, never percentages or calibrated labels" time="0.113156209">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; omits source navigation because this API grants no document-opening capability" time="0.084412292">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; renders long names as wrapping text and treats excerpts as text rather than HTML" time="0.097851917">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; never renders additional hidden prompt, memory, reasoning or provider configuration fields" time="0.188285917">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; keeps legacy, user and failed messages free of provenance controls" time="0.143170791">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; reveals controls after streaming completes without replacing the answer" time="0.095934791">
+        </testcase>
+        <testcase classname="tests/MessageProvenance.test.tsx" name="assistant answer provenance &gt; honors the existing Show sources preference while keeping the explanation available" time="0.109216">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ModelCatalogManager.test.tsx" timestamp="2026-10-06T07:18:37.938Z" hostname="8d1ed33c0868" tests="41" failures="0" errors="0" skipped="0" time="70.978094115">
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; renders the page title and description from config" time="1.528665418">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; renders a row for each model in the table" time="0.803345084">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; shows an empty state when there are no models" time="0.99552425">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; shows an error alert when error is set" time="0.762891084">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; renders provider model fallback text when providerModelName is missing" time="0.456735833">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; renders an em dash when runtimeEngineName is missing" time="0.602355">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; shows the Dimensions column only for embedding models" time="1.077113542">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - rendering &gt; renders an em dash for zero/absent embedding dimensions" time="0.766976417">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - permissions &gt; shows the Add model button when canWrite is true" time="1.747443459">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - permissions &gt; hides the Add model button when canWrite is false" time="0.652555125">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - permissions &gt; shows edit and delete buttons per row when permitted" time="9.336404171">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - permissions &gt; hides edit buttons when canWrite is false" time="6.420245045">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - permissions &gt; hides delete buttons when canDelete is false" time="0.761186792">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - permissions &gt; hides the action column entirely when neither canWrite nor canDelete" time="0.822666125">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; calls setSearch when typing into the search box" time="1.157675126">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; calls load(true) when clicking Refresh" time="3.035642418">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; calls openCreate when clicking Add model" time="1.700170334">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; calls openEdit with the correct model when clicking its Edit button" time="4.50411221">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; calls remove with the correct model after confirming deletion" time="3.623100543">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; shows a loading spinner on the delete button matching deletingId" time="2.595805418">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - interactions &gt; filters rows client-side via the Status column filter" time="1.722005001">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; does not render the drawer content when open is false" time="0.377085916">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; renders the create-mode drawer with expected fields" time="1.225683251">
+            <system-err>
+`NaN` is an invalid value for the `height` css style property.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; renders the edit-mode drawer title when editingModel is set" time="0.918477542">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows a warning when there are no engines and not editing" time="0.643467001">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; disables Save when there are no engines and not editing" time="1.419971876">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; calls close when clicking Cancel" time="1.102616459">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; submits the form via save() when clicking Save model" time="2.231248001">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows a validation error when Name is left blank" time="1.060272001">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows the formError alert when present" time="1.2108385">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows the engineError alert when present" time="1.797047043">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; calls loadEngineModels when selecting a runtime engine" time="1.947129001">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows the Embedding dimensions field for embedding models" time="0.973982417">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; disables Embedding dimensions when editing an existing model" time="0.911499667">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows a message when no provider models have been discovered yet" time="0.995753792">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows fetching state while provider models are loading" time="2.289886417">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; lists discovered provider models as clickable tags and fills the field on click" time="2.248419417">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; auto-fills embedding dimensions when a matching model tag is clicked (create mode)" time="1.573179626">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows an engine probe error when provided" time="0.621071167">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; shows loading state on the Save button while saving" time="1.026439626">
+        </testcase>
+        <testcase classname="tests/ModelCatalogManager.test.tsx" name="ModelCatalogManager - drawer form &gt; disables Cancel while saving" time="1.317706584">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/PromptVersionsPanel.test.tsx" timestamp="2026-10-06T07:18:37.947Z" hostname="8d1ed33c0868" tests="26" failures="0" errors="0" skipped="0" time="16.945205716">
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders the Prompt versions heading" time="0.715358209">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders the description" time="0.104539208">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders the immutable prompt information alert" time="0.081584666">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders the Create prompt version button when canManage is true" time="0.278538125">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; does not render the create button when canManage is false" time="0.164993959">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders all prompt versions" time="0.094176583">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; marks the active prompt version as Legacy active" time="0.103043375">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; does not mark inactive prompt versions as active" time="0.104682042">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; shows prompt details when a prompt version is expanded" time="0.179507334">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders Empty when there are no prompt versions" time="0.181638125">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders Create first prompt when there are no prompts and user can manage" time="0.186485541">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; does not render Create first prompt when user cannot manage" time="0.047799167">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; opens the create prompt drawer" time="2.104262501">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; renders structured builder fields by default" time="0.886726084">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; generates assembled prompt content from structured fields" time="1.536786042">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; generates all structured prompt sections" time="1.271070376">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; switches to raw prompt editor" time="0.563391625">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; shows raw prompt description when raw mode is selected" time="0.771132792">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; creates a prompt version using raw prompt mode" time="1.020847417">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; creates a prompt version with notes" time="1.779533959">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; creates a prompt version with setAsActive enabled" time="0.880858084">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; trims the prompt name, content, and notes" time="0.7569865">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; displays an error when prompt creation fails" time="1.553139876">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; closes the drawer when Cancel is clicked" time="0.671090584">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; does not allow the drawer to open when canManage is false" time="0.073822292">
+        </testcase>
+        <testcase classname="tests/PromptVersionsPanel.test.tsx" name="PromptVersionsPanel &gt; uses the tutor ID when creating a prompt version" time="0.826747209">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/RevisionEditor.test.tsx" timestamp="2026-10-06T07:18:37.952Z" hostname="8d1ed33c0868" tests="27" failures="0" errors="0" skipped="0" time="46.683169897">
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; shows a Configure title and Save draft button for a Draft revision" time="1.491729584">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; shows a View title, immutability alert, and no Save button for a non-Draft revision" time="0.330128334">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; disables form fields when the revision is not editable" time="0.198356417">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; shows the &apos;no interaction model available&apos; warning when there are no options" time="0.264336958">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; does not show the interaction model warning when at least one option exists" time="0.263692917">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; shows a &apos;Create a prompt version&apos; link when there are no prompts and the revision is editable" time="0.513881584">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; hides the &apos;Create a prompt version&apos; link when prompts exist" time="0.523863042">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - editable vs read-only &gt; hides the &apos;Create a prompt version&apos; link when not editable, even with no prompts" time="0.301264166">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - close and dirty confirmation &gt; calls onClose directly when closing while not dirty" time="0.63881125">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - close and dirty confirmation &gt; asks for confirmation before closing once the form is dirty, and closes on Discard" time="2.32417671">
+            <system-out>
+FORM CHANGED: { temperature: [1mnull[22m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+FORM CHANGED: { temperature: [33m1[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m1[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - close and dirty confirmation &gt; does not close when the discard confirmation is cancelled" time="1.6155795">
+            <system-out>
+FORM CHANGED: { temperature: [1mnull[22m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+FORM CHANGED: { temperature: [33m1[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m1[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - close and dirty confirmation &gt; calls onCreatePrompt directly when not dirty" time="2.225750709">
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - close and dirty confirmation &gt; confirms before creating a prompt version when dirty, and proceeds on Leave editor" time="5.988449628">
+            <system-out>
+FORM CHANGED: { temperature: [1mnull[22m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+FORM CHANGED: { temperature: [33m1[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m1[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - close and dirty confirmation &gt; registers a beforeunload warning once dirty, and removes it after a successful save" time="2.145304418">
+            <system-out>
+FORM CHANGED: { temperature: [1mnull[22m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+FORM CHANGED: { temperature: [33m1[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m1[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m1[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; submits the expected payload unchanged from initial values, once the Advanced JSON panel has been opened" time="2.366597793">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;{\n  &quot;temperature&quot;: 0.7,\n  &quot;top_p&quot;: 0.9,\n  &quot;max_tokens&quot;: 512\n}&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+            </system-out>
+            <system-err>
+`NaN` is an invalid value for the `height` css style property.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; QUIRK: silently drops deploymentConfigJson to null when saving without ever opening the Advanced JSON panel" time="1.492175501">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; sends null for cleared optional select fields" time="3.023433876">
+            <system-out>
+FORM CHANGED: { promptVersionId: [90mundefined[39m } {
+  promptVersionId: [90mundefined[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [90mundefined[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; omits a numeric parameter from the JSON payload when its field is cleared" time="1.440790668">
+            <system-out>
+FORM CHANGED: { temperature: [1mnull[22m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; sends the numeric deployment target selected from the dropdown" time="2.727130293">
+            <system-out>
+FORM CHANGED: { deploymentTarget: [32m&apos;1&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;1&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;1&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; sends null for interactionParametersJson and deploymentConfigJson when both end up empty" time="1.45641">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [1mnull[22m,
+  topP: [1mnull[22m,
+  maximumTokens: [1mnull[22m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - save payload &gt; calls onSaved after a successful save" time="1.165109833">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - advanced JSON validation &gt; shows the parser&apos;s own error message when the parameters JSON is invalid" time="5.063982252">
+            <system-out>
+FORM CHANGED: { parametersJson: [32m&apos;&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;I&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;I&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;IN&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;IN&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INV&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INV&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVA&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVA&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVAL&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVAL&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALI&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALI&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_J&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_J&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JS&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JS&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSO&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSO&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - advanced JSON validation &gt; falls back to a generic message when the parse error has no message" time="3.242899168">
+            <system-out>
+FORM CHANGED: { parametersJson: [32m&apos;&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;I&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;I&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;IN&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;IN&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INV&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INV&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVA&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVA&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVAL&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVAL&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALI&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALI&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_J&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_J&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JS&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JS&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSO&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSO&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_N&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_N&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_M&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_M&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_ME&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_ME&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_MES&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_MES&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_MESS&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_MESS&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_MESSA&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_MESSA&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_MESSAG&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_MESSAG&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON_NO_MESSAGE&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_MESSAGE&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON_NO_MESSAGE&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - advanced JSON validation &gt; does not get stuck in a loading state after a JSON validation failure" time="3.258522419">
+            <system-out>
+FORM CHANGED: { parametersJson: [32m&apos;&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;I&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;I&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;IN&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;IN&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INV&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INV&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVA&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVA&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVAL&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVAL&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALI&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALI&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_J&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_J&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JS&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JS&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSO&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSO&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+FORM CHANGED: { parametersJson: [32m&apos;INVALID_JSON&apos;[39m } {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m,
+  parametersJson: [32m&apos;INVALID_JSON&apos;[39m,
+  deploymentJson: [32m&apos;{\n  &quot;region&quot;: &quot;us-east-1&quot;\n}&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - busy state and failures &gt; shows a loading Save button and disables Close while saving" time="1.180739417">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - busy state and failures &gt; shows the API error fallback and does not call onSaved when the save request fails" time="0.523150792">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+        <testcase classname="tests/RevisionEditor.test.tsx" name="RevisionEditor - busy state and failures &gt; re-enables Save (not stuck loading) after a failed save" time="0.907867542">
+            <system-out>
+REVISION FORM VALUES: {
+  promptVersionId: [32m&apos;p1&apos;[39m,
+  interactionModelId: [32m&apos;m1&apos;[39m,
+  queryEmbeddingModelId: [32m&apos;e1&apos;[39m,
+  temperature: [33m0.7[39m,
+  topP: [33m0.9[39m,
+  maximumTokens: [33m512[39m,
+  deploymentTarget: [32m&apos;0&apos;[39m
+}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/RoleManagerDrawer.test.tsx" timestamp="2026-10-06T07:18:37.965Z" hostname="8d1ed33c0868" tests="23" failures="0" errors="0" skipped="0" time="11.643547672">
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - visibility &gt; does not render drawer content when user is null" time="0.493775584">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - visibility &gt; renders the drawer when a user is provided" time="0.59650525">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - visibility &gt; calls onClose when the close button is clicked" time="0.408919541">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - user header &gt; renders the user&apos;s email and workspace access label" time="0.185669125">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - user header &gt; renders the avatar using the initial() helper on the user&apos;s email" time="0.237766291">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - user header &gt; shows the manageError alert when present" time="0.145919833">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - user header &gt; does not show an alert when manageError is null" time="0.146286333">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; only offers roles the user does not already have" time="0.578026625">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; shows a &apos;Select a role&apos; placeholder when roles are available" time="0.465063375">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; shows an &apos;All roles assigned&apos; placeholder and disables the select when no roles remain" time="1.056317542">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; disables the select while a request is in flight (busy is truthy)" time="0.213345">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; disables the Assign button until a role is selected" time="0.254432959">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; enables the Assign button once a role is selected" time="0.426421667">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; calls onAssign with the user id and selected role" time="0.580623417">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; clears the selected role after a successful assignment" time="0.907820292">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; keeps the selected role if the assignment fails" time="1.091063917">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; shows a loading indicator on Assign while busy starts with &apos;add:&apos;" time="0.430780792">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assign role &gt; does not show a loading indicator on Assign for an unrelated busy value" time="0.246991167">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assigned roles &gt; renders a tag and a Revoke button for each assigned role" time="0.286398042">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assigned roles &gt; shows an empty state when the user has no roles" time="0.157914917">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assigned roles &gt; calls onRevoke with the user id and role after confirming" time="1.197214875">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assigned roles &gt; does not call onRevoke if the confirmation is cancelled" time="1.109730001">
+        </testcase>
+        <testcase classname="tests/RoleManagerDrawer.test.tsx" name="RoleManagerDrawer - assigned roles &gt; shows a loading indicator only on the Revoke button matching busy" time="0.417854792">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/RuntimeTutorEmptyState.test.tsx" timestamp="2026-10-06T07:18:37.969Z" hostname="8d1ed33c0868" tests="2" failures="0" errors="0" skipped="0" time="0.432752292">
+        <testcase classname="tests/RuntimeTutorEmptyState.test.tsx" name="RuntimeTutorEmptyState &gt; shows tutor-specific readiness reason and routes to knowledge setup" time="0.384474458">
+            <system-err>
+Warning: [antd: Alert] `message` is deprecated. Please use `title` instead.
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/RuntimeTutorEmptyState.test.tsx" name="RuntimeTutorEmptyState &gt; keeps unavailable-tutor details out of view-only users&apos; controls" time="0.044925">
+            <system-err>
+Warning: [antd: Alert] `message` is deprecated. Please use `title` instead.
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/SourceList.test.tsx" timestamp="2026-10-06T07:18:37.969Z" hostname="8d1ed33c0868" tests="11" failures="0" errors="0" skipped="0" time="1.265921375">
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders nothing when sources are undefined" time="0.02006325">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders nothing when sources are empty" time="0.002378625">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders the singular source label" time="0.29307225">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders the plural source label" time="0.043511084">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders source details when the list is opened" time="0.239617999">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; uses the fallback document name when documentName is missing" time="0.118199">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; uses the fallback document name when documentName is undefined" time="0.067709625">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders raw cosine similarity without converting it to a percentage" time="0.086221916">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; omits a missing score instead of inventing a relevance value" time="0.118679583">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders all provided sources" time="0.156193167">
+        </testcase>
+        <testcase classname="tests/SourceList.test.tsx" name="SourceList &gt; renders the source list with the expected CSS classes" time="0.113172792">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TutorKnowledgePanel.test.tsx" timestamp="2026-10-06T07:18:37.971Z" hostname="8d1ed33c0868" tests="40" failures="0" errors="0" skipped="0" time="33.697866807">
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; shows a loading spinner while the initial requests are in flight" time="0.427726083">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; hides the loading spinner once all requests resolve" time="0.966678376">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; shows an error alert with the API fallback when a request rejects" time="0.19504275">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; does not turn an aborted/failed load into attachment empty states" time="0.182485375">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; does not fetch per-document vectorization status when canManage is false" time="0.206776583">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; uses vectorization metadata from the document list instead of fetching status per document" time="0.499463417">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - loading and errors &gt; shows status check failed when a list item has no vectorization metadata" time="1.445317501">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - effective document count &gt; shows a singular label when exactly one document is effective" time="0.3396265">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - effective document count &gt; shows a plural label and zero count when nothing is attached" time="0.235418416">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - effective document count &gt; renders explicit backend effective documents and their vectorization state" time="0.648638417">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - effective document count &gt; offers a fresh snapshot for ready knowledge without changing the active revision" time="1.734552626">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - effective document count &gt; counts documents inside nested (descendant) attached folders" time="0.842248001">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - effective document count &gt; does not double-count a document that is both directly attached and inside an attached folder" time="1.998261584">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - canManage gating &gt; shows the Attach a document card and folder-attach controls when canManage is true" time="0.919172583">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - canManage gating &gt; hides the Attach a document card and folder-attach controls when canManage is false" time="0.475287666">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - canManage gating &gt; hides Detach buttons when canManage is false" time="0.756503501">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - canManage gating &gt; shows Detach buttons when canManage is true" time="0.674305667">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; excludes already-attached documents from the available options" time="0.751418667">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; disables the Attach button until a document is selected" time="0.58046125">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; disables Attach and shows a warning when the selected document is not vectorized" time="1.206972334">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; disables Attach and shows a warning when the selected document is stale" time="1.159994793">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; enables Attach for a ready document and calls attachTutorDocument on click" time="1.885577293">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; reloads the lists after a successful attach" time="1.729750042">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach document &gt; shows an error and does not reset the selection when attach fails" time="2.147937709">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach folder &gt; excludes already-attached folders from the available options" time="0.583490167">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach folder &gt; disables the Attach folder button until a folder is selected" time="0.398846542">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach folder &gt; calls attachTutorDocumentFolder with the selected folder and reloads on success" time="1.345837208">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attach folder &gt; shows an error when attaching a folder fails" time="1.225189084">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - detach &gt; calls detachTutorDocument after confirming, and reloads" time="1.270620042">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - detach &gt; does not call detachTutorDocument if the confirmation is cancelled" time="1.161522417">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - detach &gt; calls detachTutorDocumentFolder after confirming, and reloads" time="0.784473917">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - detach &gt; shows an error when detaching fails" time="1.11195125">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attached list content &gt; shows the embedding model name, or a fallback when missing" time="0.267857625">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attached list content &gt; shows a legacy compatibility note when applicable" time="0.214245375">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attached list content &gt; shows a Vectorized tag for a ready attached document and Not ready otherwise" time="0.751835375">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attached list content &gt; shows an empty state when no documents are attached" time="0.501598001">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attached list content &gt; shows an empty state when no folders are attached" time="0.391957958">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - attached list content &gt; shows attached folder names" time="0.342901209">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - navigation &gt; navigates to /files when Manage files is clicked" time="0.366203458">
+        </testcase>
+        <testcase classname="tests/TutorKnowledgePanel.test.tsx" name="TutorKnowledgePanel - busy state &gt; disables the document Select and shows a loading Attach button while a mutation is in flight" time="0.952266292">
+            <system-err>
+An update to TutorKnowledgePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorKnowledgePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorKnowledgePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorKnowledgePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorKnowledgePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorKnowledgePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TutorOverviewPanel.test.tsx" timestamp="2026-10-06T07:18:37.977Z" hostname="8d1ed33c0868" tests="17" failures="0" errors="0" skipped="0" time="4.337325752">
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; renders the tutor information" time="0.86480775">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; renders the tutor status" time="0.257298708">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; renders the current runtime configuration" time="0.205972417">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; renders the setup checklist" time="0.171275959">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; marks completed checklist items as complete" time="0.112551791">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; does not show action buttons for completed checklist items" time="0.490395875">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; shows no active revision when one is not configured" time="0.127462208">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; shows missing snapshot when the active revision has no snapshot" time="0.139896333">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; shows action buttons when configuration is incomplete" time="0.350851751">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; shows the backend readiness reason and revision action for an incomplete active configuration" time="0.21003025">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; calls onOpenTab when a checklist action is clicked" time="0.32853">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; does not show management action buttons when canManage is false" time="0.270391334">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; shows the Benchmark button when the tutor is ready" time="0.241370959">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; does not show the Benchmark button when the tutor is not ready" time="0.145355291">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; navigates to benchmarking when Benchmark is clicked" time="0.204231458">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; uses the active status revision when activeRevisionId does not match" time="0.113212">
+        </testcase>
+        <testcase classname="tests/TutorOverviewPanel.test.tsx" name="TutorOverviewPanel &gt; shows no description when the tutor has no description" time="0.099509792">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TutorRevisionPanel.test.tsx" timestamp="2026-10-06T07:18:37.980Z" hostname="8d1ed33c0868" tests="46" failures="0" errors="0" skipped="0" time="34.113170891">
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; rendering &gt; renders the revisions heading and description" time="0.615304792">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; rendering &gt; shows Create revision when the user can manage revisions" time="0.339049666">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; rendering &gt; does not show the Create revision button when the user cannot manage revisions" time="0.100602125">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; rendering &gt; shows the empty state when there are no revisions" time="0.169662917">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; rendering &gt; shows Create first revision for managers in the empty state" time="0.243921167">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; rendering &gt; does not show Create first revision for non-managers" time="0.095149375">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; revision details &gt; renders a revision and its status" time="0.315902042">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; revision details &gt; renders the revision configuration details" time="0.260483292">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; revision details &gt; renders the Current runtime tag for an active revision" time="0.229538375">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; revision details &gt; shows a Snapshot status tag when a snapshot exists" time="0.293133583">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; revision details &gt; shows missing configuration warnings for a draft" time="0.379352416">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; revision details &gt; does not show the publishing warning when the draft is fully configured" time="0.272069167">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; shows Configure, Publish and Discard for a manageable draft" time="0.92263825">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; does not show draft management actions for a non-manager" time="0.491694542">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; disables Publish when the revision is not publishable" time="0.315549333">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; enables Publish when the revision is publishable" time="0.543965625">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; opens the RevisionEditor when Configure is clicked" time="0.807181458">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; closes the RevisionEditor when its close callback is triggered" time="2.587041335">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; calls onChanged when the RevisionEditor saves" time="2.034600417">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; draft revision actions &gt; calls onCreatePrompt when the editor requests prompt creation" time="1.643604875">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; creating revisions &gt; creates a revision when Create revision is clicked" time="0.410339208">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; creating revisions &gt; creates the first revision from the empty state" time="0.405938417">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; creating revisions &gt; shows an error when revision creation fails" time="0.423661208">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; creating revisions &gt; does not create another revision while creation is busy" time="0.23251075">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; published revisions &gt; shows Activate and Archive for a published revision" time="0.638258292">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; published revisions &gt; does not show Activate or Archive for a published revision when user cannot manage" time="0.658524084">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; active revisions &gt; shows View, Archive and Benchmark for an active revision" time="0.867105251">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; active revisions &gt; opens the RevisionEditor when View is clicked" time="0.77665125">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; active revisions &gt; navigates to benchmarking when Benchmark is clicked" time="0.813361792">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; archived revisions &gt; shows View configuration for an archived revision" time="0.558755625">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; archived revisions &gt; opens the editor when View configuration is clicked" time="0.500668667">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; confirmation modals &gt; opens the publish confirmation modal" time="0.921394542">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; confirmation modals &gt; opens the activate confirmation modal" time="1.967633459">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; confirmation modals &gt; opens the archive confirmation modal" time="0.695950042">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; confirmation modals &gt; opens the discard confirmation modal" time="0.605731667">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; publish action &gt; publishes a revision after confirmation" time="0.746253834">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; publish action &gt; shows an error when publishing fails" time="0.911030291">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; activate action &gt; activates a published revision after confirmation" time="0.95646775">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; archive action &gt; archives a published revision after confirmation" time="0.945413834">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; archive action &gt; archives an active revision after confirmation" time="0.940914958">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; discard action &gt; discards a draft revision after confirmation" time="0.912420501">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; discard action &gt; closes the editor when discarding the revision currently being edited" time="0.761279208">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; busy states &gt; disables revision actions while an action is being performed" time="1.774365376">
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; API errors &gt; handles an activation error" time="1.685309001">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; API errors &gt; handles an archive error" time="0.730660167">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+        <testcase classname="tests/TutorRevisionPanel.test.tsx" name="TutorRevisionsPanel &gt; API errors &gt; handles a discard error" time="0.594330542">
+            <system-err>
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to TutorRevisionsPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() =&gt; {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you&apos;re testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TutorRuntimeHeader.test.tsx" timestamp="2026-10-06T07:18:37.988Z" hostname="8d1ed33c0868" tests="17" failures="0" errors="0" skipped="0" time="1.629689708">
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders nothing when tutor is not provided" time="0.011960042">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the tutor name" time="0.401014959">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the active revision number" time="0.062492375">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the tutor description" time="0.042977625">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; does not render the description when it is missing" time="0.045025959">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; does not render management buttons when canManage is false" time="0.043870458">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders management buttons when canManage is true" time="0.201846082">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; calls onConfigure when Configure is clicked" time="0.1523735">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; calls onBenchmark when Benchmark is clicked" time="0.096948292">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the interaction model" time="0.067945166">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the query embedding model" time="0.067206208">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders Not required when there is no embedding model" time="0.115583833">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the singular document label" time="0.050515209">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the plural document label" time="0.079931">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders zero documents using the plural form" time="0.066609208">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; renders the expected runtime header CSS class" time="0.068385541">
+        </testcase>
+        <testcase classname="tests/TutorRuntimeHeader.test.tsx" name="TutorRuntimeHeader &gt; does not call management callbacks during initial render" time="0.051850959">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TutorSelector.test.tsx" timestamp="2026-10-06T07:18:37.991Z" hostname="8d1ed33c0868" tests="12" failures="0" errors="0" skipped="0" time="1.782675418">
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders the Active tutor label" time="0.496816458">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders the tutor selector" time="0.21273425">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders the placeholder when no tutor is selected" time="0.060961">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders the selected tutor" time="0.04593975">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders all tutor options when opened" time="0.272411875">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; uses tutorId as the option value" time="0.155478666">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; calls onChange when a tutor is selected" time="0.17672875">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; disables the selector when disabled is true" time="0.076601625">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; enables the selector when disabled is false" time="0.06220075">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders with the runtime tutor selector CSS class" time="0.0418825">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; configures the selector for searching" time="0.055273">
+        </testcase>
+        <testcase classname="tests/TutorSelector.test.tsx" name="TutorSelector &gt; renders correctly with an empty tutor list" time="0.113790208">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/UsersTable.test.tsx" timestamp="2026-10-06T07:18:37.993Z" hostname="8d1ed33c0868" tests="9" failures="0" errors="0" skipped="0" time="3.080562543">
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; renders users and their roles" time="0.666347583">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; shows &apos;No roles assigned&apos; for a user with no roles" time="0.340248375">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; filters users by email" time="0.232590792">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; filters users by role" time="0.216259959">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; is case-insensitive when filtering" time="0.174964042">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; shows the empty state when no users match the search" time="0.237705959">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; calls onManageRoles with the selected user" time="0.712004584">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; clears the search and shows all users again" time="0.278824041">
+        </testcase>
+        <testcase classname="tests/UsersTable.test.tsx" name="UsersTable &gt; shows the loading state" time="0.218846042">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/VectoriseDocumentDialog.test.tsx" timestamp="2026-10-06T07:18:37.995Z" hostname="8d1ed33c0868" tests="16" failures="0" errors="0" skipped="0" time="12.446386797">
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; renders the document name and loads vectorization settings" time="1.887908918">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; only displays enabled models with an enabled runtime engine" time="0.922207626">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; uses the existing embedding model when it is available" time="0.708034625">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; falls back to the first usable model when the existing model is unavailable" time="0.353154875">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; displays default chunk size and overlap" time="0.546897542">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; displays existing chunk count and last vectorized date" time="0.297951709">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; shows a warning when the document has no extracted text" time="0.452764667">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; disables vectorization when the document has no raw text" time="0.389321042">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; shows a warning when there are no usable embedding models" time="0.1168755">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; shows re-vectorize mode when the document is already vectorized" time="0.628693">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; validates chunk size when it is below the minimum" time="1.444094959">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; validates that overlap is less than chunk size" time="1.821480292">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; successfully vectorizes the document" time="1.051899375">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; shows the API error when vectorization fails" time="1.12509475">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; does not vectorize when there is no model selected" time="0.15776575">
+        </testcase>
+        <testcase classname="tests/VectoriseDocumentDialog.test.tsx" name="VectorizeDocumentDialog &gt; calls onClose when the modal is cancelled" time="0.533109209">
+        </testcase>
+    </testsuite>
+</testsuites>

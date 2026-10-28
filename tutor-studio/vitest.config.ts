@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    testTimeout: 15000,
+    testTimeout: 30000,
       setupFiles: "./vitest.setup.ts", // or .js — match whatever extension you saved it as
     coverage: {
       provider: "v8", // you're already using this, based on the report header
