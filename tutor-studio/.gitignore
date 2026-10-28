@@ -1,27 +1,27 @@
-# =========================
+# ====
 # JetBrains IDEs (Rider / IntelliJ / WebStorm)
-# =========================
+# ====
 .idea/
 *.iml
 *.iws
 *.ipr
 *.sln.iml
 
-# =========================
+# ====
 # VSCode (optional)
-# =========================
+# ====
 .vscode/*
 !.vscode/extensions.json
 
-# =========================
+# ====
 # OS files
-# =========================
+# ====
 .DS_Store
 Thumbs.db
 
-# =========================
+# ====
 # Logs
-# =========================
+# ====
 logs/
 *.log
 npm-debug.log*
@@ -30,9 +30,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# =========================
+# ====
 # .NET (if you use Rider backend/services)
-# =========================
+# ====
 bin/
 obj/
 *.user
@@ -40,9 +40,9 @@ obj/
 *.cache
 *.pdb
 
-# =========================
+# ====
 # Python (FastAPI backend)
-# =========================
+# ====
 __pycache__/
 *.pyc
 *.pyo
@@ -55,9 +55,9 @@ venv/
 # would otherwise ignore them, hiding the documented config surface.
 !.env.*.example
 
-# =========================
+# ====
 # Node / React app
-# =========================
+# ====
 node_modules/
 .next/
 out/
@@ -66,23 +66,23 @@ dist-ssr/
 build/
 coverage/
 
-# =========================
+# ====
 # Package managers
-# =========================
+# ====
 #package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# =========================
+# ====
 # Docker
-# =========================
+# ====
 .docker/
 *.pid
 *.seed
 *.pid.lock
 
-# =========================
+# ====
 # Misc
-# =========================
+# ====
 *.sw?
 *.local

@@ -1,0 +1,110 @@
+pipeline {
+    agent{
+        docker{
+            image '23107560/node16-docker:latest'
+            // Connect to the DinD container trough TLS certificate
+            args '''
+                --network jenkins_dind
+                --add-host=docker:host-gateway
+                -v /certs/client:/certs/client:ro
+                -e DOCKER_HOST=tcp://docker:2376
+                -e DOCKER_CERT_PATH=/certs/client
+                -e DOCKER_TLS_VERIFY=1
+            '''
+        }
+    }
+    environment {
+        DOCKER_HOST = 'tcp://docker:2376'
+        DOCKER_CERT_PATH = '/certs/client'
+        DOCKER_TLS_VERIFY = '1'
+    }
+
+    stages {
+
+        stage('Deploy Bitcraft to Jetson') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'jetson-ssh-key',
+                        keyFileVariable: 'JETSON_SSH_KEY',
+                        usernameVariable: 'JETSON_USER'
+                    ),
+                    string(
+                        credentialsId: 'jetson-host',
+                        variable: 'JETSON_HOST'
+                    ),
+                    string(
+                        credentialsId: 'jetson-host-key',
+                        variable: 'JETSON_HOST_KEY'
+                    )
+                ]) {
+                    sh '''#!/usr/bin/env bash
+                        set -euo pipefail
+
+                        mkdir -p ~/.ssh
+                        chmod 700 ~/.ssh
+
+                        if ! grep -qxF "$JETSON_HOST_KEY" ~/.ssh/known_hosts 2>/dev/null; then
+                            printf "%s\\n" "$JETSON_HOST_KEY" >> ~/.ssh/known_hosts
+                        fi
+
+                        chmod 600 ~/.ssh/known_hosts
+
+                        export DEPLOY_SHA="$GIT_COMMIT"
+
+                        echo "Deploying commit: $DEPLOY_SHA"
+
+                        ssh \
+                            -i "$JETSON_SSH_KEY" \
+                            -o BatchMode=yes \
+                            "$JETSON_USER@$JETSON_HOST" \
+                            "bash -se" <<REMOTE | tee deploy.log
+
+                        set -euo pipefail
+
+                        cd /home/cmpe6012/AgenticTutor/bitcraft-deploy
+
+                        echo "Fetching deploy branch..."
+                        git fetch origin feature/jenkins-pipeline
+
+                        echo "Deploying pinned commit: $DEPLOY_SHA"
+                        git reset --hard "$DEPLOY_SHA"
+
+                        echo "Current commit:"
+                        git log -1 --oneline
+
+                        echo "Starting Docker deployment..."
+                        sudo -n /usr/local/sbin/bitcraft-deploy
+
+                        echo "BITCRAFT_DEPLOYMENT_SUCCESS"
+
+REMOTE
+                    '''
+                }
+            }
+
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'deploy.log',
+                        allowEmptyArchive: true
+                    )
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Bitcraft pipeline completed successfully.'
+        }
+
+        failure {
+            echo 'Bitcraft pipeline failed. Check the stage logs.'
+        }
+
+        always {
+            echo 'Bitcraft CI/CD pipeline completed.'
+        }
+    }
+}

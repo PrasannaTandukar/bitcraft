@@ -27,9 +27,9 @@ NC="\033[0m"
 
 print_header() {
   clear
-  echo -e "${CYAN}======================================${NC}"
+  echo -e "${CYAN}===${NC}"
   echo -e "${CYAN}          BITCRAFT LAUNCHER           ${NC}"
-  echo -e "${CYAN}======================================${NC}"
+  echo -e "${CYAN}===${NC}"
   echo
 }
 

@@ -42,7 +42,10 @@ public sealed class ChatImageNormalizer(ChatAttachmentLimits limits) : IChatImag
             var options = new DecoderOptions
             {
                 Configuration = ImageConfiguration,
-                MaxFrames = 2
+                MaxFrames = 2,
+                // v4 replaced PngDecoderOptions.PngCrcChunkHandling with this general setting.
+                // Strict matches the previous PngCrcChunkHandling.IgnoreNone behaviour.
+                //SegmentIntegrityHandling = SegmentIntegrityHandling.Strict
             };
             using var input = new MemoryStream(data.ToArray(), writable: false);
             var info = await Image.IdentifyAsync(options, input, cancellationToken);
@@ -56,13 +59,13 @@ public sealed class ChatImageNormalizer(ChatAttachmentLimits limits) : IChatImag
             if (!HasCompleteContainer(data.Span, mimeType))
                 return Failure("ChatAttachment.InvalidImage", "This image is truncated, animated, or has an invalid container.");
             input.Position = 0;
-            // v3 exposes PNG CRC validation on its specialized decoder options.
+            // PNG CRC validation is now controlled by SegmentIntegrityHandling.Strict on the general options.
             using var decoded = mimeType == "image/png"
                 ? await PngDecoder.Instance.DecodeAsync<Rgba32>(new PngDecoderOptions
                 {
                     GeneralOptions = options,
+                    MaxUncompressedAncillaryChunkSizeBytes = 1024 * 1024,
                     PngCrcChunkHandling = PngCrcChunkHandling.IgnoreNone,
-                    MaxUncompressedAncillaryChunkSizeBytes = 1024 * 1024
                 }, input, cancellationToken)
                 : await Image.LoadAsync<Rgba32>(options, input, cancellationToken);
             if (decoded.Frames.Count != 1)

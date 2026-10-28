@@ -77,9 +77,9 @@ function Reset-All {
 
 function Show-Menu {
     Clear-Host
-    Write-Host '======================================' -ForegroundColor Cyan
+    Write-Host '===' -ForegroundColor Cyan
     Write-Host '          BITCRAFT LAUNCHER           ' -ForegroundColor Cyan
-    Write-Host '======================================' -ForegroundColor Cyan
+    Write-Host '===' -ForegroundColor Cyan
     Write-Host ''
     Write-Host '1) Run Core Stack'
     Write-Host '2) Run Core + Dev (HMR)'
