@@ -53,6 +53,8 @@ export default function StandardBenchmarkRunPage() {
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState("");
   const [priority, setPriority] = useState(0);
+  // Stamp refreshed by the poll effect, never read during render.
+  const [nowMs, setNowMs] = useState(0);
 
   const isActive = run !== null && ACTIVE_STATUSES.includes(run.status);
 
@@ -80,6 +82,7 @@ export default function StandardBenchmarkRunPage() {
     if (!runId || !isActive) return undefined;
     const timer = setInterval(() => {
       const controller = new AbortController();
+      setNowMs(Date.now());
       getStandardBenchmarkRunProgress(runId, controller.signal)
         .then((progress) => setRun((current) => (current ? { ...current, ...progress } : current)))
         .catch(() => { /* transient poll failure; the next tick retries */ });
@@ -176,12 +179,19 @@ export default function StandardBenchmarkRunPage() {
           </Flex>
 
           {isActive ? (
-            <Progress
-              percent={progressValue}
-              status={run.status === "Running" ? "active" : "normal"}
-              style={{ marginTop: 12 }}
-              format={() => (hasCounts ? `${run.completedTasks ?? 0}/${run.totalTasks}` : `${progressValue.toFixed(0)}%`)}
-            />
+            <Flex align="center" gap={12} wrap style={{ marginTop: 12 }}>
+              <Progress
+                percent={progressValue}
+                status={run.status === "Running" ? "active" : "normal"}
+                style={{ marginBottom: 0, flex: 1, minWidth: 200 }}
+                format={() => (hasCounts ? `${run.completedTasks ?? 0}/${run.totalTasks}` : `${progressValue.toFixed(0)}%`)}
+              />
+              {run.lastProgressUtc ? (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  updated {Math.max(0, Math.round((nowMs - new Date(run.lastProgressUtc).getTime()) / 1000))}s ago
+                </Typography.Text>
+              ) : null}
+            </Flex>
           ) : null}
         </Card>
 
@@ -235,7 +245,7 @@ export default function StandardBenchmarkRunPage() {
           </Card>
         ) : null}
 
-        <StandardBenchmarkRunLog runId={runId} />
+        <StandardBenchmarkRunLog runId={runId} isActive={isActive} />
       </div>
     </main>
   );
