@@ -13,7 +13,12 @@ import tempfile
 
 import pytest
 
-from app.tools.custom_benchmarks.arduino_benchmark import (
+# The arduino benchmark imports deepeval at module top. Skip the whole
+# module when deepeval is not installed instead of failing collection
+# (WS1 step 7 of the bugfix-benchmark-fixes plan).
+pytest.importorskip("deepeval")
+
+from app.tools.custom_benchmarks.arduino_benchmark import (  # noqa: E402
     CIRCUIT_COMPREHENSION_WEIGHT,
     DETAIL_DETECTION_WEIGHT,
     GUIDANCE_PEDAGOGY_WEIGHT,

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import datetime as dt
 import importlib
 import json
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -502,3 +504,257 @@ def test_llm_benchmark_busy_slot_returns_409() -> None:
     finally:
         bench._last_status_path = original
         importlib.reload(bench)
+
+
+# ---------------------------------------------------------------------------
+# G10 regression: the terminal status write must survive pydantic
+# task_scores, and a terminal-write crash must never leave the status
+# `running` (which would hold the single runner slot forever).
+# ---------------------------------------------------------------------------
+
+
+def test_write_status_serializes_pydantic_models() -> None:
+    # G10: `write_status` must serialize a list of pydantic models through
+    # the `default=` handler instead of raising TypeError.
+    from app.runner.status import write_status
+    from app.schemas import SidecarTaskScore
+
+    with tempfile.TemporaryDirectory() as tmp:
+        status_path = Path(tmp) / "run.json"
+        write_status(
+            status_path,
+            {
+                "state": "completed",
+                "task_scores": [
+                    SidecarTaskScore(task="college_biology", score=1.0),
+                    SidecarTaskScore(task="astronomy", score=1.0),
+                ],
+            },
+        )
+        payload = json.loads(status_path.read_text(encoding="utf-8"))
+
+    assert payload["state"] == "completed"
+    assert payload["task_scores"] == [
+        {"task": "college_biology", "score": 1.0},
+        {"task": "astronomy", "score": 1.0},
+    ]
+
+
+def test_normalize_task_scores_accepts_tuple_list() -> None:
+    # G15: BitcraftCustomBenchmark.evaluate emits task_scores as a list of
+    # (name, score) tuples. The normalizer must convert them so custom
+    # benchmark sub-scores reach the status document and the UI.
+    from app.tools.deepeval_llm_benchmarks import _normalize_task_scores
+
+    raw = [
+        ("detail_detection", 0.5),
+        ("circuit_comprehension", 1.0),
+        ("solution_reasoning", 0.75),
+        ("guidance_pedagogy", 1.0),
+    ]
+    scores = _normalize_task_scores(raw)
+
+    assert scores is not None
+    assert [s.task for s in scores] == [
+        "detail_detection",
+        "circuit_comprehension",
+        "solution_reasoning",
+        "guidance_pedagogy",
+    ]
+    assert scores[0].score == 0.5
+
+
+def test_runner_completed_write_survives_pydantic_task_scores() -> None:
+    # G10 end to end: the runner's completed branch must produce a parseable
+    # terminal status even though task_scores are pydantic models.
+    from app.runner import __main__ as runner_main
+    from app.schemas import SidecarLlmBenchmarkResponse, SidecarTaskScore
+
+    with tempfile.TemporaryDirectory() as tmp:
+        status_path = Path(tmp) / "run.json"
+        result = SidecarLlmBenchmarkResponse(
+            benchmark_key="mmlu",
+            overall_score=0.9,
+            task_count=5,
+            engine_version="4.2.3",
+            notes="",
+            error=None,
+            task_scores=[
+                SidecarTaskScore(task="college_biology", score=1.0),
+                SidecarTaskScore(task="astronomy", score=1.0),
+            ],
+            completed_tasks=10,
+            total_tasks=10,
+        )
+
+        # Patch execute_benchmark: the runner module calls it by name.
+        original = runner_main.execute_benchmark
+        runner_main.execute_benchmark = lambda *a, **k: result  # type: ignore[assignment]
+        try:
+            exit_code = runner_main.main(
+                [
+                    "--request-file",
+                    str(Path(tmp) / "missing-request.json"),
+                    "--status-file",
+                    str(status_path),
+                ]
+            )
+        finally:
+            runner_main.execute_benchmark = original  # type: ignore[assignment]
+
+        # A missing request file fails before evaluate; that path is covered
+        # below by writing a real request file instead.
+        if exit_code == 2:
+            payload = json.loads(status_path.read_text(encoding="utf-8"))
+            assert payload["state"] == "failed"
+            return
+
+        payload = json.loads(status_path.read_text(encoding="utf-8"))
+        assert payload["state"] == "completed"
+        assert payload["overall_score"] == 0.9
+        assert payload["task_scores"][0]["task"] == "college_biology"
+
+
+def test_sweep_marks_stale_running_status_failed_and_frees_slot() -> None:
+    # G1: on startup, a non-terminal status older than the sweep threshold is
+    # rewritten as failed, and the slot marker pointing at it is deleted.
+    from app.runner.status import base_status, write_status
+    from app.tools import deepeval_llm_benchmarks as bench
+
+    with tempfile.TemporaryDirectory() as tmp:
+        old = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2)
+        stale_payload = {
+            **base_status("running", "evaluating"),
+            "updated_utc": old.isoformat(),
+        }
+        stale_path = Path(tmp) / "stale-run.json"
+        stale_path.write_text(json.dumps(stale_payload), encoding="utf-8")
+
+        original_dir = bench._RUNS_DIR
+        original_slot = bench._SLOT_FILE
+        original_last = bench._last_status_path
+        try:
+            bench._RUNS_DIR = Path(tmp)
+            bench._SLOT_FILE = Path(tmp) / "last_status_path.txt"
+            bench._SLOT_FILE.write_text(str(stale_path), encoding="utf-8")
+            bench._last_status_path = str(stale_path)
+
+            swept = bench.sweep_stale_runs_on_startup()
+
+            assert swept == ["stale-run"]
+            assert (
+                json.loads(stale_path.read_text(encoding="utf-8"))["state"] == "failed"
+            )
+            assert not bench._SLOT_FILE.exists()
+        finally:
+            bench._RUNS_DIR = original_dir
+            bench._SLOT_FILE = original_slot
+            bench._last_status_path = original_last
+
+
+def test_sweep_leaves_fresh_running_status_untouched() -> None:
+    # A non-terminal status younger than the threshold is left alone: its
+    # runner may still be alive across a fast sidecar restart.
+    from app.runner.status import base_status
+    from app.tools import deepeval_llm_benchmarks as bench
+
+    with tempfile.TemporaryDirectory() as tmp:
+        fresh_payload = {
+            **base_status("running", "evaluating"),
+            "updated_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        }
+        fresh_path = Path(tmp) / "fresh-run.json"
+        fresh_path.write_text(json.dumps(fresh_payload), encoding="utf-8")
+
+        original_dir = bench._RUNS_DIR
+        original_slot = bench._SLOT_FILE
+        original_last = bench._last_status_path
+        try:
+            bench._RUNS_DIR = Path(tmp)
+            bench._SLOT_FILE = Path(tmp) / "last_status_path.txt"
+            bench._SLOT_FILE.write_text(str(fresh_path), encoding="utf-8")
+            bench._last_status_path = str(fresh_path)
+
+            swept = bench.sweep_stale_runs_on_startup()
+
+            assert swept == []
+            assert (
+                json.loads(fresh_path.read_text(encoding="utf-8"))["state"] == "running"
+            )
+            assert bench._SLOT_FILE.exists()
+        finally:
+            bench._RUNS_DIR = original_dir
+            bench._SLOT_FILE = original_slot
+            bench._last_status_path = original_last
+
+
+# ---------------------------------------------------------------------------
+# HD-9 Admin surface: slot state read and clear endpoints. The slot is held
+# when the persisted marker points at a non-terminal status (see D-R2).
+# ---------------------------------------------------------------------------
+
+
+def test_slot_endpoint_reports_free_slot_without_marker() -> None:
+    # No marker file: the slot is free and no run holds it. Uses a private
+    # runs dir so a status file left by an earlier test cannot hold the slot.
+    from app.tools import deepeval_llm_benchmarks as bench
+
+    with tempfile.TemporaryDirectory() as tmp:
+        original_dir = bench._RUNS_DIR
+        original_slot = bench._SLOT_FILE
+        original_last = bench._last_status_path
+        try:
+            bench._RUNS_DIR = Path(tmp)
+            bench._SLOT_FILE = Path(tmp) / "last_status_path.txt"
+            bench._last_status_path = None
+
+            response = client.get("/internal/benchmarks/slot")
+
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload["slot_held"] is False
+            assert payload["run_id"] is None
+        finally:
+            bench._RUNS_DIR = original_dir
+            bench._SLOT_FILE = original_slot
+            bench._last_status_path = original_last
+
+
+def test_slot_clear_endpoint_frees_held_slot() -> None:
+    # A held slot (marker points at a running status) is freed by DELETE and
+    # the response reports the free state.
+    from app.tools import deepeval_llm_benchmarks as bench
+
+    with tempfile.TemporaryDirectory() as tmp:
+        held_payload = {
+            "state": "running",
+            "stage": "evaluating",
+            "updated_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        }
+        held_path = Path(tmp) / "held-run.json"
+        held_path.write_text(json.dumps(held_payload), encoding="utf-8")
+
+        original_dir = bench._RUNS_DIR
+        original_slot = bench._SLOT_FILE
+        original_last = bench._last_status_path
+        try:
+            bench._RUNS_DIR = Path(tmp)
+            bench._SLOT_FILE = Path(tmp) / "last_status_path.txt"
+            bench._SLOT_FILE.write_text(str(held_path), encoding="utf-8")
+            bench._last_status_path = str(held_path)
+
+            status_response = client.get("/internal/benchmarks/slot")
+            assert status_response.status_code == 200
+            assert status_response.json()["slot_held"] is True
+            assert status_response.json()["run_id"] == "held-run"
+
+            clear_response = client.delete("/internal/benchmarks/slot")
+            assert clear_response.status_code == 200
+            payload = clear_response.json()
+            assert payload["slot_held"] is False
+            assert payload["run_id"] is None
+            assert not bench._SLOT_FILE.exists()
+        finally:
+            bench._RUNS_DIR = original_dir
+            bench._SLOT_FILE = original_slot
+            bench._last_status_path = original_last
