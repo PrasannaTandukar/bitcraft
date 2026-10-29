@@ -520,7 +520,9 @@ internal static class TutoringMapping
         run.FailureCode,
         run.FailureDescription,
         run.Priority,
-        run.CancelledUtc);
+        run.CancelledUtc,
+        run.IsArchived,
+        run.ArchivedUtc);
 
     public static StandardBenchmarkSuiteResponse ToResponse(this StandardBenchmarkSuiteRegistry.SuiteInfo suite) => new(
         suite.Key,

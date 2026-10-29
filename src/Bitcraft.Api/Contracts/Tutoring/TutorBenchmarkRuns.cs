@@ -133,7 +133,9 @@ public sealed record StandardBenchmarkRunResponse(
     string? FailureCode,
     string? FailureDescription,
     int Priority,
-    DateTime? CancelledUtc);
+    DateTime? CancelledUtc,
+    bool IsArchived,
+    DateTime? ArchivedUtc);
 
 /// <summary>Lightweight standardized benchmark run progress response for polling UI state.</summary>
 public sealed record StandardBenchmarkRunProgressResponse(
@@ -181,3 +183,9 @@ public sealed record BenchmarkEngineStatusResponse(
 
 /// <summary>Result of clearing the sidecar runner slot. True when the slot is now free.</summary>
 public sealed record BenchmarkEngineSlotClearedResponse(bool SlotCleared);
+
+/// <summary>Sets the global benchmark queue pause state (HD-8).</summary>
+public sealed record SetBenchmarkQueuePausedRequest(bool IsPaused);
+
+/// <summary>The global benchmark queue pause state.</summary>
+public sealed record BenchmarkQueuePausedResponse(bool IsPaused);

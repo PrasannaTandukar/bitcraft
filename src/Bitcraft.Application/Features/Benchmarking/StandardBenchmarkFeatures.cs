@@ -216,7 +216,7 @@ public static class StandardBenchmarkFeatures
         }
     }
 
-    public sealed record ListStandardBenchmarkRunsQuery(Guid? InteractionModelId, int Limit = 50) : IRequest<Result<List<StandardBenchmarkRun>>>;
+    public sealed record ListStandardBenchmarkRunsQuery(Guid? InteractionModelId, int Limit = 50, bool IncludeArchived = false) : IRequest<Result<List<StandardBenchmarkRun>>>;
 
     public sealed class ListStandardBenchmarkRunsHandler(
         IStandardBenchmarkRunRepository runRepository,
@@ -230,9 +230,15 @@ public static class StandardBenchmarkFeatures
                 return Result.Failure<List<StandardBenchmarkRun>>(new Error("StandardBenchmark.Forbidden", "Only administrators and auditors can view standardized benchmark runs."));
             }
 
-            var runs = request.InteractionModelId is { } modelId
-                ? await runRepository.ListByModelAsync(modelId, cancellationToken)
-                : await runRepository.ListRecentAsync(Math.Clamp(request.Limit, 1, 200), cancellationToken);
+            if (request.InteractionModelId is { } modelId)
+            {
+                var modelRuns = await runRepository.ListByModelAsync(modelId, cancellationToken);
+                return Result.Success(request.IncludeArchived
+                    ? modelRuns
+                    : modelRuns.Where(x => !x.IsArchived).ToList());
+            }
+
+            var runs = await runRepository.ListRecentAsync(Math.Clamp(request.Limit, 1, 200), request.IncludeArchived, cancellationToken);
             return Result.Success(runs);
         }
     }
@@ -645,6 +651,124 @@ public static class StandardBenchmarkFeatures
             {
                 return null;
             }
+        }
+    }
+
+    // ----- Archive (HD-4) -----
+
+    public sealed record ArchiveStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<bool>>;
+
+    public sealed class ArchiveStandardBenchmarkRunHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        ICurrentUserContext currentUser,
+        TimeProvider timeProvider) : IRequestHandler<ArchiveStandardBenchmarkRunCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(ArchiveStandardBenchmarkRunCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can archive standardized benchmark runs."));
+            }
+
+            var run = await runRepository.GetTrackedByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (run.Status is BenchmarkRunStatus.Queued or BenchmarkRunStatus.Running)
+            {
+                return Result.Failure<bool>(new Error(
+                    "StandardBenchmark.NotArchivable",
+                    "Cancel the run before archiving it."));
+            }
+
+            run.IsArchived = true;
+            run.ArchivedUtc = timeProvider.GetUtcNow().UtcDateTime;
+            await runRepository.UpdateAsync(run, cancellationToken);
+            return Result.Success(true);
+        }
+    }
+
+    public sealed record UnarchiveStandardBenchmarkRunCommand(Guid RunId) : IRequest<Result<bool>>;
+
+    public sealed class UnarchiveStandardBenchmarkRunHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        ICurrentUserContext currentUser) : IRequestHandler<UnarchiveStandardBenchmarkRunCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(UnarchiveStandardBenchmarkRunCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can unarchive standardized benchmark runs."));
+            }
+
+            var run = await runRepository.GetTrackedByIdAsync(request.RunId, cancellationToken);
+            if (run is null)
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.NotFound", $"Standardized benchmark run '{request.RunId}' not found."));
+            }
+
+            if (!run.IsArchived)
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.NotArchived", $"Run '{request.RunId}' is not archived."));
+            }
+
+            run.IsArchived = false;
+            run.ArchivedUtc = null;
+            await runRepository.UpdateAsync(run, cancellationToken);
+            return Result.Success(true);
+        }
+    }
+
+    // ----- Queue pause (HD-8) -----
+
+    /// <summary>
+    /// Reads the global queue pause flag. Readable by Auditor and above so the
+    /// queue view can show the state.
+    /// </summary>
+    public sealed record GetBenchmarkQueuePausedQuery : IRequest<Result<bool>>;
+
+    public sealed class GetBenchmarkQueuePausedHandler(
+        IStandardBenchmarkRunRepository runRepository) : IRequestHandler<GetBenchmarkQueuePausedQuery, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(GetBenchmarkQueuePausedQuery request, CancellationToken cancellationToken)
+        {
+            var state = await runRepository.GetQueueStateAsync(cancellationToken);
+            return Result.Success(state.IsPaused);
+        }
+    }
+
+    /// <summary>
+    /// Pauses or resumes the global queue (HD-8). Admin only. A paused queue
+    /// stops picking up new runs; a run already executing finishes.
+    /// </summary>
+    public sealed record SetBenchmarkQueuePausedCommand(bool IsPaused) : IRequest<Result<bool>>;
+
+    public sealed class SetBenchmarkQueuePausedHandler(
+        IStandardBenchmarkRunRepository runRepository,
+        IStandardBenchmarkRunQueue queue,
+        ICurrentUserContext currentUser,
+        TimeProvider timeProvider) : IRequestHandler<SetBenchmarkQueuePausedCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(SetBenchmarkQueuePausedCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can pause or resume the benchmark queue."));
+            }
+
+            var state = await runRepository.GetQueueStateAsync(cancellationToken);
+            state.IsPaused = request.IsPaused;
+            state.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+            await runRepository.UpdateQueueStateAsync(state, cancellationToken);
+
+            // A resume must wake the worker: queued runs wait for a signal.
+            if (!request.IsPaused)
+            {
+                await queue.QueueAsync(Guid.Empty, cancellationToken);
+            }
+            return Result.Success(request.IsPaused);
         }
     }
 

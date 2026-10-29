@@ -30,6 +30,7 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
     }
 
     /// <summary>Lists standardized benchmark runs, optionally filtered by interaction model.</summary>
+    /// <remarks>Archived runs are hidden unless includeArchived is true (HD-4).</remarks>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<StandardBenchmarkRunResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -37,9 +38,10 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
     public async Task<ActionResult<IReadOnlyList<StandardBenchmarkRunResponse>>> List(
         [FromQuery] Guid? interactionModelId,
         [FromQuery] int limit = 50,
+        [FromQuery(Name = "includeArchived")] bool includeArchived = false,
         CancellationToken cancellationToken = default)
     {
-        var result = await sender.Send(new StandardBenchmarkFeatures.ListStandardBenchmarkRunsQuery(interactionModelId, limit), cancellationToken);
+        var result = await sender.Send(new StandardBenchmarkFeatures.ListStandardBenchmarkRunsQuery(interactionModelId, limit, includeArchived), cancellationToken);
         return result.IsSuccess
             ? Ok(result.Value.Select(x => x.ToResponse()).ToList())
             : TutoringMapping.ToActionResult(result.Error);
@@ -175,6 +177,77 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
         var result = await sender.Send(new StandardBenchmarkFeatures.SetStandardBenchmarkRunPriorityCommand(runId, request.Priority), cancellationToken);
         return result.IsSuccess
             ? Ok()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Archives a finished standardized benchmark run. Queued or running runs must be cancelled first.</summary>
+    /// <remarks>Requires the Admin role. Archived runs are hidden from default lists (HD-4).</remarks>
+    [HttpPost("{runId:guid}/archive")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Archive(Guid runId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(runId), cancellationToken);
+        return result.IsSuccess
+            ? Ok()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Restores an archived standardized benchmark run to the default list.</summary>
+    /// <remarks>Requires the Admin role (HD-4).</remarks>
+    [HttpPost("{runId:guid}/unarchive")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Unarchive(Guid runId, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.UnarchiveStandardBenchmarkRunCommand(runId), cancellationToken);
+        return result.IsSuccess
+            ? Ok()
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Reads the global benchmark queue pause state.</summary>
+    /// <remarks>Readable by Auditor and above (HD-8).</remarks>
+    [HttpGet("queue/paused")]
+    [ProducesResponseType(typeof(BenchmarkQueuePausedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<BenchmarkQueuePausedResponse>> GetQueuePaused(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.GetBenchmarkQueuePausedQuery(), cancellationToken);
+        return result.IsSuccess
+            ? Ok(new BenchmarkQueuePausedResponse(result.Value))
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Pauses or resumes the global benchmark queue.</summary>
+    /// <remarks>Requires the Admin role. A paused queue stops picking up new runs; an executing run finishes (HD-8).</remarks>
+    [HttpPut("queue/paused")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(typeof(BenchmarkQueuePausedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<BenchmarkQueuePausedResponse>> SetQueuePaused(
+        [FromBody] SetBenchmarkQueuePausedRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest(new ApiError("StandardBenchmark.InvalidRequest", "A pause value is required."));
+        }
+
+        var result = await sender.Send(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(request.IsPaused), cancellationToken);
+        return result.IsSuccess
+            ? Ok(new BenchmarkQueuePausedResponse(result.Value))
             : TutoringMapping.ToActionResult(result.Error);
     }
 

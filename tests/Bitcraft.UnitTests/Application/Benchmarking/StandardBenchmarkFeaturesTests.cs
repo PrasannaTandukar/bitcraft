@@ -735,6 +735,136 @@ public class StandardBenchmarkFeaturesTests
         Assert.Equal("Benchmark.SidecarException", result.Error.Code);
     }
 
+    // ----- Archive (HD-4) -----
+
+    [Fact]
+    public async Task Archive_AsAdmin_HidesRunFromDefaultList()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed,
+            IsArchived = false
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunHandler(runs, Admin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(run.IsArchived);
+        Assert.NotNull(run.ArchivedUtc);
+
+        var visible = await runs.ListRecentAsync(50, includeArchived: false);
+        var all = await runs.ListRecentAsync(50, includeArchived: true);
+        Assert.DoesNotContain(visible, x => x.Id == run.Id);
+        Assert.Contains(all, x => x.Id == run.Id);
+    }
+
+    [Fact]
+    public async Task Archive_RunningRun_ReturnsNotArchivable()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunHandler(runs, Admin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotArchivable", result.Error.Code);
+        Assert.False(run.IsArchived);
+    }
+
+    [Fact]
+    public async Task Archive_AsNonAdmin_ReturnsForbidden()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun { BenchmarkKey = "mmlu", Status = BenchmarkRunStatus.Completed };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunHandler(runs, NonAdmin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Unarchive_AsAdmin_RestoresRunToList()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed,
+            IsArchived = true,
+            ArchivedUtc = DateTime.UtcNow
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.UnarchiveStandardBenchmarkRunHandler(runs, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.UnarchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(run.IsArchived);
+        Assert.Null(run.ArchivedUtc);
+    }
+
+    // ----- Queue pause (HD-8) -----
+
+    [Fact]
+    public async Task SetQueuePaused_AsAdmin_PersistsAndWakesWorkerOnResume()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+
+        var handler = new StandardBenchmarkFeatures.SetBenchmarkQueuePausedHandler(runs, queue, Admin(), TimeProvider.System);
+
+        var paused = await handler.Handle(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(true), CancellationToken.None);
+        Assert.True(paused.IsSuccess);
+        Assert.True(paused.Value);
+        Assert.True(runs.QueueState.IsPaused);
+
+        var resumed = await handler.Handle(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(false), CancellationToken.None);
+        Assert.True(resumed.IsSuccess);
+        Assert.False(runs.QueueState.IsPaused);
+
+        // A resume must wake the worker so queued runs are picked up again.
+        Assert.Contains(queue.QueuedRunIds, id => id == Guid.Empty);
+    }
+
+    [Fact]
+    public async Task SetQueuePaused_AsNonAdmin_ReturnsForbidden()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+
+        var handler = new StandardBenchmarkFeatures.SetBenchmarkQueuePausedHandler(runs, queue, NonAdmin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(true), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetQueuePaused_ReturnsCurrentState()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        runs.QueueState = new BenchmarkQueueState { IsPaused = true };
+
+        var handler = new StandardBenchmarkFeatures.GetBenchmarkQueuePausedHandler(runs);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.GetBenchmarkQueuePausedQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value);
+    }
+
     [Fact]
     public async Task Process_WithKeylessOllamaEngine_SendsNullKey()
     {

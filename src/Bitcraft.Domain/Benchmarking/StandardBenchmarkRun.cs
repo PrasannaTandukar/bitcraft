@@ -58,6 +58,12 @@ public class StandardBenchmarkRun : BaseModel
     /// <summary>Queue priority. Lower values run first (DR-5). Zero is normal.</summary>
     public int Priority { get; set; }
 
+    /// <summary>Archive flag (HD-4). Archived runs are hidden from default lists and never auto-deleted.</summary>
+    public bool IsArchived { get; set; }
+
+    /// <summary>Timestamp when the run was archived. Null unless IsArchived is true.</summary>
+    public DateTime? ArchivedUtc { get; set; }
+
     public string? EngineName { get; set; }
     public string? EngineVersion { get; set; }
 
