@@ -6,10 +6,18 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi;
 using System.Threading.RateLimiting;
-
+using Prometheus;
+using Microsoft.AspNetCore.HttpLogging;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields =
+        HttpLoggingFields.RequestMethod |
+        HttpLoggingFields.RequestPath |
+        HttpLoggingFields.ResponseStatusCode;
+});
 var configuredUploadBytes = builder.Configuration.GetValue<long?>("Documents:MaxUploadBytes");
 var maximumUploadBytes = configuredUploadBytes is > 0
     ? configuredUploadBytes.Value
@@ -121,6 +129,21 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+
+app.UseRouting();
+app.UseHttpLogging(); // Individual HTTP request logs
+app.UseHttpMetrics();   // request count and duration by status code, method, route
+
+// Serve /metrics on a separate internal-only port, not on the public API port.
+//new KestrelMetricServer(port: 9464).Start();
+// Serve /metrics on a separate internal-only port.
+// Disable the listener in integration tests to avoid port conflicts.
+if (app.Configuration.GetValue<bool>("Metrics:Enabled"))
+{
+    var metricsPort = app.Configuration.GetValue<int?>("Metrics:Port") ?? 9464;
+    new KestrelMetricServer(port: metricsPort).Start();
+}
 
 app.UseAuthentication();
 app.UseCors("AllowFrontend");

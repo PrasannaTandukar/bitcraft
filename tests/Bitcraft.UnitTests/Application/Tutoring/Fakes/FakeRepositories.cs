@@ -293,6 +293,15 @@ internal sealed class FakeTutorRepository : ITutorRepository
         return Task.CompletedTask;
     }
 
+    public Task<List<ToolDefinition>> ListToolDefinitionsAsync(Guid tutorId, CancellationToken ct = default) =>
+        Task.FromResult(Tools.Where(tool => tool.TutorId == tutorId).ToList());
+    public Task UpdateToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default) => Task.CompletedTask;
+    public Task RemoveToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default)
+    {
+        Tools.Remove(tool);
+        return Task.CompletedTask;
+    }
+
     public Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken ct = default)
     {
         Tools.Add(tool);
@@ -495,6 +504,7 @@ internal sealed class FakeDocumentStore : IDocumentStore, IDocumentContentStore
 {
     public Dictionary<Guid, Document> Documents { get; } = new();
     public int ContentReplacementCalls { get; private set; }
+    public List<IReadOnlyCollection<Guid>> DisplayNameRequests { get; } = [];
 
     public Task<Document> AddAsync(Document document, CancellationToken ct = default)
     {
@@ -504,6 +514,14 @@ internal sealed class FakeDocumentStore : IDocumentStore, IDocumentContentStore
 
     public Task<Document?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(Documents.TryGetValue(id, out var document) ? document : null);
+
+    public Task<IReadOnlyDictionary<Guid, string>> GetDisplayNamesAsync(IReadOnlyCollection<Guid> documentIds,
+        CancellationToken cancellationToken = default)
+    {
+        DisplayNameRequests.Add(documentIds);
+        return Task.FromResult<IReadOnlyDictionary<Guid, string>>(Documents.Values
+            .Where(document => documentIds.Contains(document.Id)).ToDictionary(document => document.Id, document => document.Name));
+    }
 
     public Task<List<Document>> ListByCreatorAsync(Guid creatorId, CancellationToken ct = default) =>
         Task.FromResult(Documents.Values.Where(document => document.CreatedById == creatorId).ToList());
@@ -596,7 +614,7 @@ internal sealed class FakeRevisionEffectiveSetReader(IReadOnlyList<Guid>? docume
 internal sealed class FakeTutorMemoryStore : ITutorMemoryStore
 {
     public List<TutorMemory> Memories { get; } = new();
-    public Guid LastCreatorId { get; private set; }
+    public TutorMemorySearchRequest? LastRequest { get; private set; }
     public float[] LastQueryEmbedding { get; private set; } = [];
     public int LastTopK { get; private set; }
 
@@ -607,16 +625,17 @@ internal sealed class FakeTutorMemoryStore : ITutorMemoryStore
     }
 
     public Task<List<TutorMemory>> SearchNearestMemoriesAsync(
-        Guid creatorId,
-        float[] queryEmbedding,
-        int topK = 5,
+        TutorMemorySearchRequest request,
         CancellationToken cancellationToken = default)
     {
-        LastCreatorId = creatorId;
-        LastQueryEmbedding = queryEmbedding;
-        LastTopK = topK;
+        LastRequest = request;
+        LastQueryEmbedding = request.QueryEmbedding;
+        LastTopK = request.TopK;
         return Task.FromResult(Memories
-            .Where(memory => memory.CreatedById == creatorId || memory.CreatedById is null)
+            .Where(memory => memory.UserId == request.UserId && memory.TutorId == request.TutorId &&
+                memory.EmbeddingModelId == request.EmbeddingModelId &&
+                memory.EmbeddingDimensions == request.EmbeddingDimensions &&
+                (!request.ExcludedConversationId.HasValue || memory.ConversationId != request.ExcludedConversationId))
             .ToList());
     }
 }

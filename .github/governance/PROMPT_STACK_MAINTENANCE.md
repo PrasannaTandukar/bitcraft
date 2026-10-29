@@ -27,9 +27,8 @@ Use one job per layer:
 
 - `.github/copilot-instructions.md`: durable always-on project rules.
 - `.github/instructions/*.instructions.md`: file-pattern rules.
-- `.github/prompts/*.prompt.md`: manually invoked workflow entrypoints.
+- `.github/skills/*/SKILL.md`: reusable procedures and workflow entrypoints loaded on demand (skills replaced prompt files as the entrypoint mechanism on 2026-09-17).
 - `.github/agents/*.agent.md`: role boundaries, tool policy, inbox protocol, and handoffs.
-- `.github/skills/*/SKILL.md`: reusable procedures loaded only when relevant.
 - `.github/inboxes/*/inbox.md`: active future work only, not logs or reports.
 - `.github/governance/*.md`: governance, metrics, audits, model routing, and stack maintenance guidance.
 - `.github/mcp/*.md` and `mcp-server/`: read-only context/tool contracts.
@@ -105,6 +104,6 @@ Checked on 2026-05-19 with `fetch_webpage`:
 - GitHub MCP docs confirm MCP tools are invoked through Agent mode and may require additional permissions.
 - No GitHub doc checked here requires prompt-evaluation tooling inside the repository.
 
-Open ambiguity: GitHub docs describe custom agents as `.github/agents/AGENT-NAME.md`, while Bitcraft currently uses `.github/agents/*.agent.md` per the active VS Code convention in this repository. Do not rename the agent files without validating the active Copilot client and updating all references in one migration.
+Convention (verified against VS Code docs, 2026-09-16): custom agents use the `.agent.md` extension under `.github/agents/` — the file name is the agent identifier. `.chatmode.md` files should be renamed to `.agent.md`. Plain `.md` files in `.github/agents/` are also detected as custom agents, but `.agent.md` remains the explicit convention for this repository.
 
 Ownership: AI Ops.

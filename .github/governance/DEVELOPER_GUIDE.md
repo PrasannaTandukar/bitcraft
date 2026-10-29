@@ -1,30 +1,34 @@
 ﻿---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-21
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 ---
 # Bitcraft Agentic Workflow Guide
 
 ## Standard Flow
 
-1. Secretary gets work overview, checks relevant inboxes, and surfaces active priorities or blockers. Secretary is **triage**, not orchestration.
-2. Researcher gathers evidence when the user needs discovery, external documentation, academic input, or model/tool comparison.
-3. Planner converts evidence and requirements into a technical plan with risks, impacted files, validation, and Change Impact Level.
-4. Lead Dev accepts development responsibility and acts as the **development orchestrator**, delegating implementation slices to NET Dev, Web Dev, Dev Ops, Sec Ops, or AI Ops.
-5. Implementing agents make small validated edits and update their own inboxes when they complete or block delegated work.
-6. Review is routed by Change Impact Level and domain: Lead Dev for ordinary code review, Sec Ops for security/privacy risk, Dev Ops for deployment/infrastructure risk, and AI Ops for agentic stack risk.
-7. Typewriter turns approved technical facts into presentable docs or audit reports when needed. Standalone AI-generated reports include the provenance line from `.github/governance/PROVENANCE.md`.
-8. Secretary or AI Ops captures metrics and queues follow-up work.
+The workflow has three phases with entry skills. Each phase ends by emitting a ready-to-paste prompt for the next phase. The human orchestrates the handoffs today; the prompts are shaped so automation can take over later.
+
+1. **Phase 1 — Planning and Research** (`bitcraft-plan` entry skill, Planner agent). A capable cloud model produces the plan. Underlying skills: `bitcraft-planning`, `bitcraft-research`, `bitcraft-ste`. The plan must be detailed enough for a weaker local model to execute: exact files, one imperative sentence per step, validation command and expected result per step, and the Phase 2 area skill named per step.
+2. **Phase 2 — Development** (`bitcraft-develop` entry skill, Lead Dev agent). A cheaper or local model executes the plan work step by work step. Underlying area skills: `bitcraft-backend-feature`, `bitcraft-api-endpoint`, `bitcraft-frontend-feature`, `bitcraft-python-sidecar`, `bitcraft-devops-release`, `bitcraft-test-hardening`, `bitcraft-version-upgrade`, `bitcraft-agentic-stack`. Drift stops the run and routes to Phase 3 or back to Phase 1.
+3. **Phase 3 — Review** (`bitcraft-review` entry skill, Lead Dev agent). Stage A checks drift against the original request and in-flight decisions, then removes stale code. Stage B runs the strict style and pattern review. Routing after review: in-place fixes, re-development with an exact drift prompt, re-planning after commit or new branch, or closeout.
+
+Supporting roles:
+
+- Secretary gets work overview, checks relevant inboxes, and surfaces active priorities or blockers. Secretary is **triage**, not orchestration, and also produces documentation and reports.
+- Review is routed by Change Impact Level and domain: Lead Dev for ordinary code review, Sec Ops for security/privacy/deployment risk, and AI Ops for agentic stack risk.
+- Secretary turns approved technical facts into presentable docs or audit reports when needed. Standalone AI-generated reports include the provenance line from `.github/governance/PROVENANCE.md`.
+- Secretary or AI Ops captures metrics and queues follow-up work.
 
 ## Inbox Use
 
-- Inboxes live under `.github/inboxes/<agent-slug>/inbox.md`.
-- Use inboxes for future action, not current chat narration.
+- Inboxes live under `.github/inboxes/<agent-slug>/inbox.md` when local coordination needs them. Git ignores these files.
+- Use inboxes for short-lived future action, not current chat narration or durable decisions.
 - Keep each item small enough that the target agent can act without rereading the whole conversation.
 - Remove completed items. Mark blocked items with the next human or agent action.
-- Put summaries, decisions, metrics definitions, and audit reports in `.github/governance/` or `docs/`, not inboxes.
+- Put summaries, decisions, metrics definitions, and audit reports in tracked plans, `.github/governance/`, `.github/audits/`, `.github/research/`, `.github/reviews/`, or `docs/`, not inboxes.
 - Keep inbox items concise. Do not use inboxes as activity logs; noisy inbox churn creates version-control noise without improving coordination.
 
 ## Markdown Metadata
@@ -53,14 +57,13 @@ Deep research is expected to run steps 1 through 3 when available and report loc
 - Put human-provided source files under `docs/dev/<stack-slug>/sources/`.
 - Agents may read these stacks when present, but must tolerate the folder being absent or empty.
 
-## Development Delegation
+## Development Ownership
 
-- Lead Dev owns development task routing.
-- NET Dev owns backend .NET, EF Core, Application/Domain/Infrastructure/API, and backend tests.
-- Web Dev owns `tutor-studio/` frontend work.
-- Dev Ops owns Docker, CI/CD, deployment, migrations, release mechanics, and branch policy proposals.
-- Sec Ops owns security, privacy, authorization, prompt-injection, model/tool approval, and data governance risk.
-- AI Ops owns `.github`, MCP specs, prompts, agents, skills, model-routing docs, and agentic metrics.
+- Lead Dev owns development execution end to end: backend .NET, EF Core, Application/Domain/Infrastructure/API, backend tests, and `tutor-studio/` frontend work.
+- Sec Ops owns security, privacy, authorization, prompt-injection, model/tool approval, data governance risk, plus CI/CD, Docker, deployment, migrations, release mechanics, and branch policy proposals.
+- AI Ops owns `.github`, MCP specs, agents, skills, model-routing docs, and agentic metrics.
+- Secretary owns coordination, documentation, and reports.
+- Domain-specific how-to lives in skills, not agents: `bitcraft-backend-feature`, `bitcraft-api-endpoint`, `bitcraft-frontend-feature`, `bitcraft-python-sidecar`, `bitcraft-devops-release`, `bitcraft-security-review`, `bitcraft-doc-maintenance`.
 
 ## Review Routing By Impact
 
@@ -70,8 +73,8 @@ Use `.github/governance/METRICS.md` to classify CSS, DIS, and CIL. Use the match
 | --- | --- | --- |
 | Low | `.github/config/cil-low.yaml` | Implementing agent self-check plus focused validation. |
 | Medium | `.github/config/cil-medium.yaml` | Lead Dev plus relevant specialist. |
-| High | `.github/config/cil-high.yaml` | Lead Dev plus mandatory specialist (Sec Ops / Dev Ops / AI Ops). |
-| Critical | `.github/config/cil-critical.yaml` | Human pre-approval before any work; Sec Ops mandatory; Dev Ops when infra. |
+| High | `.github/config/cil-high.yaml` | Lead Dev plus mandatory specialist (Sec Ops or AI Ops). |
+| Critical | `.github/config/cil-critical.yaml` | Human pre-approval before any work; Sec Ops mandatory. |
 
 ## Document Persistence Layout
 
@@ -90,7 +93,7 @@ Lifecycle: open → active folder → archive when complete or superseded. Alway
 
 ## Branching Work
 
-The next operational task is a Bitbucket/Jira-compatible branch convention. Dev Ops owns the proposal, but humans approve the policy and perform Git write operations.
+The branch convention is captured in `.github/governance/BRANCH_CONVENTION.md` (D-3). Sec Ops maintains the convention guidance and CI/merge-policy compatibility; humans approve the policy and perform Git write operations.
 
 Preferred direction to evaluate:
 
@@ -116,7 +119,7 @@ Minimum capture per AI-assisted change:
 
 - If a workflow fails repeatedly, update the owning prompt, skill, or agent instead of adding duplicate warnings everywhere.
 - If a metric produces bad incentives, revise the metric before using it for routing.
-- If an inbox becomes a log, have Secretary or AI Ops prune it back to active items.
+- If an inbox becomes a log, have Secretary or AI Ops prune it. Move durable results to a tracked static document.
 
 ## Companion Documents
 

@@ -47,7 +47,20 @@ public sealed record DocumentSummaryResponse(
     DateTime CreatedUtc,
     Guid? CreatedById,
     DateTime? LastModifiedUtc,
-    Guid? LastModifiedById);
+    Guid? LastModifiedById,
+    DocumentVectorizationMetadataResponse? Vectorization);
+
+/// <summary>Lightweight vectorization state included with a document summary.</summary>
+public sealed record DocumentVectorizationMetadataResponse(
+    bool IsVectorized,
+    bool IsStale,
+    int ChunkCount,
+    DateTime? LastVectorizedUtc,
+    Guid? EmbeddingModelId,
+    string? EmbeddingModelName,
+    string? ProviderModelName,
+    string? EmbeddingProvider,
+    int? EmbeddingDimensions);
 
 /// <summary>
 /// Detailed source document response including <c>RawText</c>. Returned from

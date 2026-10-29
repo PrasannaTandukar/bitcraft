@@ -72,7 +72,8 @@ public static class TutorRevisionFeatures
         Guid? QueryEmbeddingModelId,
         string? InteractionParametersJson,
         DeploymentTarget DeploymentTarget,
-        string? DeploymentConfigJson) : IRequest<Result<TutorRevision>>;
+        string? DeploymentConfigJson,
+        IReadOnlyList<Guid>? ToolDefinitionIds = null) : IRequest<Result<TutorRevision>>;
 
     public sealed class UpdateDraftRevisionHandler(
         ITutorRepository tutorRepository,
@@ -116,6 +117,20 @@ public static class TutorRevisionFeatures
             if (validation.IsFailure)
             {
                 return Result.Failure<TutorRevision>(validation.Error);
+            }
+
+            if (request.ToolDefinitionIds is not null)
+            {
+                var ids = request.ToolDefinitionIds.Distinct().ToHashSet();
+                if (ids.Count > 10)
+                    return Result.Failure<TutorRevision>(new Error("TutorRevision.TooManyTools", "Select at most 10 tools."));
+                var tools = await tutorRepository.ListToolDefinitionsAsync(request.TutorId, cancellationToken);
+                if (ids.Any(id => tools.All(tool => tool.Id != id)))
+                    return Result.Failure<TutorRevision>(new Error("TutorRevision.ToolInvalid", "Select tools belonging to this tutor."));
+                foreach (var link in revision.RevisionTools.Where(link => !ids.Contains(link.ToolDefinitionId)).ToArray())
+                    revision.RevisionTools.Remove(link);
+                foreach (var tool in tools.Where(tool => ids.Contains(tool.Id) && revision.RevisionTools.All(link => link.ToolDefinitionId != tool.Id)))
+                    revision.RevisionTools.Add(new TutorRevisionTool { TutorRevisionId = revision.Id, ToolDefinitionId = tool.Id, ToolDefinition = tool });
             }
 
             revision.PromptVersionId = request.PromptVersionId;
@@ -176,6 +191,9 @@ public static class TutorRevisionFeatures
             {
                 return Result.Failure<TutorRevision>(validation.Error);
             }
+
+            var toolValidation = ValidateTools(revision, validation.Value.InteractionModel);
+            if (toolValidation.IsFailure) return Result.Failure<TutorRevision>(toolValidation.Error);
 
             revision.PromptVersion = validation.Value.PromptVersion;
             revision.InteractionModel = validation.Value.InteractionModel;
@@ -247,6 +265,9 @@ public static class TutorRevisionFeatures
                 return Result.Failure<TutorRevision>(validation.Error);
             }
 
+            var toolValidation = ValidateTools(revision, validation.Value.InteractionModel);
+            if (toolValidation.IsFailure) return Result.Failure<TutorRevision>(toolValidation.Error);
+
             revision.PromptVersion = validation.Value.PromptVersion;
             revision.InteractionModel = validation.Value.InteractionModel;
             revision.QueryEmbeddingModel = validation.Value.QueryEmbeddingModel;
@@ -298,10 +319,13 @@ public static class TutorRevisionFeatures
                 : JsonSerializer.Serialize(revision.RevisionTools.Select(rt => new
                 {
                     rt.ToolDefinitionId,
+                    rt.ToolDefinition!.TutorId,
                     rt.ToolDefinition?.Name,
                     rt.ToolDefinition?.Description,
                     rt.ToolDefinition?.JsonSchema,
-                    rt.ToolDefinition?.ExecutionUrl
+                    rt.ToolDefinition?.Kind,
+                    rt.ToolDefinition?.ImplementationKey,
+                    rt.ToolDefinition?.ExecutionPolicy
                 }));
 
             var deploymentJson = JsonSerializer.Serialize(new
@@ -389,6 +413,42 @@ public static class TutorRevisionFeatures
             var slug = sb.ToString().Trim('-');
             return slug.Length > 80 ? slug[..80].TrimEnd('-') : slug;
         }
+    }
+
+    private static Result ValidateTools(TutorRevision revision, InteractionModel? model)
+    {
+        if (revision.RevisionTools.Count > 10)
+            return Result.Failure(new Error("TutorRevision.TooManyTools", "Select at most 10 tools."));
+        if (revision.RevisionTools.Any(link => link.ToolDefinition?.ExecutionPolicy == TutorToolExecutionPolicy.RequiresApproval))
+            return Result.Failure(new Error("TutorRevision.ToolApprovalRequired", "Tool approval is not available in chat yet. Choose Automatic for read-only tools or disable the tool."));
+        foreach (var link in revision.RevisionTools)
+        {
+            var tool = link.ToolDefinition;
+            if (tool is null || tool.TutorId != revision.TutorId || string.IsNullOrWhiteSpace(tool.Name) ||
+                string.IsNullOrWhiteSpace(tool.ImplementationKey) || !Enum.IsDefined(tool.Kind) ||
+                !Enum.IsDefined(tool.ExecutionPolicy) || !IsObjectSchema(tool.JsonSchema))
+                return Result.Failure(new Error("TutorRevision.ToolInvalid",
+                    "A configured tool is invalid or belongs to another tutor."));
+        }
+
+        if (revision.RevisionTools.Any(link =>
+                link.ToolDefinition?.ExecutionPolicy != TutorToolExecutionPolicy.Disabled) &&
+            model?.Capabilities.HasFlag(ModelCapabilities.FunctionCalling) != true)
+            return Result.Failure(new Error("TutorRevision.FunctionCallingRequired",
+                "The selected interaction model is not configured for function calling."));
+        return Result.Success();
+    }
+
+    private static bool IsObjectSchema(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json.Length > 16_384) return false;
+        try
+        {
+            using var schema = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
+            return schema.RootElement.ValueKind == JsonValueKind.Object &&
+                schema.RootElement.TryGetProperty("type", out var type) && type.GetString() == "object";
+        }
+        catch (JsonException) { return false; }
     }
 
     // ---------- Archive ----------

@@ -6,8 +6,6 @@ public enum TutorRuntimeExecutionMode
     Benchmark = 1,
 }
 
-public sealed record TutorRuntimeConversationMessage(string Role, string Content);
-
 public sealed record TutorRuntimeRequest(
     Guid TutorId,
     Guid? TutorRevisionId,
@@ -17,14 +15,18 @@ public sealed record TutorRuntimeRequest(
     bool UseKnowledge = true,
     int TopK = 5,
     TutorRuntimeExecutionMode ExecutionMode = TutorRuntimeExecutionMode.Interactive,
-    IReadOnlyList<TutorRuntimeConversationMessage>? History = null);
+    IReadOnlyList<Guid>? AttachmentIds = null, Guid? ConversationId = null,
+    bool PersistConversation = false, bool UseMemory = false, bool SaveToMemory = false);
 
 public sealed record TutorRuntimeModelMetadata(
     Guid Id,
     string Name,
     string ProviderModelName,
     Guid RuntimeEngineId,
-    string RuntimeEngineName);
+    string RuntimeEngineName,
+    bool SupportsImageInput = false,
+    bool SupportsFunctionCalling = false,
+    bool SupportsStructuredOutput = false);
 
 public sealed record TutorRuntimeEmbeddingModelMetadata(
     Guid Id,
@@ -42,7 +44,8 @@ public sealed record TutorRuntimeSource(
     double Score,
     string Content);
 
-public sealed record TutorRuntimeUsageMetadata(double GenerationLatencyMs);
+public sealed record TutorRuntimeUsageMetadata(double GenerationLatencyMs,
+    long? InputTokenCount = null, long? OutputTokenCount = null, long? TotalTokenCount = null);
 
 public sealed record TutorRuntimeResult(
     Guid TutorId,
@@ -56,7 +59,31 @@ public sealed record TutorRuntimeResult(
     bool KnowledgeUsed,
     IReadOnlyList<TutorRuntimeSource> Sources,
     TutorRuntimeUsageMetadata Usage,
-    string? ReferenceMaterial);
+    string? ReferenceMaterial, Guid? ConversationId = null,
+    bool MemoryUsed = false, bool MemorySaved = false,
+    IReadOnlyList<TutorMemorySource>? MemorySources = null,
+    IReadOnlyList<TutorToolCallActivity>? ToolActivities = null)
+{
+    /// <summary>Only populated after a completed assistant message and its evidence have been saved.</summary>
+    public TutorMessageProvenanceResponse? Provenance { get; init; }
+}
+
+public enum TutorRuntimeStreamEventKind
+{
+    ConversationStarted,
+    MessageDelta,
+    ToolStarted,
+    ToolCompleted,
+    SourceRetrieved,
+    MessageCompleted,
+    Error
+}
+
+/// <summary>One ordered, reconnect-safe event from the canonical tutor runtime.</summary>
+public sealed record TutorRuntimeStreamEvent(long Sequence, TutorRuntimeStreamEventKind Kind,
+    Guid? ConversationId = null, string? Delta = null, TutorRuntimeSource? Source = null,
+    TutorToolCallActivity? ToolActivity = null, TutorRuntimeResult? Result = null,
+    Error? Error = null);
 
 public sealed record TutorRuntimeDescriptor(
     Guid TutorId,
@@ -70,21 +97,13 @@ public sealed record TutorRuntimeDescriptor(
     TutorRuntimeEmbeddingModelMetadata? EmbeddingModel,
     int KnowledgeDocumentCount);
 
-public sealed record LlmGenerationRequest(
-    string Prompt,
-    string? Model,
-    double? Temperature = null,
-    double? TopP = null,
-    int? MaxTokens = null,
-    string? RuntimeEndpoint = null,
-    string? ApiKeySecretRef = null,
-    string? ProviderType = null);
+public sealed record LlmImageInput(string MimeType, ReadOnlyMemory<byte> Data);
 
 public sealed record EmbeddingGenerationRequest(
     string Text,
     string Model,
     string? RuntimeEndpoint = null,
-    string? ApiKeySecretRef = null,
+    string? ApiKey = null,
     string? ProviderType = null);
 
 public sealed record KnowledgeSearchRequest(
@@ -93,6 +112,9 @@ public sealed record KnowledgeSearchRequest(
     int EmbeddingDimensions,
     float[] QueryEmbedding,
     int TopK);
+
+public sealed record TutorMemorySearchRequest(Guid UserId, Guid TutorId, Guid EmbeddingModelId,
+    int EmbeddingDimensions, float[] QueryEmbedding, int TopK, Guid? ExcludedConversationId = null);
 
 public sealed record TutorInteractionParameters(
     double? Temperature,

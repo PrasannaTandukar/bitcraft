@@ -18,6 +18,8 @@ public class HealthEndpointTests(BitcraftApiFactory factory) : IClassFixture<Bit
         var payload = await response.Content.ReadFromJsonAsync<HealthResponse>();
         Assert.NotNull(payload);
         Assert.Equal("ok", payload!.Status);
-        Assert.False(string.IsNullOrWhiteSpace(payload.Version));
+        // Build metadata must not leak to anonymous callers outside Development.
+        // The test host runs in the Testing environment, so Version is expected to be null.
+        Assert.True(string.IsNullOrWhiteSpace(payload.Version));
     }
 }

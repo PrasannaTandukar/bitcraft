@@ -1,6 +1,7 @@
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -162,12 +163,16 @@ public static class KnowledgeFeatures
                 return Result.Failure<VectorizeDocumentResult>(new Error("Knowledge.EmbeddingProviderRequired", "Embedding provider is required."));
             }
 
-            var embeddingProviderName = EmbeddingProviders.Normalize(embeddingProviderInput);
-            if (embeddingProviderName is null)
+            // Single routing source (consolidation plan, OD-1/OD-7): the provider label is parsed
+            // as a RuntimeEngineProviderType and checked against the shared embedding dialect map.
+            if (Enum.TryParse<RuntimeEngineProviderType>(embeddingProviderInput, ignoreCase: true, out var embeddingProviderType) == false ||
+                embeddingProviderType.ToEmbeddingDialect() == LlmDialect.Unsupported)
             {
+                var supported = string.Join(", ", Enum.GetValues<RuntimeEngineProviderType>()
+                    .Where(type => type.ToEmbeddingDialect() != LlmDialect.Unsupported));
                 return Result.Failure<VectorizeDocumentResult>(new Error(
                     "Knowledge.EmbeddingProviderUnsupported",
-                    $"The embedding provider '{embeddingProviderInput}' is not supported. Supported providers are: {string.Join(", ", EmbeddingProviders.All)}."));
+                    $"The embedding provider '{embeddingProviderInput}' is not supported. Supported providers are: {supported}."));
             }
 
             if (string.IsNullOrWhiteSpace(embeddingModelInput))
@@ -199,8 +204,8 @@ public static class KnowledgeFeatures
                             content,
                             embeddingModelInput,
                             embeddingModelEntity?.RuntimeEngine?.Endpoint,
-                            embeddingModelEntity?.RuntimeEngine?.ApiKeySecretRef,
-                            embeddingProviderName),
+                            embeddingModelEntity?.RuntimeEngine?.ApiKey,
+                            embeddingProviderType.ToString()),
                         cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -267,7 +272,7 @@ public static class KnowledgeFeatures
                     content,
                     embedding,
                     embeddingModelInput.Trim(),
-                    embeddingProviderName,
+                    embeddingProviderType.ToString(),
                     embeddingModelEntity?.Id,
                     embeddingModelEntity?.EmbeddingDimensions ?? embedding.Length));
             }

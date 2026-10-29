@@ -1,23 +1,24 @@
-import "./App.css";
+import "./styles/App.css";
 import { useSelector } from "react-redux";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import AiTutorPage from "./aiTutor/AiTutorPage.jsx";
+import AiTutorPage from "./pages/user/AiTutorPage.jsx";
 import BenchmarkingPage from "./BenchmarkingPage.jsx";
-import Dashboard from "./Dashboard.jsx";
-import DocumentUploadPage from "./DocumentUploadPage.jsx";
-import EmbeddingModels from "./EmbeddingModels.jsx";
-import FilesPage from "./FilesPage.jsx";
-import InteractionModelsPage from "./InteractionModels.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import DocumentUploadPage from "./pages/editor/DocumentUploadPage.jsx";
+import EmbeddingModels from "./pages/admin/EmbeddingModels.jsx";
+import FilesPage from "./pages/editor/FilesPage.jsx";
+import InteractionModelsPage from "./pages/admin/InteractionModels.jsx";
 import AppLayout from "./layout/AppLayout.jsx";
-import LoginForm from "./Login.jsx";
-import ProfilePage from "./ProfilePage.jsx";
-import RegisterForm from "./Register.jsx";
+import LoginForm from "./pages/Login.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
+import RegisterForm from "./pages/Register.jsx";
 import RoleRoute from "./RoleRoute.jsx";
-import RuntimeEnginesPage from "./RuntimeEngines.jsx";
-import Settings from "./Settings.jsx";
-import TutorsPage from "./TutorsPage.jsx";
-import TutorDetailsPage from "./tutors/TutorDetailsPage.jsx";
-import UsersPage from "./Users.jsx";
+import RuntimeEnginesPage from "./pages/admin/RuntimeEngines.jsx";
+import StandardBenchmarkRunPage from "./benchmarking/StandardBenchmarkRunPage.jsx";
+import Settings from "./pages/Settings.jsx";
+import TutorsPage from "./pages/editor/TutorsPage.jsx";
+import TutorDetailsPage from "./pages/editor/TutorDetailsPage.jsx";
+import UsersPage from "./pages/admin/UsersPage.jsx";
 
 function ProtectedRoute({ children }) {
   const { token } = useSelector((state) => state.auth);
@@ -38,6 +39,7 @@ function AppContent() {
         <Route path="tutors" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorsPage /></RoleRoute>} />
         <Route path="tutors/:tutorId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><TutorDetailsPage /></RoleRoute>} />
         <Route path="benchmarking" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><BenchmarkingPage /></RoleRoute>} />
+        <Route path="benchmarking/runs/:runId" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><StandardBenchmarkRunPage /></RoleRoute>} />
         <Route path="tutor-setup" element={<Navigate to="/tutors" replace />} />
         <Route path="admin/roles" element={<RoleRoute allowedRoles={["Admin"]}><UsersPage /></RoleRoute>} />
         <Route path="admin/embedding-models" element={<RoleRoute allowedRoles={["Auditor", "Editor", "Admin"]}><EmbeddingModels /></RoleRoute>} />

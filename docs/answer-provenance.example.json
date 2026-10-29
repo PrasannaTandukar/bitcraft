@@ -1,0 +1,39 @@
+{
+  "knowledge": {
+    "retrievedChunkCount": 1,
+    "retrievedChunks": [
+      {
+        "documentName": "lesson.md",
+        "chunkIndex": 2,
+        "retrievalRank": 1,
+        "excerpt": "A motor driver controls power to the motor.",
+        "similarityScore": 0.83,
+        "documentGroupKey": "document-1"
+      }
+    ],
+    "similarityMetric": "cosineSimilarity"
+  },
+  "memory": {
+    "contextProvided": true,
+    "retrievedItemCount": 2
+  },
+  "tools": [
+    {
+      "toolName": "Calculator",
+      "status": "Succeeded",
+      "succeeded": true,
+      "durationMs": 12,
+      "errorCategory": null
+    }
+  ],
+  "runtime": {
+    "tutorId": "00000000-0000-0000-0000-000000000001",
+    "tutorRevisionId": "00000000-0000-0000-0000-000000000002",
+    "revisionNumber": 7,
+    "snapshotId": "00000000-0000-0000-0000-000000000003",
+    "interactionModelId": "00000000-0000-0000-0000-000000000004",
+    "providerModelName": "example-chat-model",
+    "providerType": "ExampleProvider"
+  },
+  "capturedUtc": "2026-01-01T00:00:00Z"
+}

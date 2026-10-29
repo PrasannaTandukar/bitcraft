@@ -7,7 +7,7 @@ description: >
 agents_required:
   - primary specialist
   - lead-dev
-  - sec-ops or dev-ops or ai-ops based on domain (mandatory specialist review)
+  - sec-ops or ai-ops based on domain (mandatory specialist review)
 
 research_required:
   - repository evidence for all affected layers
@@ -41,7 +41,7 @@ validation_required:
 
 review_required:
   - lead-dev
-  - mandatory specialist (sec-ops / dev-ops / ai-ops)
+  - mandatory specialist (sec-ops / ai-ops)
 
 human_escalation:
   required: true

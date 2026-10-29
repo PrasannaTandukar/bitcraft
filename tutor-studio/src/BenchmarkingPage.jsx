@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getApiErrorDescription } from "./api/client.js";
+import BenchmarkQueuePanel from "./benchmarking/BenchmarkQueuePanel.jsx";
 import BenchmarkRunHistory from "./benchmarking/BenchmarkRunHistory.jsx";
 import BenchmarkRunWizard from "./benchmarking/BenchmarkRunWizard.jsx";
 import BenchmarkTemplatesPanel from "./benchmarking/BenchmarkTemplatesPanel.jsx";
@@ -16,8 +17,8 @@ export default function BenchmarkingPage() {
   const canManage = roles.includes("Editor") || roles.includes("Admin");
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") || (canManage ? "new" : "history");
-  const tab = !canManage && requestedTab !== "history" ? "history" : requestedTab;
-  const validTab = ["new", "history", "templates"].includes(tab) ? tab : canManage ? "new" : "history";
+  const tab = !canManage && requestedTab !== "history" && requestedTab !== "queue" ? "history" : requestedTab;
+  const validTab = ["new", "history", "templates", "queue"].includes(tab) ? tab : canManage ? "new" : "history";
   const selectedTutorId = searchParams.get("tutorId") || searchParams.get("tutor") || "";
   const selectedRevisionId = searchParams.get("revisionId") || searchParams.get("revision") || "";
   const selectedRunId = searchParams.get("run") || "";
@@ -81,9 +82,10 @@ export default function BenchmarkingPage() {
     } : null,
     {
       key: "history",
-      label: "Run history",
+      label: "Evaluations",
       children: <BenchmarkRunHistory tutors={tutors} tutorsLoading={tutorsLoading} tutorsError={tutorsError} selectedTutorId={selectedTutorId} selectedRunId={selectedRunId} onSelectTutor={(tutorId) => updateHistoryLocation(tutorId)} onOpenRun={(runId) => updateHistoryLocation(selectedTutorId, runId)} onCloseRun={() => updateHistoryLocation(selectedTutorId)} />,
     },
+    { key: "queue", label: "Queue", children: <BenchmarkQueuePanel /> },
     canManage ? { key: "templates", label: "Templates", children: <BenchmarkTemplatesPanel /> } : null,
   ].filter(Boolean);
 

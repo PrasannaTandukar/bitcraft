@@ -1,4 +1,5 @@
 using Bitcraft.Application.Common.Interfaces;
+using Bitcraft.Application.Common.Models;
 using Bitcraft.Domain.Modeling;
 
 namespace Bitcraft.UnitTests.Application.Admin.Fakes;
@@ -38,4 +39,29 @@ internal sealed class FakeRuntimeEngineRepository : IRuntimeEngineRepository
         Engines.Remove(engine);
         return Task.CompletedTask;
     }
+}
+
+internal sealed class FakeRuntimeModelDiagnostic : IRuntimeModelDiagnostic
+{
+    public int ProbeCalls { get; private set; }
+    public string? LastEndpoint { get; private set; }
+    public string? LastApiKey { get; private set; }
+    public RuntimeEngineProviderType? LastProviderType { get; private set; }
+    public IReadOnlyList<string>? ProbeResult { get; set; } = ["model-a", "model-b"];
+
+    public Task<Result<RuntimeModelCatalogDiagnostic>> ProbeModelsAsync(
+        RuntimeModelCatalogDiagnosticRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ProbeCalls++;
+        LastEndpoint = request.Endpoint;
+        LastApiKey = request.ApiKey;
+        LastProviderType = request.ProviderType;
+        return Task.FromResult(Result.Success(new RuntimeModelCatalogDiagnostic(ProbeResult ?? [])));
+    }
+
+    public Task<Result<RuntimeModelGenerationDiagnostic>> GenerateAsync(
+        RuntimeModelGenerationDiagnosticRequest request,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Result.Failure<RuntimeModelGenerationDiagnostic>(new Error("Fake.NotSupported", "Generation is not used in these tests.")));
 }

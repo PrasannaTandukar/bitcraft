@@ -1,6 +1,6 @@
 services:
   db:
-    build: ./db
+    image: pgvector/pgvector:pg17
     container_name: bitcraft-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-bitcraft}
@@ -13,10 +13,91 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U bitcraft_user -d bitcraft" ]
+      test: ["CMD-SHELL", "pg_isready -U bitcraft_user -d bitcraft"]
       interval: 5s
       timeout: 5s
       retries: 20
+  dind:
+    image: docker:dind
+    container_name: dind
+    restart: unless-stopped
+    #privileged is needed for nested containers and is not the same as running as root
+    privileged: true
+    #the daemon for docker uses TLS connection
+    #environment and volumes are necessary as per dind image setup on docker hub
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      - dind-storage:/var/lib/docker #persists image layers/build cache
+      - ./jenkins-workspace:/var/jenkins_home/workspace
+    networks:
+      #this creates isolation so that nothing outside this network can access the
+      #did service
+      jenkins_dind:
+        aliases:
+          - docker
+    #enables TLS trough port 2376
+    expose:
+      - 2376
+  jenkins:
+    build: ./jenkins
+    container_name: jenkins
+    restart: unless-stopped
+    #tells this service to start dind before
+    depends_on:
+      - dind
+      - dind-init
+    ports:
+      #connection between Jenkins webUI to host only on local network
+      - "127.0.0.1:8081:8080"
+      #JNLP port to connect other containers running Jenkins if needed
+      - "127.0.0.1:50000:50000"
+    #Reference: https://www.jenkins.io/doc/book/installing/docker/
+    #for volumes and environment
+    volumes:
+      #this is needed as per documentation in jenkins
+      - jenkins_home:/var/jenkins_home
+      #jenkins needs access to this volume but has a read only option, so no write privilege
+      - docker-certs-client:/certs/client:ro
+      - ./jenkins-workspace:/var/jenkins_home/workspace
+    environment:
+      DOCKER_HOST: "tcp://docker:2376"
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+    #connect to the same network as dind
+    networks:
+      - jenkins_dind
+  dind-init:
+    image: docker:cli
+    container_name: dind-init
+    depends_on:
+      - dind
+    networks:
+      - jenkins_dind
+    environment:
+      DOCKER_HOST: "tcp://docker:2376"
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+    volumes:
+      - docker-certs-client:/certs/client:ro
+    entrypoint: >
+      sh -c "
+      until docker info >/dev/null 2>&1; do echo waiting for dind...; sleep 2; done;
+      docker network inspect jenkins_dind >/dev/null 2>&1 || docker network create jenkins_dind;
+      echo jenkins_dind network ready;
+      "
+    restart: "no"
+  jenkins-init:
+    image: busybox
+    container_name: jenkins-init
+    depends_on:
+      - jenkins
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    entrypoint: sh -c "mkdir -p /var/jenkins_home/logs && chown -R 1000:1000 /var/jenkins_home/logs && echo 'logs dir ready'"
+    restart: "no"
 
   migrator:
     image: mcr.microsoft.com/dotnet/sdk:10.0
@@ -28,6 +109,7 @@ services:
     volumes:
       - ./src:/bitcraft/src
       - ./.config:/bitcraft/.config
+      - ./Directory.Build.props:/bitcraft/Directory.Build.props:ro
       - nuget-packages:/root/.nuget/packages
 
       # Shadow host obj/dirs so container never sees host build artifacts
@@ -53,10 +135,13 @@ services:
     ports:
       - "8000:8000"
     environment:
+      ChatAttachments__RootPath: /var/lib/bitcraft/chat-attachments
+      ChatAttachments__MaxFileBytes: ${CHAT_ATTACHMENTS_MAX_FILE_BYTES:-5242880}
+      ChatAttachments__MaxImagesPerMessage: ${CHAT_ATTACHMENTS_MAX_IMAGES:-4}
+      ChatAttachments__MaxDimension: ${CHAT_ATTACHMENTS_MAX_DIMENSION:-2048}
+      ChatAttachments__RetentionHours: ${CHAT_ATTACHMENTS_RETENTION_HOURS:-24}
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-bitcraft};Username=${POSTGRES_USER:-bitcraft_user};Password=${POSTGRES_PASSWORD:-bitcraft_password}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
       Benchmarking__DeepEval__Transport: uds
       Benchmarking__DeepEval__SocketPath: /var/run/bitcraft/sidecar.sock
       BITCRAFT_ADMIN_EMAIL: ${BITCRAFT_ADMIN_EMAIL}
@@ -64,6 +149,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
+      - chat_attachments:/var/lib/bitcraft/chat-attachments
       - benchmark_sidecar_socket:/var/run/bitcraft
     depends_on:
       db:
@@ -80,16 +166,26 @@ services:
     container_name: bitcraft-benchmark-sidecar
     environment:
       DEEPEVAL_DISABLE_DOTENV: "1"
+      # C3: block deepeval's PostHog telemetry egress (privacy doc: no
+      # first-party analytics by default).
+      DEEPEVAL_TELEMETRY_OPT_OUT: "1"
+      # Transport: uds (default, no TCP port) or http. The HTTP listener binds
+      # the container network only; no host port is mapped. Port 48317 is
+      # deliberately uncommon to avoid host/container port clashes.
+      BITCRAFT_SIDECAR_TRANSPORT: "uds"
+      BITCRAFT_SIDECAR_HTTP_PORT: "48317"
     volumes:
+      # DeepEval downloads benchmark datasets through the HuggingFace datasets
+      # library. The named cache keeps them across container rebuilds (O-1).
+      - benchmark_dataset_cache:/root/.cache/huggingface
       - benchmark_sidecar_socket:/var/run/bitcraft
     restart: unless-stopped
     healthcheck:
-      test:
-        [
+      test: [
           "CMD-SHELL",
-          "python -c \"import socket; s=socket.socket(socket.AF_UNIX,
-            socket.SOCK_STREAM); s.connect('/var/run/bitcraft/sidecar.sock');
-            s.close()\"",
+          'python -c "import socket; s=socket.socket(socket.AF_UNIX,
+          socket.SOCK_STREAM); s.connect(''/var/run/bitcraft/sidecar.sock'');
+          s.close()"',
         ]
       interval: 10s
       timeout: 3s
@@ -105,7 +201,23 @@ services:
       backend:
         condition: service_healthy
 
+networks:
+  jenkins_dind:
+    #creates virtual network
+    name: jenkins_dind
+    driver: bridge
+
 volumes:
+  chat_attachments: {}
   postgres_data: {}
   nuget-packages: {}
   benchmark_sidecar_socket: {}
+  benchmark_dataset_cache: {}
+  jenkins_home:
+    name: jenkins_home
+  dind-storage:
+    name: dind-storage
+  docker-certs-ca:
+    name: docker-certs-ca
+  docker-certs-client:
+    name: docker-certs-client

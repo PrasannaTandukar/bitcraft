@@ -32,3 +32,49 @@ public enum RuntimeEngineProviderType
     /// <summary>Reserved: AWS Bedrock. Not surfaced in UI for the feature-freeze release.</summary>
     Bedrock = 102
 }
+
+/// <summary>
+/// Wire dialect a generation or embedding request is routed to. Single source of truth for
+/// provider-type routing (consolidation plan, OD-1): every call site maps through
+/// <see cref="RuntimeEngineProviderTypeDialect.ToLlmDialect"/> /
+/// <see cref="RuntimeEngineProviderTypeDialect.ToEmbeddingDialect"/> instead of maintaining its own list.
+/// </summary>
+public enum LlmDialect
+{
+    Ollama = 0,
+    OpenAI = 1,
+    Anthropic = 2,
+    Unsupported = 3
+}
+
+/// <summary>
+/// Shared provider-type to dialect mapping (consolidation plan, OD-1). The OpenAI dialect serves
+/// hosted OpenAI and every OpenAI-contract runtime (OpenAICompatible, vLLM, LlamaCpp). Anthropic
+/// is reserved but still routable for generation so existing engine rows keep functioning. It has
+/// no embedding provider.
+/// </summary>
+public static class RuntimeEngineProviderTypeDialect
+{
+    /// <summary>Maps a provider type to its generation dialect.</summary>
+    public static LlmDialect ToLlmDialect(this RuntimeEngineProviderType providerType) => providerType switch
+    {
+        RuntimeEngineProviderType.Ollama => LlmDialect.Ollama,
+        RuntimeEngineProviderType.OpenAI or
+        RuntimeEngineProviderType.OpenAICompatible or
+        RuntimeEngineProviderType.vLLM or
+        RuntimeEngineProviderType.LlamaCpp => LlmDialect.OpenAI,
+        RuntimeEngineProviderType.Anthropic => LlmDialect.Anthropic,
+        _ => LlmDialect.Unsupported
+    };
+
+    /// <summary>Maps a provider type to its embedding dialect (Ollama and the OpenAI dialect only).</summary>
+    public static LlmDialect ToEmbeddingDialect(this RuntimeEngineProviderType providerType) => providerType switch
+    {
+        RuntimeEngineProviderType.Ollama => LlmDialect.Ollama,
+        RuntimeEngineProviderType.OpenAI or
+        RuntimeEngineProviderType.OpenAICompatible or
+        RuntimeEngineProviderType.vLLM or
+        RuntimeEngineProviderType.LlamaCpp => LlmDialect.OpenAI,
+        _ => LlmDialect.Unsupported
+    };
+}

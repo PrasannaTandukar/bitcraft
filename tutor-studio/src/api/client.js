@@ -73,6 +73,13 @@ export function getApiErrorDescription(error, fallback = "The request could not 
   }
 
   if (body && typeof body === "object") {
+    // ProblemDetails errors dictionary: e.g. { errors: { "Cases[0].InputText": ["Input text is required."] } }
+    if (body.errors && typeof body.errors === "object") {
+      const errorValues = Object.values(body.errors).flat().filter(isSafeErrorText);
+      if (errorValues.length > 0) {
+        return errorValues.join(" ");
+      }
+    }
     for (const key of ["description", "title", "message"]) {
       if (isSafeErrorText(body[key])) return body[key].trim();
     }
@@ -95,7 +102,7 @@ export function getApiErrorDescription(error, fallback = "The request could not 
  * @param {AbortSignal} [options.signal]
  * @param {boolean} [options.auth=true] When false, no Bearer header is attached and
  *                                       401 does NOT trigger logout (for login/register).
- * @param {"json"|"text"|"none"} [options.parse="json"] Response parse strategy.
+ * @param {"json"|"text"|"blob"|"none"} [options.parse="json"] Response parse strategy.
  * @returns {Promise<*>} Parsed body, or null for 204/empty.
  * @throws {ApiError} On non-2xx responses.
  */
@@ -155,6 +162,7 @@ export async function apiFetch(path, options = {}) {
   if (parse === "none" || response.status === 204) {
     return null;
   }
+  if (parse === "blob") return response.blob();
   if (parse === "text") {
     return response.text();
   }
@@ -165,5 +173,62 @@ export async function apiFetch(path, options = {}) {
     return JSON.parse(text);
   } catch {
     return text;
+  }
+}
+
+/** Streams structured SSE events over fetch so authenticated POST bodies and AbortSignal work. */
+export async function apiSse(path, { json, signal, onEvent }) {
+  const headers = { Accept: "text/event-stream", "Content-Type": "application/json" };
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST", headers, body: JSON.stringify(json), signal,
+  });
+  if (response.status === 401) void clearAuthSession();
+  if (!response.ok) {
+    let body = null;
+    try { body = parseErrorBody(await response.text()); } catch { /* Ignore body read failures. */ }
+    throw new ApiError(response.status, response.statusText, body);
+  }
+  if (!response.body) throw new ApiError(502, "Streaming unavailable", null);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const seen = new Set();
+  let buffer = "";
+  const consume = async (block) => {
+    let id = "";
+    let type = "message";
+    const data = [];
+    for (const line of block.split("\n")) {
+      if (line.startsWith("id:")) id = line.slice(3).trim();
+      else if (line.startsWith("event:")) type = line.slice(6).trim();
+      else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+    }
+    if (!data.length || (id && seen.has(id))) return;
+    if (id) seen.add(id);
+    const payload = JSON.parse(data.join("\n"));
+    if (type === "error") throw new ApiError(400, "Tutor stream failed", payload.error);
+    await onEvent(type, payload);
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer = (buffer + decoder.decode(value, { stream: !done })).replaceAll("\r\n", "\n");
+      let boundary;
+      while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        if (block) await consume(block);
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) await consume(buffer.trim());
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  } finally {
+    reader.releaseLock();
   }
 }

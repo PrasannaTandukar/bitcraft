@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-08-09
+edited_at: 2026-09-30
 creator: planner
-editor: codex
+editor: lead-dev
 ai_gen: true
 ---
 # Bitcraft Architecture (Living Document)
@@ -132,7 +132,7 @@ classDiagram
         +string Name
         +RuntimeEngineProviderType ProviderType
         +string Endpoint
-        +string? ApiKeySecretRef
+        +string? ApiKey
         +bool IsEnabled
     }
     class Model {
@@ -175,7 +175,7 @@ classDiagram
 ```
 
 - **Invariants**: `RuntimeEngine` delete is `Restrict` while any `Model` references it; `EmbeddingModel.EmbeddingDimensions` is required and drives partial-index lifecycle (§4).
-- **UI-surfaced providers** (D11.a): `Ollama`, `OpenAI`, `OpenAICompatible`, `vLLM`, `LlamaCpp`. Reserved (defined, not surfaced): `AzureOpenAI`, `Anthropic`, `Bedrock`.
+- **Active provider dialects** (consolidation plan, OD-1/OD-2): `Ollama` and `OpenAI` (one OpenAI endpoint serves hosted and self-hosted OpenAI-contract runtimes). The UI surfaces `Ollama` and `OpenAI` only. `OpenAICompatible`, `vLLM`, and `LlamaCpp` are schema-locked enum values that route to the OpenAI dialect. `AzureOpenAI`, `Anthropic`, and `Bedrock` are reserved (defined, not surfaced); `Anthropic` keeps a registered provider so existing engine rows keep functioning.
 - **Cross-link**: [plan.erm.md §5](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#5-modeling-context--runtimeengine) and [§5b](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#5b-modeling-context--abstract-model-tph).
 
 ### 3.3 Documents & Knowledge
@@ -325,11 +325,23 @@ classDiagram
         +string? Output
         +string? ScoresJson
     }
+    class StandardBenchmarkRun {
+        +Guid Id
+        +Guid InteractionModelId
+        +string BenchmarkKey
+        +int NShots
+        +int NProblems
+        +string Status
+        +string? ProgressStage
+        +double? OverallScore
+        +string? TaskScoresJson
+    }
     BenchmarkTemplate "1" -- "*" BenchmarkRun
     BenchmarkRun "1" -- "*" BenchmarkRunCase
 ```
 
 - **Invariants**: every `BenchmarkRun` is keyed off a `TutorRevisionId` (D6); the optional `TutorConfigurationSnapshotId` carries the materialized payload used by the run. The sidecar consumes contracts only; it never touches the database directly.
+- **Standardized runs**: `StandardBenchmarkRun` is model-scoped and has no tutor link. Execution runs in a dedicated per-run sidecar subprocess. The backend uses a start/poll contract, so no long-lived HTTP call blocks the sidecar event loop.
 - **Cross-link**: [plan.erm.md §8](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#8-benchmarking-context).
 
 ## 4. Entity-Relational Model
@@ -404,7 +416,7 @@ ANN index strategy is configurable per deployment, with **HNSW as the default** 
 | Controller group | Route prefix | Auth | Notes |
 |---|---|---|---|
 | Identity & users | `/api/identity`, `/api/users` | JWT (Management) | Login, role administration, bootstrap-driven seeding (no hard-coded admin). |
-| Settings & RuntimeEngines | `/api/admin/settings`, `/api/admin/runtime-engines` | JWT (Management, `Admin`) | Engine CRUD; secrets returned only as `ApiKeySecretRef`. |
+| Settings & RuntimeEngines | `/api/admin/settings`, `/api/admin/runtime-engines` | JWT (Management, `Admin`) | Engine CRUD; the stored key is never returned (only a `hasApiKey` flag). |
 | Models | `/api/admin/models` | JWT (Management, `Admin`) | TPH-aware payloads keyed by `ModelType`; embedding-only validation server-side. |
 | Documents & Folders | `/api/documents`, `/api/folders` | JWT (Management, `Editor`+) | Plain text only for freeze; membership-checked through the ABAC evaluator. |
 | Knowledge | `/api/knowledge` | JWT (Management, `Editor`+) | Vectorization scoped by `(Document, EmbeddingModel)`; partial index helper invoked. |
@@ -482,15 +494,21 @@ Slug resolution reads from the activation record, not from `Tutor`: per D22.a, `
 
 `TutorDocument` and `TutorDocumentFolder` are the canonical tutor-knowledge attachment entities. `KnowledgeSourceLink` is retained only as an explicit compatibility read path for records written by older clients; current attachment endpoints write `TutorDocument`, and effective-set resolution de-duplicates legacy and canonical rows before activation. Activation materializes the exact direct and folder-derived document IDs plus their embedding-model bindings into the snapshot. Runtime pgvector searches are restricted to that captured set and the captured embedding-model identity.
 
-Interactive requests resolve `Tutor.ActiveRevisionId` and accept bounded in-request `user`/`assistant` history. The legacy `/api/tutor/ask` endpoint is a compatibility adapter over `ITutorRuntime`; it cannot override the configured model and no longer retrieves user-global `TutorMemory`. Automatic benchmark generation also delegates to `ITutorRuntime`, selecting its explicit Published or Active revision and bound snapshot, so it does not rebuild a separate prompt or retrieval pipeline or disable activated tutor knowledge. Optional per-case benchmark context is retained for evaluator input; it does not replace runtime retrieval. Persistent tutor-scoped conversations and tool/function execution remain separate future milestones.
+Interactive requests resolve `Tutor.ActiveRevisionId`, create or resume a snapshot-pinned PostgreSQL conversation, and pass only the current turn to the server. Agent Framework session JSON and normalized messages are durable; a bounded `ChatHistoryProvider` projection controls model context without deleting product history. Automatic benchmark generation delegates to the same `ITutorRuntime`, selecting its explicit Published or Active revision and bound snapshot, so it cannot drift into a separate prompt, retrieval, memory, or tool pipeline. The run persists its revision, snapshot, interaction model, retrieval flag and TopK; the referenced immutable snapshot contains prompt, provider model, embedding bindings and tool configuration. Optional per-case benchmark context is evaluator input and does not replace runtime retrieval.
+
+Infrastructure uses Microsoft Agent Framework `ChatClientAgent` as the tutor execution and orchestration layer. Microsoft.Extensions.AI provides the provider-neutral chat messages, options, function tools, middleware, usage and streaming types behind the Application-owned `ITutorAgentExecutor` boundary. `RuntimeChatClientFactory` routes Ollama through OllamaSharp, OpenAI and compatible runtimes through the OpenAI SDK adapter, and Anthropic through the isolated stable compatibility adapter. RAG and tutor-scoped long-term memory are execution-scoped `AIContextProvider` implementations; both inject bounded user-role data with explicit untrusted-content instructions. Snapshot tools resolve only registered built-in handlers. Approved HTTP and tutor MCP kinds fail closed, and the developer `/mcp-server/` is outside the runtime trust boundary.
+
+The canonical production flow is API → Application tutor use case → `ITutorRuntime` → `ITutorAgentExecutor` → Infrastructure `ChatClientAgent` → context providers/tools → selected `IChatClient`. SSE streaming and non-streaming calls share that path, session update, error mapping, safe telemetry, cancellation, and provider timeout behavior. Bitcraft remains responsible for tutors, revisions, snapshots, permissions, model/runtime configuration, knowledge ownership, benchmarks, conversations, deployment and product behavior. Agent Framework does not own those product rules. See [agent-framework-foundation.md](agent-framework-foundation.md) for provider limitations and operational detail.
 
 ## 9. Cross-Cutting Concerns
 
-**Logging and tracing.** Backend uses `ILogger` with structured fields to stdout, matching 12-Factor XI ([twelve-factor.md Factor XI](../.github/governance/twelve-factor.md)); a correlation-id middleware and a structured-log formatter are post-freeze work tracked in the same map. Sidecar and MCP server emit minimal logs today.
+**Logging and tracing.** Backend uses `ILogger` with safe structured identifiers and emits OpenTelemetry-compatible `ActivitySource`/`Meter` signals for tutor execution. The MEAI client is wrapped by `OpenTelemetryChatClient` with sensitive-data capture disabled. Telemetry includes tutor/revision/snapshot/conversation IDs, provider/model, retrieval and tool counts, latency, outcome, and available token counts; it excludes prompt/message/document/memory text, images, session JSON, endpoints, credentials, and authorization headers. Sidecar and developer MCP server retain their separate operational logging.
 
 **Error codes.** Failures cross the API boundary as `ApiError { code, message, details? }` with stable `code` strings the frontend branches on. Initial vocabulary: `tutor_inactive`, `knowledge_not_ready_for_active_embedding_model`, `revision_not_editable`, `membership_required`, `runtime_engine_disabled`, `embedding_dimensions_mismatch`, `slug_conflict`. New codes are added by Application handlers and surfaced through the Api mapping layer; controllers never invent codes.
 
-**Configuration and secrets.** All configuration follows 12-Factor Config (D9). The full per-factor status, including the `BITCRAFT_RUNTIME_LOCAL_ONLY` build-stage classification under Factor V and the `BootstrapOptions`/env-vars-first plan under Factor III, lives in [.github/governance/twelve-factor.md](../.github/governance/twelve-factor.md). Secret material is never persisted in a database column; `ApiKeySecretRef` columns hold a logical key resolved against the deployment secret store.
+**Configuration and secrets.** All configuration follows 12-Factor Config (D9). The full per-factor status, including the `BITCRAFT_RUNTIME_LOCAL_ONLY` build-stage classification under Factor V and the `BootstrapOptions`/env-vars-first plan under Factor III, lives in [.github/governance/twelve-factor.md](../.github/governance/twelve-factor.md). The `RuntimeEngines.ApiKey` column (historically named `ApiKeySecretRef`) currently holds the raw API key value at rest and is resolved directly by providers. A deployment secret store is future work; API responses never return the stored value.
+
+**Runtime credential resolution flow (OD-3).** The entity property is `RuntimeEngine.ApiKey` and holds the raw key. The EF configuration maps it to the historical `ApiKeySecretRef` column, so the rename needed no migration. The flow: `TutorRuntime` and `IRuntimeModelDiagnostic` callers pass `engine.ApiKey` into the Application model records (`TutorAgentModelConfiguration`, `RuntimeModelCatalogDiagnosticRequest`, `EmbeddingGenerationRequest`). `ConfigurationRuntimeApiKeyResolver` returns that stored key verbatim when present, and otherwise falls back to deployment configuration (`ModelProviders:{provider}:ApiKey`, then the `{PROVIDER}_API_KEY` environment variable). The wire contract uses `apiKey`, `clearApiKey`, and `hasApiKey` JSON names. A null `apiKey` on update preserves the stored value. `clearApiKey: true` removes it. The DB column keeps its historical name until a deployment secret store replaces the raw-key storage.
 
 **Migration strategy.** Schema evolution is the 8-step dependency-ordered sequence in [plan.erm.md §10](../.github/plans/feature-freeze-2026-05-21/plan.erm.md#10-migration-sequencing) (D21): Identity vocabulary → resource membership → RuntimeEngine → Model TPH → Tutor-Document M:N → dynamic-dimension Knowledge → Tutor revisions → benchmark FK realignment. Each migration is reviewable in isolation; humans run `dotnet ef migrations add ...` per [AGENTS.md](../AGENTS.md) — agents do not.
 

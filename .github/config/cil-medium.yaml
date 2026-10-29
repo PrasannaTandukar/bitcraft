@@ -37,7 +37,7 @@ validation_required:
 
 review_required:
   - lead-dev
-  - relevant specialist (sec-ops for auth/privacy, dev-ops for infra, ai-ops for agentic stack)
+  - relevant specialist (sec-ops for auth/privacy/infrastructure, ai-ops for agentic stack)
 
 human_escalation:
   required: false

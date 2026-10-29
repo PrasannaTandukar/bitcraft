@@ -1,48 +1,66 @@
-﻿---
-created_at: 2026-05-19
-edited_at: 2026-05-19
+---
+created_at: 2026-09-17
+edited_at: 2026-09-21
 creator: ai-ops
-editor: lead-dev
+editor: ai-ops
 ai_gen: true
 name: bitcraft-review
-description: 'Review Bitcraft code, docs, prompts, agents, skills, and inboxes for correctness, security, Clean Architecture, test adequacy, maintainability, instruction drift, and CIL-aware routing. Use for PR-style review, pre-merge checks, and AI customization audits.'
-argument-hint: '[diff, changed area, or review goal]'
+description: "Phase 3 entry skill: Review. Stage A checks drift against the original request and in-flight decisions, then removes stale code. Stage B runs a strict style and pattern review (Clean Architecture, strong typing, naming, minimal STE comments, optimality first). Use after implementation, before human review, for PR-style review, and for pre-merge checks."
+argument-hint: "[branch, plan path, or changed files]"
 ---
 
-# Bitcraft Review
+# Bitcraft Review (Phase 3 Entry)
 
-Run a focused review with findings first.
+Entry skill for the Review phase. Runs primarily inside Lead Dev. Findings first, prose second.
 
-## When to Use This Skill
+## Stage A: Drift and Staleness
 
-- The user asks for review, audit, critique, or quality assessment.
-- A change touches Domain/Application/API boundaries, auth, persistence, AI workflows, or `.github` customizations.
-- The team needs to detect instruction drift or stale agentic AI files.
+1. Read the original request from the plan goal and the in-flight decisions from the plan notes and inbox items.
+2. Compare the diff against the request. List every behavior that was added, removed, or changed beyond the request.
+3. Check for stale code: dead types, unused fetches, orphaned state, superseded helpers, commented-out blocks.
+4. Fix drift and staleness in place when the fix is small.
+5. If the fix is major work, stop. Route back to Phase 1 (`bitcraft-plan`) after the human commits or branches as directed.
 
-## Procedure
+## Stage B: Strict Code Review
 
-1. Identify the requested scope and changed files.
-2. Read enough surrounding code to evaluate behavior, not just syntax.
-3. Prioritize bugs, security issues, architecture violations, test gaps, and maintenance risk.
-4. Classify or confirm CIL from `.github/governance/METRICS.md` when review depth or expert routing is unclear.
-5. Check `.github` customization frontmatter, layering, and inbox hygiene if agentic files changed.
-6. Provide findings first, ordered by severity.
+Review the changed files against this checklist, in order:
 
-## Review Checklist
-
-- Clean Architecture dependencies.
-- Domain entity exposure.
-- Authorization and ownership checks.
-- Expected errors represented as `Result<T>`.
-- Snapshot and audit integrity.
+- Clean Architecture dependency direction preserved. Domain and Application never reference Api or Infrastructure.
+- No Domain entities exposed through API contracts.
+- Strong typing where applicable. No `dynamic`, no stringly-typed seams, no object bags.
+- Naming conventions: `I` prefix on interfaces, `Async` suffix on async methods, `Request`/`Response` on DTOs, `Snapshot` on version records, `Link` on link tables, `Tutor` prefix on tutor-scoped resources.
+- Expected failures use `Result<T>`. The Api layer translates to HTTP.
+- Authorization and ownership checks intact.
+- Comments: minimal, in STE, only where code is not self-explainable or where dense action hides intent (multiple calls, many short lambdas). Delete bloat comments.
+- Optimality first, then readability: prefer the smaller standard pattern. Reduce footprint for management and deployment.
 - Test coverage for edge cases and failure paths.
-- Prompt/agent/skill frontmatter validity.
-- Inbox items are actionable, current, and not historical logs.
-- Tool and MCP security boundaries.
+- Skill, agent, and instruction frontmatter validity when `.github` files changed.
 
-## Output Contract
+## Routing After Review
 
-- Findings first with file references.
-- Open questions.
-- Residual risk and test gaps.
-- Brief change summary only after issues.
+1. Small fixes found: apply them in place. Re-run the narrowest validation.
+2. New work discovered: prepare a re-development prompt that names the exact drifts and gaps. Route to Phase 2 (`bitcraft-develop`).
+3. Direction change or major gap: route to Phase 1 (`bitcraft-plan`). The human commits current work first, or creates a new branch.
+4. All clear: emit the closeout prompt (see Output).
+
+## Specialist Routing
+
+- CIL Medium or above: route the matching specialist review. Sec Ops for auth, privacy, data, infrastructure. AI Ops for agentic stack.
+- Create inbox items for follow-up fixes instead of burying action in prose.
+
+## Output
+
+- Stage A drift list with in-place fixes applied or a re-plan recommendation.
+- Stage B findings with file and line evidence.
+- The next-step prompt, exactly one of:
+  - Re-develop: "Run the `bitcraft-develop` skill. Fix these exact items: <numbered drifts and gaps with file paths>."
+  - Re-plan: "Run the `bitcraft-plan` skill for <new goal>. Commit current work first."
+  - Closeout: "Work accepted. Update docs via `bitcraft-doc-maintenance`. Human commits, then clean up inboxes."
+- Tool and MCP security boundaries respected.
+
+## Output
+
+- Findings first, ordered by severity, with file references.
+- Review route.
+- Validation gaps.
+- Follow-up inbox items.

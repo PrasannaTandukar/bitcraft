@@ -32,6 +32,10 @@ public interface ITutorRepository
     Task<TutorDocumentFolder?> GetTutorDocumentFolderAsync(Guid tutorId, Guid folderId, CancellationToken cancellationToken = default);
     Task RemoveTutorDocumentFolderAsync(TutorDocumentFolder link, CancellationToken cancellationToken = default);
 
+    Task<List<ToolDefinition>> ListToolDefinitionsAsync(Guid tutorId, CancellationToken cancellationToken = default);
+    Task UpdateToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default);
+    Task RemoveToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default);
+
     Task<ToolDefinition> AddToolDefinitionAsync(ToolDefinition tool, CancellationToken cancellationToken = default);
 
     Task<DeploymentProfile> UpsertDeploymentProfileAsync(DeploymentProfile profile, CancellationToken cancellationToken = default);

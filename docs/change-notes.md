@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-05-20
+edited_at: 2026-09-10
 creator: planner
-editor: secretary
+editor: codex
 ai_gen: true
 ---
 # Bitcraft Change Notes
@@ -30,6 +30,25 @@ Each batch entry follows this template:
 ```
 
 ## Entries
+
+### 2026-09-10 — ImageSharp v3 Release-build compatibility
+
+- Replaced ImageSharp 4.1.1 with 3.1.12, removing the v4 build-time license-key dependency.
+- Adapted frame inspection, PNG CRC validation, and allocator configuration to v3. Serialized decoding retains bounded processing without v4's aggregate allocator option.
+- Added malformed-container, ancillary CRC, WebP animation, and cancellation regression tests; retained resizing, metadata removal, and upload limits.
+- Updated the transitive Microsoft.OpenApi dependency to the patched 2.7.5 version within the existing major line and added a Swagger-generation compatibility check.
+- See [Multimodal image input](multimodal-image-input.md) for the normalization safeguards.
+
+
+### 2026-09-10 — Multimodal tutor image input
+
+- Added explicit interaction-model image capabilities and immutable activation-snapshot capture, with safe defaults for existing rows.
+- Added authenticated temporary image uploads, ownership/expiry enforcement, bounded normalization, filesystem storage, and cleanup.
+- Tutor chat now retains images through bounded history and retries, while RAG remains text-only. Ollama, OpenAI-compatible, and Anthropic serialize image payloads.
+- Added Ant Design catalog/composer/message controls and an Admin-only saved-model image diagnostic.
+- Apply `20260909172416_AddMultimodalImageInput`; configure persistent attachment storage. ImageSharp is pinned to 3.1.12 to avoid the v4 build-time license-key requirement.
+- See [Multimodal image input](multimodal-image-input.md) for API contracts, security, configuration, and local testing.
+
 
 ### 2026-05-21 — Feature Freeze D25 Implementation (steps 1–8) + Local Setup Revision
 

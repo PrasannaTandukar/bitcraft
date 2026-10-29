@@ -27,6 +27,8 @@ public class TutorConfigurationSnapshotConfiguration : IEntityTypeConfiguration<
         entity.Property(x => x.ModelName)
             .HasMaxLength(200);
 
+        entity.Property(x => x.ModelCapabilities).HasConversion<int>().HasDefaultValue(Bitcraft.Domain.Modeling.ModelCapabilities.None);
+
         entity.Property(x => x.ModelSettingsJson).HasColumnType("jsonb");
         entity.Property(x => x.ToolsJson).HasColumnType("jsonb");
         entity.Property(x => x.KnowledgeSourcesJson).HasColumnType("jsonb");

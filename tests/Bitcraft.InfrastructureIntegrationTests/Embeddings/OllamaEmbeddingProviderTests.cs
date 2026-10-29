@@ -16,7 +16,7 @@ public class OllamaEmbeddingProviderTests
         var provider = CreateProvider(new StubHandler(_ => throw new HttpRequestException("connection refused")));
 
         var exception = await Assert.ThrowsAsync<EmbeddingProviderException>(() =>
-            provider.GenerateEmbeddingAsync("chunk", "nomic-embed-text"));
+            provider.GenerateEmbeddingAsync(BuildRequest("nomic-embed-text")));
 
         Assert.Equal(EmbeddingProviderFailureKind.ServiceUnavailable, exception.Kind);
         Assert.DoesNotContain("connection refused", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -31,7 +31,7 @@ public class OllamaEmbeddingProviderTests
         }));
 
         var exception = await Assert.ThrowsAsync<EmbeddingProviderException>(() =>
-            provider.GenerateEmbeddingAsync("chunk", "missing-model"));
+            provider.GenerateEmbeddingAsync(BuildRequest("missing-model")));
 
         Assert.Equal(EmbeddingProviderFailureKind.RequestFailed, exception.Kind);
         Assert.DoesNotContain("internal runtime detail", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -46,7 +46,7 @@ public class OllamaEmbeddingProviderTests
         }));
 
         var exception = await Assert.ThrowsAsync<EmbeddingProviderException>(() =>
-            provider.GenerateEmbeddingAsync("chunk", "nomic-embed-text"));
+            provider.GenerateEmbeddingAsync(BuildRequest("nomic-embed-text")));
 
         Assert.Equal(EmbeddingProviderFailureKind.ResponseInvalid, exception.Kind);
     }
@@ -59,24 +59,20 @@ public class OllamaEmbeddingProviderTests
             Content = new StringContent("{\"embedding\":[0.1,0.2,0.3]}", Encoding.UTF8, "application/json")
         }));
 
-        var embedding = await provider.GenerateEmbeddingAsync("chunk", "nomic-embed-text");
+        var embedding = await provider.GenerateEmbeddingAsync(BuildRequest("nomic-embed-text"));
 
         Assert.Equal([0.1f, 0.2f, 0.3f], embedding);
     }
 
-    private static OllamaEmbeddingProvider CreateProvider(HttpMessageHandler handler)
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ModelProviders:Ollama:BaseUrl"] = "http://ollama.invalid"
-            })
-            .Build();
-        return new OllamaEmbeddingProvider(
+    // OD-4: the endpoint now comes from the request (RuntimeEngine entity), not configuration.
+    private static EmbeddingGenerationRequest BuildRequest(string model) =>
+        new("chunk", model, RuntimeEndpoint: "http://ollama.invalid");
+
+    private static OllamaEmbeddingProvider CreateProvider(HttpMessageHandler handler) =>
+        new(
             new StubHttpClientFactory(handler),
-            configuration,
             NullLogger<OllamaEmbeddingProvider>.Instance);
-    }
+
 
     private sealed class StubHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {

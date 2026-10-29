@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Domain.Modeling;
 using Bitcraft.Domain.Tutoring;
 using MediatR;
 
@@ -110,10 +111,13 @@ public static class ConfigurationSnapshotFeatures
                 : JsonSerializer.Serialize(tutor.Tools.Select(t => new
                 {
                     t.Id,
+                    t.TutorId,
                     t.Name,
                     t.Description,
                     t.JsonSchema,
-                    t.ExecutionUrl
+                    t.Kind,
+                    t.ImplementationKey,
+                    t.ExecutionPolicy
                 }));
 
             var knowledgeJson = tutor.KnowledgeSources.Count == 0
@@ -137,6 +141,97 @@ public static class ConfigurationSnapshotFeatures
 
             var saved = await tutorRepository.AddSnapshotAsync(snapshot, cancellationToken);
             return Result.Success(saved);
+        }
+    }
+
+    public sealed record CaptureActiveRevisionSnapshotCommand(Guid TutorId)
+        : IRequest<Result<TutorConfigurationSnapshot>>;
+
+    public sealed class CaptureActiveRevisionSnapshotHandler(
+        ITutorRepository tutorRepository,
+        IRevisionEffectiveSetReader effectiveSetReader,
+        ITutorMembershipReader membership,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<CaptureActiveRevisionSnapshotCommand, Result<TutorConfigurationSnapshot>>
+    {
+        public async Task<Result<TutorConfigurationSnapshot>> Handle(
+            CaptureActiveRevisionSnapshotCommand request,
+            CancellationToken cancellationToken)
+        {
+            var tutor = await tutorRepository.GetByIdWithDetailsAsync(request.TutorId, cancellationToken);
+            if (tutor is null)
+                return Result.Failure<TutorConfigurationSnapshot>(new Error("Tutor.NotFound", "Tutor not found."));
+
+            var role = await membership.GetRoleAsync(tutor.Id, currentUser.UserId, cancellationToken);
+            if (role is not ResourceRole.Owner and not ResourceRole.Editor)
+                return Result.Failure<TutorConfigurationSnapshot>(new Error("Tutor.Forbidden", "Editor or Owner membership required."));
+
+            var revision = await tutorRepository.GetActiveRevisionAsync(tutor.Id, cancellationToken);
+            if (tutor.Status != TutorStatus.Active || revision is null || tutor.ActiveRevisionId != revision.Id)
+                return Result.Failure<TutorConfigurationSnapshot>(new Error("TutorRevision.NoActiveRevision", "There is no active revision to capture."));
+
+            var effective = await effectiveSetReader.GetEffectiveSetAsync(
+                tutor.Id, cancellationToken, revision.QueryEmbeddingModelId);
+            if (effective.DocumentIds.Count > 0)
+            {
+                var queryModel = revision.QueryEmbeddingModel;
+                if (queryModel is null || !queryModel.IsEnabled || queryModel.RuntimeEngine?.IsEnabled != true ||
+                    queryModel.EmbeddingDimensions <= 0 || string.IsNullOrWhiteSpace(queryModel.ProviderModelName) ||
+                    queryModel.RuntimeEngine.ProviderType is not (RuntimeEngineProviderType.Ollama or
+                        RuntimeEngineProviderType.OpenAI or RuntimeEngineProviderType.OpenAICompatible or
+                        RuntimeEngineProviderType.LlamaCpp))
+                    return Result.Failure<TutorConfigurationSnapshot>(new Error(
+                        "TutorKnowledge.QueryEmbeddingUnavailable",
+                        "The active revision does not have an enabled, valid query embedding model for its attached knowledge."));
+
+                var incompatible = effective.DocumentIds.Any(documentId =>
+                    !effective.KnowledgeBindings.Any(binding => binding.DocumentId == documentId &&
+                        binding.EmbeddingModelId == queryModel.Id &&
+                        binding.Dimensions == queryModel.EmbeddingDimensions));
+                if (incompatible)
+                    return Result.Failure<TutorConfigurationSnapshot>(new Error(
+                        "TutorKnowledge.NotReady",
+                        "One or more attached documents are not vectorized with the active revision's query embedding model. Vectorize or re-vectorize the documents before capturing a snapshot."));
+            }
+            var effectiveDocumentIdsJson = effective.DocumentIds.Count == 0
+                ? null
+                : JsonSerializer.Serialize(effective.DocumentIds);
+            var effectiveBindingJson = effective.KnowledgeBindings.Count == 0
+                ? null
+                : JsonSerializer.Serialize(effective.KnowledgeBindings);
+            var toolsJson = revision.RevisionTools.Count == 0
+                ? null
+                : JsonSerializer.Serialize(revision.RevisionTools.Select(link => new
+                {
+                    link.ToolDefinitionId,
+                    link.ToolDefinition!.TutorId,
+                    link.ToolDefinition.Name,
+                    link.ToolDefinition.Description,
+                    link.ToolDefinition.JsonSchema,
+                    link.ToolDefinition.Kind,
+                    link.ToolDefinition.ImplementationKey,
+                    link.ToolDefinition.ExecutionPolicy
+                }));
+            var deploymentJson = JsonSerializer.Serialize(new
+            {
+                target = revision.DeploymentTarget.ToString(),
+                configurationJson = revision.DeploymentConfigJson
+            });
+
+            var snapshot = TutorConfigurationSnapshot.Capture(
+                tutor,
+                await tutorRepository.GetNextSnapshotVersionNumberAsync(tutor.Id, cancellationToken),
+                revision.PromptVersion,
+                tutor.TutorModelConnection,
+                toolsJson,
+                knowledgeSourcesJson: null,
+                tutor.DeploymentProfile,
+                currentUser.UserId,
+                tutorRevision: revision,
+                effectiveDocumentIdsJson: effectiveDocumentIdsJson,
+                effectiveKnowledgeBindingJson: effectiveBindingJson,
+                revisionDeploymentProfileJson: deploymentJson);
+            return Result.Success(await tutorRepository.AddSnapshotAsync(snapshot, cancellationToken));
         }
     }
 }

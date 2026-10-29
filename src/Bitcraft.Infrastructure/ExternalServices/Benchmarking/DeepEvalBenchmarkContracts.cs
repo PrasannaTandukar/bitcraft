@@ -53,9 +53,63 @@ internal sealed record SidecarError(
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("description")] string Description);
 
+// ----- Standardized LLM benchmark path (start + poll, plan WS2) -----
+
+internal sealed record SidecarJudgeModelPayload(
+    [property: JsonPropertyName("provider")] string Provider,
+    [property: JsonPropertyName("model_name")] string ModelName,
+    [property: JsonPropertyName("base_url")] string? BaseUrl,
+    [property: JsonPropertyName("api_key")] string? ApiKey);
+
+internal sealed record SidecarStandardBenchmarkStartRequest(
+    [property: JsonPropertyName("benchmark_key")] string BenchmarkKey,
+    [property: JsonPropertyName("judge_model")] SidecarJudgeModelPayload JudgeModel,
+    [property: JsonPropertyName("tasks")] IReadOnlyList<string>? Tasks,
+    [property: JsonPropertyName("n_shots")] int NShots,
+    [property: JsonPropertyName("n_problems")] int NProblems,
+    [property: JsonPropertyName("allow_code_execution")] bool AllowCodeExecution);
+
+internal sealed record SidecarStandardBenchmarkStartResponse(
+    [property: JsonPropertyName("run_id")] string RunId,
+    [property: JsonPropertyName("status_path")] string StatusPath,
+    [property: JsonPropertyName("log_path")] string? LogPath = null);
+
+internal sealed record SidecarStandardBenchmarkLogResponse(
+    [property: JsonPropertyName("run_id")] string RunId,
+    [property: JsonPropertyName("log")] string Log);
+
+internal sealed record SidecarTaskScorePayload(
+    [property: JsonPropertyName("task")] string Task,
+    [property: JsonPropertyName("score")] double Score);
+
+internal sealed record SidecarStandardBenchmarkStatusResponse(
+    [property: JsonPropertyName("state")] string State,
+    [property: JsonPropertyName("stage")] string? Stage,
+    [property: JsonPropertyName("overall_score")] double? OverallScore,
+    [property: JsonPropertyName("task_scores")] IReadOnlyList<SidecarTaskScorePayload>? TaskScores,
+    [property: JsonPropertyName("task_count")] int TaskCount,
+    [property: JsonPropertyName("completed_tasks")] int? CompletedTasks,
+    [property: JsonPropertyName("total_tasks")] int? TotalTasks,
+    [property: JsonPropertyName("engine_version")] string EngineVersion,
+    [property: JsonPropertyName("notes")] string Notes,
+    [property: JsonPropertyName("error")] string? Error,
+    [property: JsonPropertyName("updated_utc")] string? UpdatedUtc);
+
+// ----- Sidecar slot state (HD-9 Admin surface) -----
+
+internal sealed record SidecarSlotStateResponse(
+    [property: JsonPropertyName("slot_held")] bool SlotHeld,
+    [property: JsonPropertyName("run_id")] string? RunId,
+    [property: JsonPropertyName("engine_version")] string EngineVersion);
+
 [JsonSerializable(typeof(SidecarEnvelope))]
 [JsonSerializable(typeof(SidecarResponse))]
 [JsonSerializable(typeof(SidecarError))]
+[JsonSerializable(typeof(SidecarStandardBenchmarkStartRequest))]
+[JsonSerializable(typeof(SidecarStandardBenchmarkStartResponse))]
+[JsonSerializable(typeof(SidecarStandardBenchmarkStatusResponse))]
+[JsonSerializable(typeof(SidecarStandardBenchmarkLogResponse))]
+[JsonSerializable(typeof(SidecarSlotStateResponse))]
 internal partial class DeepEvalBenchmarkJsonContext : JsonSerializerContext
 {
 }

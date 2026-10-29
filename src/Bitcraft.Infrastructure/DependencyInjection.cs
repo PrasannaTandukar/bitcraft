@@ -3,10 +3,10 @@ using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Identity;
 using Bitcraft.Infrastructure.ExternalServices;
+using Bitcraft.Infrastructure.ExternalServices.Agents;
 using Bitcraft.Infrastructure.ExternalServices.Benchmarking;
 using Bitcraft.Infrastructure.ExternalServices.Embeddings;
 using Bitcraft.Infrastructure.ExternalServices.Documents;
-using Bitcraft.Infrastructure.ExternalServices.Ollama;
 using Bitcraft.Infrastructure.Identity;
 using Bitcraft.Infrastructure.Persistence;
 using Bitcraft.Infrastructure.Persistence.Interceptors;
@@ -32,6 +32,25 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
+        var chatLimits = new ChatAttachmentLimits(
+            configuration.GetValue<long?>("ChatAttachments:MaxFileBytes") ?? 5 * 1024 * 1024,
+            configuration.GetValue<int?>("ChatAttachments:MaxImagesPerMessage") ?? 4,
+            configuration.GetValue<int?>("ChatAttachments:MaxDimension") ?? 2048,
+            configuration.GetValue<int?>("ChatAttachments:RetentionHours") ?? 24,
+            configuration.GetValue<int?>("ChatAttachments:MaxImagesPerRequest") ?? 20,
+            configuration.GetValue<long?>("ChatAttachments:MaxDecodedPixels") ?? 40_000_000);
+        if (chatLimits.MaxFileBytes is < 1 or > 20 * 1024 * 1024 ||
+            chatLimits.MaxImagesPerMessage is < 1 or > 20 ||
+            chatLimits.MaxImagesPerRequest < chatLimits.MaxImagesPerMessage || chatLimits.MaxImagesPerRequest > 80 ||
+            chatLimits.MaxDimension is < 1 or > 4096 || chatLimits.RetentionHours is < 1 or > 168 ||
+            chatLimits.MaxDecodedPixels is < 1 or > 40_000_000)
+            throw new InvalidOperationException("ChatAttachments limits are outside their supported ranges.");
+        services.AddSingleton(chatLimits);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IChatAttachmentStore, Bitcraft.Infrastructure.Chat.FileSystemChatAttachmentStore>();
+        services.AddSingleton<IChatImageNormalizer, Bitcraft.Infrastructure.Chat.ChatImageNormalizer>();
+        services.AddScoped<IChatAttachmentRepository, Bitcraft.Infrastructure.Chat.ChatAttachmentRepository>();
+        services.AddHostedService<Bitcraft.Infrastructure.Chat.ChatAttachmentCleanupWorker>();
         services.AddScoped<ICurrentUserContext, HttpContextCurrentUserContext>();
         services.AddScoped<EntitySaveChangesInterceptor>();
 
@@ -114,13 +133,31 @@ public static class DependencyInjection
         services.AddScoped<ITutorMemoryStore, PgvectorTutorMemoryStore>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Embeddings.OllamaEmbeddingProvider>();
         services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider>();
-        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.CompositeEmbeddingProvider>();
-        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Ollama.OllamaGenerationProvider>();
-        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleGenerationProvider>();
-        services.AddScoped<Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider>();
-        services.AddScoped<ILlmGenerationProvider, Bitcraft.Infrastructure.ExternalServices.CompositeLlmGenerationProvider>();
+        services.AddScoped<IEmbeddingProvider, Bitcraft.Infrastructure.ExternalServices.Embeddings.CompositeEmbeddingProvider>();
+        services.AddScoped<IRuntimeApiKeyResolver, ConfigurationRuntimeApiKeyResolver>();
+        services.AddScoped<IRuntimeChatClientFactory, RuntimeChatClientFactory>();
+        services.AddScoped<IRuntimeModelDiagnostic, RuntimeModelDiagnostic>();
+        services.AddScoped<ITutorConversationRepository, Bitcraft.Infrastructure.Persistence.TutorConversationRepository>();
+        services.AddScoped<ITutorAgentExecutor, TutorAgentExecutor>();
+        services.AddScoped<TutorKnowledgeContextProviderFactory>();
+        services.AddScoped<TutorMemoryContextProviderFactory>();
+        services.AddSingleton<ITutorToolHandler, CalculatorTutorToolHandler>();
+        services.AddSingleton(TutorToolRuntimeOptions.Default);
+        services.AddSingleton<ITutorToolCatalog, TutorToolCatalog>();
+        services.AddSingleton<ITutorToolRegistry, TutorToolRegistry>();
+        services.AddHttpClient(RuntimeChatClientFactory.HttpClientName).RemoveAllLoggers();
+        services.AddHttpClient(RuntimeChatClientFactory.OllamaHttpClientName)
+            .AddHttpMessageHandler(() => new TutorAgentHttpStatusHandler())
+            .RemoveAllLoggers();
         services.AddKnowledgePersistence(configuration);
-        services.Configure<DeepEvalBenchmarkOptions>(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName));
+        services.AddOptions<DeepEvalBenchmarkOptions>()
+            .Bind(configuration.GetSection(DeepEvalBenchmarkOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddOptions<Bitcraft.Application.Features.Benchmarking.StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions>()
+            .Bind(configuration.GetSection(Bitcraft.Application.Features.Benchmarking.StandardBenchmarkFeatures.StandardBenchmarkProcessingOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         // Tutoring
         services.AddScoped<ITutorRepository, TutorRepository>();
@@ -136,6 +173,9 @@ public static class DependencyInjection
         services.AddScoped<ITutorBenchmarkOutputGenerator, TutorBenchmarkOutputGenerator>();
         services.AddSingleton<IBenchmarkRunQueue, InMemoryBenchmarkRunQueue>();
         services.AddHostedService<BenchmarkRunWorker>();
+        services.AddScoped<IStandardBenchmarkRunRepository, StandardBenchmarkRunRepository>();
+        services.AddSingleton<IStandardBenchmarkRunQueue, InMemoryStandardBenchmarkRunQueue>();
+        services.AddHostedService<StandardBenchmarkRunWorker>();
 
         // External model providers
         var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 30;
@@ -143,22 +183,9 @@ public static class DependencyInjection
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
         });
-        var ollamaGenerateTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
-        services.AddHttpClient(nameof(OllamaGenerationProvider), c =>
-        {
-            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
-        });
-        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleGenerationProvider), c =>
-        {
-            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
-        });
         services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.OpenAI.OpenAiCompatibleEmbeddingProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);
-        });
-        services.AddHttpClient(nameof(Bitcraft.Infrastructure.ExternalServices.Anthropic.AnthropicGenerationProvider), c =>
-        {
-            c.Timeout = TimeSpan.FromSeconds(ollamaGenerateTimeoutSeconds);
         });
         var deepEvalTimeoutSeconds = configuration.GetValue<int?>("Benchmarking:DeepEval:TimeoutSeconds") ?? 120;
         services.AddHttpClient(nameof(DeepEvalBenchmarkEngine), c =>

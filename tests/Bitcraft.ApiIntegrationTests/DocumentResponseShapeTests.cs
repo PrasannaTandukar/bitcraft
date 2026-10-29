@@ -52,9 +52,13 @@ public class DocumentResponseShapeTests(BitcraftApiFactory factory) : IClassFixt
         Assert.Equal("Shape probe", summary.Name);
         Assert.True(summary.HasRawText);
         Assert.Equal(rawText.Length, summary.RawTextLength);
+        Assert.NotNull(summary.Vectorization);
+        Assert.False(summary.Vectorization.IsVectorized);
+        Assert.Equal(0, summary.Vectorization.ChunkCount);
         // And the raw JSON of the list response must not contain the body.
         var listJson = await listResponse.Content.ReadAsStringAsync();
         Assert.DoesNotContain(rawText, listJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("embeddingVector", listJson, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AuthorizeAsRoleAsync(HttpClient client, string role)

@@ -1,12 +1,12 @@
 ---
 created_at: 2026-05-19
-edited_at: 2026-05-19
+edited_at: 2026-09-21
 creator: ai-ops
 editor: lead-dev
 ai_gen: true
 name: bitcraft-version-upgrade
-description: 'Plan and execute Bitcraft dependency, framework, model, tool, and platform upgrades. Use for .NET, EF Core, PostgreSQL/pgvector, React/Vite, Copilot customization syntax, Ollama models, Docker, and CI/CD version changes.'
-argument-hint: '[package, framework, model, or platform to upgrade]'
+description: "Plan and execute Bitcraft dependency, framework, model, tool, and platform upgrades. Use for .NET, EF Core, PostgreSQL/pgvector, React/Vite, Copilot customization syntax, Ollama models, Docker, and CI/CD version changes."
+argument-hint: "[package, framework, model, or platform to upgrade]"
 ---
 
 # Bitcraft Version Upgrade
@@ -41,3 +41,10 @@ Use this skill for controlled upgrades without dependency drift.
 
 - Do not update generated lockfiles or package versions outside the authorized scope.
 - Do not assume cloud model pricing or availability is stable.
+
+## Output
+
+- Versions changed, with old and new values.
+- Validation run.
+- Required developer actions.
+- Next step: "Run the `bitcraft-review` skill for branch `<branch>`. Scope: <changed files>."

@@ -7,7 +7,7 @@ ai_gen: true
 ---
 # Branch Convention
 
-Captured from human decision on 2026-05-19. This rule replaces the open Dev Ops "propose a branch convention" item.
+Captured from human decision on 2026-05-19. This rule replaces the open "propose a branch convention" item (then owned by the retired Dev Ops agent; now Sec Ops).
 
 ## Rule
 
@@ -29,5 +29,5 @@ When the working branch name is acceptable, the slug used for the plan folder is
 
 ## Notes
 
-- This rule is read by agents during planning. See `.github/prompts/plan.prompt.md` and `.github/config/cil-*.yaml`.
-- Dev Ops still owns merge policy, release tagging, and CI branch filters — those are out of scope for this document.
+- This rule is read by agents during planning. See the `bitcraft-planning` skill and `.github/config/cil-*.yaml`.
+- Sec Ops owns merge policy guidance, release tagging, and CI branch filters — those are out of scope for this document.

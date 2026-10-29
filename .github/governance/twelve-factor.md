@@ -30,7 +30,7 @@ Explicitly declared and isolated dependencies. .NET dependencies are pinned in `
 Strict separation of config from code. PoC currently mixes static `appsettings.json` defaults with environment-variable overrides. [Feature-freeze D9](../plans/feature-freeze-2026-05-21/plan.decisions.md#d9--secrets-and-configuration) locks env-vars-first for production-bound deployments; tracked `template.<file>.<ext>` is reserved for cases where a sample is genuinely required, not a routine bootstrap requirement.
 
 - Evidence: [src/Bitcraft.Api/appsettings.json](../../src/Bitcraft.Api/appsettings.json), feature-freeze plan WS2, [D9](../plans/feature-freeze-2026-05-21/plan.decisions.md#d9--secrets-and-configuration).
-- Next action: WS2 implements `BootstrapOptions` with `IOptions<T>` fail-fast binding; Dev Ops to gate CI on env-vars-first per the new dev-ops inbox seed.
+- Next action: WS2 implements `BootstrapOptions` with `IOptions<T>` fail-fast binding; Sec Ops to gate CI on env-vars-first per the new sec-ops inbox seed.
 
 ## IV. Backing Services — Partial
 
@@ -44,7 +44,7 @@ Treat backing services as attached resources. PostgreSQL + pgvector, Ollama, and
 Strict separation between build, release, and run stages. .NET `dotnet build` and Docker image builds are clean build stages; release-stage configuration injection is still ad-hoc on local-developer flows. [D7](../plans/feature-freeze-2026-05-21/plan.decisions.md#d7--activation-vs-deployment) preserves `DeploymentProfile` for future export/release configuration aligned with this factor.
 
 - Evidence: [src/Bitcraft.Api/Dockerfile](../../src/Bitcraft.Api/Dockerfile), [tutor-studio/Dockerfile.prod](../../tutor-studio/Dockerfile.prod), [docker-compose.prod.yml](../../docker-compose.prod.yml).
-- Next action: Dev Ops formalizes a release-stage configuration injection contract post-freeze; the `BITCRAFT_RUNTIME_LOCAL_ONLY` MSBuild constant ([D8](../plans/feature-freeze-2026-05-21/plan.decisions.md#d8--runtime-api-authentication)) is a build-stage decision that must remain off in CI Release builds.
+- Next action: Sec Ops formalizes a release-stage configuration injection contract post-freeze; the `BITCRAFT_RUNTIME_LOCAL_ONLY` MSBuild constant ([D8](../plans/feature-freeze-2026-05-21/plan.decisions.md#d8--runtime-api-authentication)) is a build-stage decision that must remain off in CI Release builds.
 
 ## VI. Processes — Compliant
 
@@ -86,7 +86,7 @@ Keep development, staging, and production as similar as possible. Local dev uses
 Treat logs as event streams. Backend uses default ASP.NET Core logging to stdout (good), but there is no structured-log contract, correlation-id propagation, or aggregation target documented yet. Sidecar and MCP server have minimal logging.
 
 - Evidence: [Program.cs](../../src/Bitcraft.Api/Program.cs).
-- Next action: post-freeze — Dev Ops + AI Ops define a structured logging contract (Serilog or built-in `ILogger` with JSON formatter) and a correlation-id middleware. Not blocking the PoC freeze.
+- Next action: post-freeze — Sec Ops + AI Ops define a structured logging contract (Serilog or built-in `ILogger` with JSON formatter) and a correlation-id middleware. Not blocking the PoC freeze.
 
 ## XII. Admin Processes — Partial
 

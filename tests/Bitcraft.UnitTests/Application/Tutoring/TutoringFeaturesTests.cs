@@ -1,4 +1,6 @@
+using Bitcraft.Infrastructure.ExternalServices.Agents;
 using Bitcraft.Application.Common.Models;
+using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Features.Admin;
 using Bitcraft.Application.Features.Documents;
 using Bitcraft.Application.Features.Knowledge;
@@ -217,9 +219,9 @@ public class ToolDefinitionFeaturesTests
         var owner = Guid.NewGuid();
         var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner), new TutorToolCatalog([new CalculatorTutorToolHandler()]));
         var command = new ToolDefinitionFeatures.RegisterToolDefinitionCommand(
-            tutor.Id, "search", null, "{ not-valid-json", null);
+            tutor.Id, "search", null, "{ not-valid-json");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -238,26 +240,55 @@ public class ToolDefinitionFeaturesTests
         var owner = Guid.NewGuid();
         var tutor = Tutor.Create("T", null, owner);
         repo.Tutors[tutor.Id] = tutor;
-        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner));
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo, new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner), new TutorToolCatalog([new CalculatorTutorToolHandler()]));
         var command = new ToolDefinitionFeatures.RegisterToolDefinitionCommand(
-            tutor.Id, "search", "Web search tool",
-            "{\"type\":\"object\",\"properties\":{\"q\":{\"type\":\"string\"}}}",
-            "https://tools.example.com/search");
+            tutor.Id, "calculator", "Arithmetic tool",
+            "{\"type\":\"object\",\"properties\":{\"expression\":{\"type\":\"string\"}}}",
+            TutorToolKind.BuiltIn, "builtin.calculator.v1",
+            TutorToolExecutionPolicy.ReadOnlyAutomatic);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal("search", result.Value.Name);
+        Assert.Equal("calculator", result.Value.Name);
+        Assert.Equal("builtin.calculator.v1", result.Value.ImplementationKey);
         Assert.Single(repo.Tools);
+    }
+
+    [Fact]
+    public void ToolDefinition_HasNoArbitraryExecutionUrl()
+    {
+        Assert.Null(typeof(ToolDefinition).GetProperty("ExecutionUrl"));
+    }
+
+    [Theory]
+    [InlineData(TutorToolKind.Mcp)]
+    [InlineData(TutorToolKind.ApprovedHttp)]
+    public async Task RegisterToolDefinitionHandler_WithUnavailableRemoteKind_RejectsRegistration(
+        TutorToolKind kind)
+    {
+        var repo = new FakeTutorRepository();
+        var owner = Guid.NewGuid();
+        var tutor = Tutor.Create("T", null, owner);
+        repo.Tutors[tutor.Id] = tutor;
+        var handler = new ToolDefinitionFeatures.RegisterToolDefinitionHandler(repo,
+            new FakeTutorMembershipReader(repo), new FakeCurrentUserContext(owner), new TutorToolCatalog([new CalculatorTutorToolHandler()]));
+
+        var result = await handler.Handle(new(tutor.Id, "remote", null, "{\"type\":\"object\"}",
+            kind, "remote.unavailable.v1", TutorToolExecutionPolicy.ReadOnlyAutomatic), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Tool.KindUnavailable", result.Error.Code);
+        Assert.Empty(repo.Tools);
     }
 }
 
 public class DocumentFeaturesTests
 {
     [Fact]
-    public async Task ListDocumentsHandler_WithMixedCreators_ReturnsOnlyCurrentCreatorDocuments()
+    public async Task ListDocumentsHandler_BatchesMetadataForOnlyCurrentCreators()
     {
         // Arrange
         var currentUserId = Guid.NewGuid();
@@ -269,14 +300,25 @@ public class DocumentFeaturesTests
         otherDocument.UpdateMetadata(otherUserId);
         documentStore.Documents[ownedDocument.Id] = ownedDocument;
         documentStore.Documents[otherDocument.Id] = otherDocument;
-        var handler = new DocumentFeatures.ListDocumentsHandler(documentStore, new FakeCurrentUserContext(currentUserId));
+        for (var index = 0; index < 14; index++)
+        {
+            var document = new Document { Name = $"Owned {index}" };
+            document.UpdateMetadata(currentUserId);
+            documentStore.Documents[document.Id] = document;
+        }
+        var metadataReader = new CountingDocumentVectorizationReader();
+        var handler = new DocumentFeatures.ListDocumentsHandler(documentStore, metadataReader, new FakeCurrentUserContext(currentUserId));
 
         // Act
         var documents = await handler.Handle(new DocumentFeatures.ListDocumentsQuery(), CancellationToken.None);
 
         // Assert
-        var document = Assert.Single(documents);
-        Assert.Equal(ownedDocument.Id, document.Id);
+        Assert.Equal(15, documents.Count);
+        Assert.Contains(documents, item => item.Document.Id == ownedDocument.Id);
+        Assert.DoesNotContain(documents, item => item.Document.Id == otherDocument.Id);
+        Assert.Equal(1, metadataReader.BulkCalls);
+        Assert.Equal(0, metadataReader.SingleCalls);
+        Assert.Equal(15, metadataReader.LastRequestedIds!.Count);
     }
 
     [Fact]
@@ -334,6 +376,29 @@ public class DocumentFeaturesTests
         Assert.True(result.IsFailure);
         Assert.Equal("Document.Forbidden", result.Error.Code);
         Assert.True(documentStore.Documents.ContainsKey(document.Id));
+    }
+
+    private sealed class CountingDocumentVectorizationReader : IDocumentVectorizationReader
+    {
+        public int BulkCalls { get; private set; }
+        public int SingleCalls { get; private set; }
+        public IReadOnlyCollection<Guid>? LastRequestedIds { get; private set; }
+
+        public Task<DocumentVectorizationMetadata> GetMetadataAsync(Guid documentId, CancellationToken cancellationToken = default)
+        {
+            SingleCalls++;
+            return Task.FromResult(new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null));
+        }
+
+        public Task<IReadOnlyDictionary<Guid, DocumentVectorizationMetadata>> GetMetadataAsync(IReadOnlyCollection<Guid> documentIds, CancellationToken cancellationToken = default)
+        {
+            BulkCalls++;
+            LastRequestedIds = documentIds;
+            IReadOnlyDictionary<Guid, DocumentVectorizationMetadata> result = documentIds.ToDictionary(
+                id => id,
+                _ => new DocumentVectorizationMetadata(false, false, 0, null, null, null, null, null, null));
+            return Task.FromResult(result);
+        }
     }
 }
 
@@ -500,7 +565,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(ownerId),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model", MaxChunkLength: 100, ChunkOverlap: 0);
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "Ollama", "test-model", MaxChunkLength: 100, ChunkOverlap: 0);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -530,7 +595,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(ownerId),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "Ollama", "test-model");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -557,7 +622,7 @@ public class KnowledgeFeaturesTests
             new FakeCurrentUserContext(Guid.NewGuid()),
             DocumentIngestionLimits.Default,
             NullLogger<KnowledgeFeatures.VectorizeDocumentHandler>.Instance);
-        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, EmbeddingProviders.Ollama, "test-model");
+        var command = new KnowledgeFeatures.VectorizeDocumentCommand(document.Id, "Ollama", "test-model");
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
@@ -623,7 +688,7 @@ public class KnowledgeFeaturesTests
         // Assert
         Assert.True(result.IsSuccess);
         var chunk = Assert.Single(vectorStore.Chunks);
-        Assert.Equal(EmbeddingProviders.Ollama, chunk.EmbeddingProvider);
+        Assert.Equal("Ollama", chunk.EmbeddingProvider);
         Assert.Equal("test-model", chunk.EmbeddingModel);
     }
 }

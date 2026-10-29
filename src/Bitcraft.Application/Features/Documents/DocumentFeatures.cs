@@ -277,14 +277,24 @@ public static class DocumentFeatures
         }
     }
 
-    public sealed record ListDocumentsQuery : IRequest<List<Document>>;
+    public sealed record DocumentListItem(Document Document, DocumentVectorizationMetadata? Vectorization);
 
-    public sealed class ListDocumentsHandler(IDocumentStore documentStore, ICurrentUserContext currentUser)
-        : IRequestHandler<ListDocumentsQuery, List<Document>>
+    public sealed record ListDocumentsQuery : IRequest<IReadOnlyList<DocumentListItem>>;
+
+    public sealed class ListDocumentsHandler(
+        IDocumentStore documentStore,
+        IDocumentVectorizationReader vectorizationReader,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<ListDocumentsQuery, IReadOnlyList<DocumentListItem>>
     {
-        public Task<List<Document>> Handle(ListDocumentsQuery request, CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<DocumentListItem>> Handle(ListDocumentsQuery request, CancellationToken cancellationToken)
         {
-            return documentStore.ListByCreatorAsync(currentUser.UserId, cancellationToken);
+            var documents = await documentStore.ListByCreatorAsync(currentUser.UserId, cancellationToken);
+            var metadata = await vectorizationReader.GetMetadataAsync(
+                documents.Select(document => document.Id).ToArray(), cancellationToken);
+            return documents.Select(document => new DocumentListItem(
+                document,
+                metadata.GetValueOrDefault(document.Id))).ToList();
         }
     }
 

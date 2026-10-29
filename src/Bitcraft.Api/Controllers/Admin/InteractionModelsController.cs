@@ -57,7 +57,10 @@ public class InteractionModelsController(ISender sender) : ControllerBase
             request.RuntimeEngineId,
             request.ProviderModelName,
             request.SettingsJson,
-            request.IsEnabled);
+            request.IsEnabled,
+            request.SupportsImageInput,
+            request.SupportsFunctionCalling,
+            request.SupportsStructuredOutput);
 
         var result = await sender.Send(command, cancellationToken);
         if (result.IsFailure)
@@ -87,11 +90,26 @@ public class InteractionModelsController(ISender sender) : ControllerBase
             request.RuntimeEngineId,
             request.ProviderModelName,
             request.SettingsJson,
-            request.IsEnabled);
+            request.IsEnabled,
+            request.SupportsImageInput,
+            request.SupportsFunctionCalling,
+            request.SupportsStructuredOutput);
 
         var result = await sender.Send(command, cancellationToken);
         return result.IsSuccess
             ? Ok(result.Value.ToResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Tests image input on the saved model. Does not modify configured capabilities.</summary>
+    [HttpPost("{id:guid}/test-image")]
+    [ProducesResponseType(typeof(TestInteractionModelImageResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TestInteractionModelImageResponse>> TestImage(
+        Guid id, [FromBody] TestInteractionModelImageRequest request, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new InteractionModelFeatures.TestImageInputCommand(id, request.AttachmentId), cancellationToken);
+        return result.IsSuccess
+            ? Ok(new TestInteractionModelImageResponse(result.Value.Answer))
             : TutoringMapping.ToActionResult(result.Error);
     }
 

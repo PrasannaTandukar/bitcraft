@@ -1,4 +1,4 @@
-using Bitcraft.Application.Common.Interfaces;
+﻿using Bitcraft.Application.Common.Interfaces;
 using Bitcraft.Application.Common.Models;
 using Bitcraft.Application.Common.Security;
 using Bitcraft.Domain.Modeling;
@@ -17,7 +17,7 @@ public static class RuntimeEngineFeatures
         string Name,
         RuntimeEngineProviderType ProviderType,
         string Endpoint,
-        string? ApiKeySecretRef,
+        string? ApiKey,
         bool IsEnabled) : IRequest<Result<RuntimeEngine>>;
 
     public sealed class CreateRuntimeEngineHandler(
@@ -32,7 +32,7 @@ public static class RuntimeEngineFeatures
                 return Result.Failure<RuntimeEngine>(new Error("RuntimeEngine.Forbidden", "Only administrators can manage runtime engines."));
             }
 
-            var validation = Validate(request.Name, request.ProviderType, request.Endpoint, request.ApiKeySecretRef);
+            var validation = Validate(request.Name, request.ProviderType, request.Endpoint, request.ApiKey);
             if (validation is not null)
             {
                 return Result.Failure<RuntimeEngine>(validation);
@@ -50,7 +50,7 @@ public static class RuntimeEngineFeatures
                 Name = name,
                 ProviderType = request.ProviderType,
                 Endpoint = request.Endpoint.Trim(),
-                ApiKeySecretRef = string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
+                ApiKey = string.IsNullOrWhiteSpace(request.ApiKey) ? null : request.ApiKey.Trim(),
                 IsEnabled = request.IsEnabled
             };
 
@@ -108,13 +108,18 @@ public static class RuntimeEngineFeatures
 
     // ----- Update -----
 
+    /// <summary>
+    /// Updates an admin-managed runtime engine. A null or empty <paramref name="ApiKey"/>
+    /// preserves the stored key. Set <paramref name="ClearApiKey"/> to remove it.
+    /// </summary>
     public sealed record UpdateRuntimeEngineCommand(
         Guid RuntimeEngineId,
         string Name,
         RuntimeEngineProviderType ProviderType,
         string Endpoint,
-        string? ApiKeySecretRef,
-        bool IsEnabled) : IRequest<Result<RuntimeEngine>>;
+        string? ApiKey,
+        bool IsEnabled,
+        bool ClearApiKey = false) : IRequest<Result<RuntimeEngine>>;
 
     public sealed class UpdateRuntimeEngineHandler(
         IRuntimeEngineRepository repository,
@@ -128,7 +133,7 @@ public static class RuntimeEngineFeatures
                 return Result.Failure<RuntimeEngine>(new Error("RuntimeEngine.Forbidden", "Only administrators can manage runtime engines."));
             }
 
-            var validation = Validate(request.Name, request.ProviderType, request.Endpoint, request.ApiKeySecretRef);
+            var validation = Validate(request.Name, request.ProviderType, request.Endpoint, request.ApiKey);
             if (validation is not null)
             {
                 return Result.Failure<RuntimeEngine>(validation);
@@ -153,7 +158,16 @@ public static class RuntimeEngineFeatures
             engine.Name = name;
             engine.ProviderType = request.ProviderType;
             engine.Endpoint = request.Endpoint.Trim();
-            engine.ApiKeySecretRef = string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim();
+            // Preserve-on-null: a blank key from the client keeps the stored value.
+            // Removal is explicit via ClearApiKey so an edit-save never silently drops the key.
+            if (request.ClearApiKey)
+            {
+                engine.ApiKey = null;
+            }
+            else if (!string.IsNullOrWhiteSpace(request.ApiKey))
+            {
+                engine.ApiKey = request.ApiKey.Trim();
+            }
             engine.IsEnabled = request.IsEnabled;
 
             await repository.UpdateAsync(engine, cancellationToken);
@@ -183,8 +197,8 @@ public static class RuntimeEngineFeatures
                 return Result.Failure<bool>(new Error("RuntimeEngine.NotFound", $"Runtime engine '{request.RuntimeEngineId}' not found."));
             }
 
-            // FK Restrict from Model.RuntimeEngineId (step 4) will block deletion at the database layer
-            // once that FK is introduced. Step 3 has no FK from Model yet, so deletion is unconstrained here.
+            // FK Restrict from Model.RuntimeEngineId blocks deletion at the database layer
+            // while any Model references this engine.
             await repository.DeleteAsync(engine, cancellationToken);
             return Result.Success(true);
         }
@@ -201,21 +215,34 @@ public static class RuntimeEngineFeatures
     public sealed record TestRuntimeEngineCommand(
         RuntimeEngineProviderType ProviderType,
         string Endpoint,
-        string? ApiKeySecretRef) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
+        string? ApiKey,
+        Guid? RuntimeEngineId = null) : IRequest<Result<TestRuntimeEngineConnectionResult>>;
 
+    // Authorization is enforced by the API layer (ViewerOrAbove on the test endpoint). The handler
+    // performs no role check so any authenticated user can run this read-only probe.
     public sealed class TestRuntimeEngineHandler(
-        ILlmGenerationProvider generationProvider,
-        ICurrentUserContext currentUser)
+        IRuntimeModelDiagnostic modelDiagnostic,
+        IRuntimeEngineRepository repository)
         : IRequestHandler<TestRuntimeEngineCommand, Result<TestRuntimeEngineConnectionResult>>
     {
         public async Task<Result<TestRuntimeEngineConnectionResult>> Handle(
             TestRuntimeEngineCommand request,
             CancellationToken cancellationToken)
         {
-            if (!currentUser.IsInRole(AppRoles.Admin))
+            // Server-side key prefill: a probe without a client-supplied key reuses the stored
+            // credential server-side so saved engines test with their persisted key. Read-only.
+            // The stored key only attaches to the stored engine's own endpoint. Mixing a stored
+            // credential with an arbitrary endpoint would let any authenticated user steer the
+            // key to a host they control, so prefill requires an endpoint match.
+            var apiKey = request.ApiKey;
+            if (string.IsNullOrWhiteSpace(apiKey) && request.RuntimeEngineId is { } engineId)
             {
-                return Result.Failure<TestRuntimeEngineConnectionResult>(
-                    new Error("RuntimeEngine.Forbidden", "Only administrators can test runtime engines."));
+                var stored = await repository.GetByIdAsync(engineId, cancellationToken);
+                if (stored is not null &&
+                    string.Equals(stored.Endpoint?.Trim(), request.Endpoint?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    apiKey = stored.ApiKey;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(request.Endpoint) ||
@@ -229,26 +256,29 @@ public static class RuntimeEngineFeatures
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                var discoveredModels = await generationProvider.ProbeAvailableModelsAsync(
-                    request.Endpoint.Trim(),
-                    string.IsNullOrWhiteSpace(request.ApiKeySecretRef) ? null : request.ApiKeySecretRef.Trim(),
-                    request.ProviderType.ToString(),
+                var probe = await modelDiagnostic.ProbeModelsAsync(
+                    new RuntimeModelCatalogDiagnosticRequest(
+                        request.ProviderType,
+                        request.Endpoint.Trim(),
+                        string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim()),
                     cancellationToken);
 
                 stopwatch.Stop();
                 var latency = Math.Round(stopwatch.Elapsed.TotalMilliseconds, 1);
 
-                if (discoveredModels is { Count: > 0 })
+                if (probe.IsSuccess)
                 {
-                    return Result.Success(new TestRuntimeEngineConnectionResult(
-                        true,
-                        latency,
-                        $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s).",
-                        discoveredModels));
-                }
+                    var discoveredModels = probe.Value.AvailableModels;
 
-                if (discoveredModels is not null)
-                {
+                    if (discoveredModels is { Count: > 0 })
+                    {
+                        return Result.Success(new TestRuntimeEngineConnectionResult(
+                            true,
+                            latency,
+                            $"Successfully connected to {request.ProviderType} endpoint. Detected {discoveredModels.Count} available model(s).",
+                            discoveredModels));
+                    }
+
                     return Result.Success(new TestRuntimeEngineConnectionResult(
                         true,
                         latency,
@@ -259,7 +289,7 @@ public static class RuntimeEngineFeatures
                 return Result.Success(new TestRuntimeEngineConnectionResult(
                     false,
                     latency,
-                    $"Could not reach {request.ProviderType} endpoint or retrieve model catalog."));
+                    probe.Error.Description));
             }
             catch (Exception ex)
             {
@@ -274,7 +304,7 @@ public static class RuntimeEngineFeatures
 
     // ----- Validation -----
 
-    private static Error? Validate(string name, RuntimeEngineProviderType providerType, string endpoint, string? apiKeySecretRef)
+    private static Error? Validate(string name, RuntimeEngineProviderType providerType, string endpoint, string? apiKey)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -302,9 +332,9 @@ public static class RuntimeEngineFeatures
             return new Error("RuntimeEngine.EndpointInvalid", "Endpoint must be a valid http or https URI.");
         }
 
-        if (apiKeySecretRef is not null && apiKeySecretRef.Trim().Length > 200)
+        if (apiKey is not null && apiKey.Trim().Length > 200)
         {
-            return new Error("RuntimeEngine.ApiKeySecretRefTooLong", "API key secret reference must be 200 characters or fewer.");
+            return new Error("RuntimeEngine.ApiKeyTooLong", "API key must be 200 characters or fewer.");
         }
 
         return null;

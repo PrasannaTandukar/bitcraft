@@ -3,10 +3,26 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, ORJSONResponse
 
-from app.schemas import SidecarEnvelope, SidecarLlmBenchmarkRequest, SidecarLlmBenchmarkResponse, SidecarResponse
+from app.schemas import (
+    SidecarEnvelope,
+    SidecarLlmBenchmarkRequest,
+    SidecarLlmBenchmarkResponse,
+    SidecarLlmBenchmarkStartResponse,
+    SidecarResponse,
+)
 from app.tool_registry import ToolRegistry
 from app.tools.deepeval_benchmark import DeepEvalBenchmarkTool
-from app.tools.deepeval_llm_benchmarks import run_llm_benchmark
+from app.tools.deepeval_llm_benchmarks import (
+    BenchmarkBusyError,
+    BenchmarkValidationError,
+    cancel_benchmark_run,
+    clear_benchmark_slot_marker,
+    get_benchmark_run_status,
+    get_benchmark_slot_state,
+    read_run_log,
+    start_benchmark_run,
+    sweep_stale_runs_on_startup,
+)
 
 app = FastAPI(default_response_class=ORJSONResponse)
 registry = ToolRegistry()
@@ -15,6 +31,18 @@ registry.register(DeepEvalBenchmarkTool())
 # in app/tools/deepeval_metrics.py) is intentionally NOT registered for this iteration.
 # Product direction: deterministic scoring only (deepeval.benchmark + the standardized
 # built-in benchmarks below). Re-register when LLM-as-judge is prioritized again.
+
+
+@app.on_event("startup")
+async def sweep_stale_runs() -> None:
+    """Heal leaked runner slots on start (G1 fix).
+
+    A runner subprocess that died without a terminal status write leaves its
+    status file `running` and holds the single slot forever. On sidecar start,
+    mark every stale non-terminal status as failed and clear the slot marker
+    when it points at a swept file. The UDS transport keeps this endpoint local.
+    """
+    sweep_stale_runs_on_startup()
 
 
 @app.get("/health")
@@ -37,10 +65,106 @@ async def execute_tool(envelope: SidecarEnvelope) -> SidecarResponse:
     return await tool.execute(envelope.payload)
 
 
-@app.post("/internal/tools/llm-benchmark", response_model=SidecarLlmBenchmarkResponse)
-async def execute_llm_benchmark(request: SidecarLlmBenchmarkRequest) -> SidecarLlmBenchmarkResponse:
-    """Opt-in standardized LLM benchmarks (BIG-Bench Hard, HellaSwag, MMLU,
-    DROP, TruthfulQA, HumanEval, GSM8K). See deepeval_llm_benchmarks.py for
-    cost and safety notes before enabling this against a live model."""
-    return await run_llm_benchmark(request)
+@app.post(
+    "/internal/tools/llm-benchmark",
+    response_model=SidecarLlmBenchmarkStartResponse,
+    status_code=202,
+)
+async def start_llm_benchmark(request: SidecarLlmBenchmarkRequest):
+    """Start one standardized LLM benchmark in a dedicated runner subprocess
+    (BIG-Bench Hard, HellaSwag, MMLU, DROP, TruthfulQA, HumanEval, GSM8K).
 
+    Returns 202 with a run handle the backend polls at
+    /internal/benchmarks/{run_id}/status. Returns 409 when the single runner
+    slot is already held (decision D-R2). See deepeval_llm_benchmarks.py for
+    cost and safety notes before enabling this against a live model."""
+    try:
+        return start_benchmark_run(request)
+    except BenchmarkBusyError as error:
+        return JSONResponse(
+            status_code=409,
+            content={"code": "Sidecar.BenchmarkBusy", "description": str(error)},
+        )
+    except BenchmarkValidationError as error:
+        return JSONResponse(
+            status_code=400,
+            content={"code": "Sidecar.BenchmarkInvalid", "description": str(error)},
+        )
+
+
+@app.post("/internal/benchmarks/{run_id}/cancel")
+async def cancel_llm_benchmark(run_id: str):
+    """Cancel a running benchmark (Constraint G).
+
+    Terminates the runner process group and writes a `cancelled` terminal state.
+    Cancel cannot stop `evaluate()` mid-problem, so the process may take up to
+    one problem to exit. Returns 404 when no live runner exists for the id.
+    """
+    if not cancel_benchmark_run(run_id):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "code": "Sidecar.BenchmarkRunNotFound",
+                "description": f"No live runner found for benchmark run '{run_id}'.",
+            },
+        )
+    return {"run_id": run_id, "state": "cancelled"}
+
+
+@app.get("/internal/benchmarks/{run_id}/log")
+async def get_llm_benchmark_log(run_id: str):
+    """Return the scrubbed, capped runner log for a benchmark run.
+
+    The log holds the runner's stdout and stderr. The judge API key is removed
+    before the text leaves the sidecar. Returns 404 when no log exists.
+    """
+    log = read_run_log(run_id)
+    if log is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "code": "Sidecar.BenchmarkLogNotFound",
+                "description": f"No log found for benchmark run '{run_id}'.",
+            },
+        )
+    return {"run_id": run_id, "log": log}
+
+
+@app.get("/internal/benchmarks/{run_id}/status")
+async def get_llm_benchmark_status(run_id: str):
+    """Return the runner status document for a started benchmark run.
+
+    The document carries state (running/completed/failed), the current stage,
+    overall_score, per-task scores, and the error text on failure. Returns
+    404 for unknown run ids."""
+    status = get_benchmark_run_status(run_id)
+    if status is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "code": "Sidecar.BenchmarkRunNotFound",
+                "description": f"No status found for benchmark run '{run_id}'.",
+            },
+        )
+    return status
+
+
+@app.get("/internal/benchmarks/slot")
+async def get_benchmark_slot() -> dict:
+    """Return the current runner slot state (HD-9, Admin surface).
+
+    `slot_held` mirrors `_slot_held()`. `run_id` is the run whose status file
+    holds the slot, or null when free. `engine_version` reports the installed
+    deepeval version for status display.
+    """
+    return get_benchmark_slot_state()
+
+
+@app.delete("/internal/benchmarks/slot")
+async def clear_benchmark_slot() -> dict:
+    """Clear the persisted runner slot marker (HD-9 recovery action).
+
+    Deletes `last_status_path.txt` so the next start is accepted. Safe no-op
+    when the slot is already free. Returns the post-clear slot state.
+    """
+    return clear_benchmark_slot_marker()
