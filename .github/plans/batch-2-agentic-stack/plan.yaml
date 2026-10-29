@@ -1,0 +1,28 @@
+branch: batch-2-agentic-stack
+created_at: 2026-05-19
+updated_at: 2026-05-19
+status: active
+goal: >
+  Deliver Batch 2 agentic stack improvements: lean METRICS, CIL protocol files,
+  plans/audits/research/reviews folder layout with archives, MCP plan tools,
+  prompt vagueness fixes, security research, autopilot locks, and stack hygiene.
+cil: medium
+css: 5
+dis: 6
+agents:
+  lead: ai-ops
+  supporting:
+    - researcher
+    - sec-ops
+    - dev-ops
+    - secretary
+    - lead-dev
+model_family: claude
+human_locks:
+  - merge of this batch
+  - any change to .gitignore
+  - approval of fetch/git MCP enablement strategy
+  - approval of the first branch convention (Dev Ops proposal)
+notes: >
+  See plan.md for the full work-stream breakdown and the Open Human Decisions
+  table. CSS/DIS/CIL are recorded here as internal routing signals only.

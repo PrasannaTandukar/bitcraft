@@ -1,0 +1,27 @@
+{
+  "servers": {
+    "bitcraft-mcp": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.conda/python.exe",
+      "args": [
+        "${workspaceFolder}/mcp-server/server.py"
+      ]
+    },
+    "fetch": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.conda/Scripts/uvx.exe",
+      "args": [
+        "mcp-server-fetch"
+      ]
+    },
+    "git": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.conda/Scripts/uvx.exe",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "${workspaceFolder}"
+      ]
+    }
+  }
+}

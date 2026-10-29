@@ -51,6 +51,9 @@ __pycache__/
 .venv/
 venv/
 .env.*
+# Keep tracked *.example template files (D40/D41) — the .env.* glob above
+# would otherwise ignore them, hiding the documented config surface.
+!.env.*.example
 
 # =========================
 # Node / React app

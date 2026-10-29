@@ -24,6 +24,10 @@ obj/
 # Logs
 *.log
 
+# Python
+__pycache__/
+*.py[cod]
+
 # =========================
 # Node / React
 # =========================
@@ -32,6 +36,12 @@ dist/
 build/
 .next/
 out/
+
+# =========================
+# Python
+# =========================
+
+*.pyc
 
 # Package managers
 npm-debug.log*
@@ -43,6 +53,7 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+.conda/
 
 # =========================
 # OS files
@@ -54,5 +65,27 @@ Thumbs.db
 # Misc
 # =========================
 coverage/
-.vscode/
+.vscode/*
+!.vscode/mcp.json
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
 .vs/
+
+# =========================
+# GitHub / Copilot / Agentic AI
+# =========================
+# Keep repository-level Copilot customizations versioned under .github/.
+# - .github/copilot-instructions.md, instructions/, prompts/, agents/, skills/, inboxes/, agentic-ai/, mcp/ are intentionally tracked.
+# - AGENTS.md at the repository root and nested AGENTS.md files (e.g. tutor-studio/AGENTS.md) are intentionally tracked for third-party coding agent compatibility (agents.md standard).
+# Agent-private memory (/memories/, /memories/session/, /memories/repo/) lives in the user profile and is never inside this repo; no entry needed here.
+# Agent scratch artifacts that must never be committed:
+*.session.md
+*.draft.md
+*.transcript.md
+.github\inboxes\*
+
+# Developer-local documentation stacks; humans/developers populate these locally.
+docs/dev/
+

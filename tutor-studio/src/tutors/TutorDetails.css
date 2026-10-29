@@ -1,0 +1,94 @@
+.tutor-name-cell {
+  display: grid;
+  min-width: 220px;
+  max-width: 420px;
+  gap: 3px;
+}
+
+.tutor-back-button {
+  margin: -8px 0 12px -12px;
+}
+
+.tutor-detail-header {
+  margin-bottom: 24px;
+}
+
+.tutor-detail-title {
+  min-width: 0;
+  max-width: 760px;
+}
+
+.tutor-detail-title h2.ant-typography,
+.tutor-detail-title p.ant-typography,
+.tutor-panel-stack h4.ant-typography,
+.tutor-panel-stack p.ant-typography {
+  margin: 0;
+}
+
+.tutor-detail-title p.ant-typography {
+  margin: 6px 0 12px;
+}
+
+.tutor-tabs-card > .ant-card-body {
+  padding-inline: 24px;
+}
+
+.tutor-tabs-card .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+
+.tutor-panel-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.tutor-panel-stack .ant-card {
+  height: 100%;
+}
+
+.tutor-resource-list {
+  overflow: hidden;
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: 8px;
+}
+
+.tutor-resource-row {
+  padding: 12px;
+  border-bottom: 1px solid var(--bitcraft-color-border-secondary);
+}
+
+.tutor-resource-row:last-child {
+  border-bottom: 0;
+}
+
+.tutor-resource-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.tutor-check-complete,
+.tutor-check-pending {
+  margin-top: 4px;
+  color: #12b76a;
+  font-size: 18px;
+}
+
+.tutor-check-pending {
+  color: #98a2b3;
+}
+
+.prompt-content-view {
+  max-height: 520px;
+}
+
+@media (max-width: 767px) {
+  .tutor-tabs-card > .ant-card-body {
+    padding-inline: 16px;
+  }
+
+  .tutor-tabs-card .ant-tabs-tab {
+    padding-inline: 4px;
+  }
+}

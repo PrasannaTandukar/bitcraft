@@ -1,0 +1,129 @@
+.benchmark-workspace-card > .ant-card-body {
+  padding-inline: 24px;
+}
+
+.benchmark-workspace-card .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+
+.benchmark-wizard,
+.benchmark-panel-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.benchmark-wizard > .ant-steps {
+  margin-bottom: 4px;
+  padding: 8px 0 16px;
+}
+
+.benchmark-selection-summary,
+.benchmark-metric-list {
+  margin-top: 16px;
+}
+
+.benchmark-metric-list {
+  overflow: hidden;
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: 8px;
+}
+
+.benchmark-metric-summary {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--bitcraft-color-border-secondary);
+}
+
+.benchmark-metric-summary:last-child {
+  border-bottom: 0;
+}
+
+.benchmark-template-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.benchmark-template-option {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--bitcraft-color-border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.benchmark-template-option:hover,
+.benchmark-template-option.selected {
+  border-color: var(--bitcraft-color-primary);
+  background: #f7f7ff;
+}
+
+.benchmark-template-copy,
+.benchmark-template-name {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.benchmark-case-card .ant-form-item:last-child {
+  margin-bottom: 0;
+}
+
+.benchmark-tutor-filter {
+  width: min(100%, 420px);
+  margin-bottom: 0;
+}
+
+.benchmark-failure-cell {
+  display: block;
+  max-width: 220px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.benchmark-case-label {
+  max-width: 520px;
+}
+
+.benchmark-prewrap {
+  margin: 0 !important;
+  white-space: pre-wrap;
+}
+
+.benchmark-run-advanced {
+  margin-top: 12px;
+}
+
+.benchmark-metric-control {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) 120px minmax(240px, 1.4fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--bitcraft-color-border-secondary);
+  border-radius: 8px;
+}
+
+@media (max-width: 767px) {
+  .benchmark-workspace-card > .ant-card-body {
+    padding-inline: 16px;
+  }
+
+  .benchmark-template-options {
+    grid-template-columns: 1fr;
+  }
+
+  .benchmark-metric-control {
+    grid-template-columns: 1fr 120px;
+  }
+
+  .benchmark-metric-control > .ant-typography {
+    grid-column: 1 / -1;
+  }
+}

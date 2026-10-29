@@ -1,4 +1,4 @@
-using Bitcraft.Domain.Knowledge;
+using Bitcraft.Domain.Documents;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +8,7 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
 {
     public void Configure(EntityTypeBuilder<Document> entity)
     {
-        entity.HasKey(x => x.Id);
+        entity.ConfigureBaseModel();
 
         entity.Property(x => x.Name)
             .IsRequired()
@@ -17,14 +17,17 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
         entity.Property(x => x.SourcePath)
             .HasMaxLength(500);
 
-        entity.Property(x => x.CreatedAtUtc)
-            .IsRequired();
+        entity.Property(x => x.MimeType)
+            .HasMaxLength(200);
 
-        entity.HasMany(x => x.Chunks)
-            .WithOne(x => x.Document)
-            .HasForeignKey(x => x.DocumentId)
-            .OnDelete(DeleteBehavior.Cascade);
+        entity.Property(x => x.RawText);
+
+        entity.HasOne(x => x.Folder)
+            .WithMany()
+            .HasForeignKey(x => x.FolderId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasIndex(x => x.Name);
+        entity.HasIndex(x => x.FolderId);
     }
 }

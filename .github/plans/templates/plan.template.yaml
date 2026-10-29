@@ -1,0 +1,16 @@
+﻿# plan.yaml — Bitcraft per-task lean configuration
+# Human-modifiable. Agents respect human-set values unless asked to revise.
+branch: <branch-slug>
+created_at: YYYY-MM-DD
+updated_at: YYYY-MM-DD
+status: active # active | blocked | complete
+goal: <one concise sentence>
+cil: medium # low | medium | high | critical (see .github/config/cil-<level>.yaml)
+css: 0 # 0-10
+dis: 0 # 0-10
+agents:
+  lead: lead-dev
+  supporting: []
+model_family: claude # claude | gpt | gemini | ollama
+human_locks: [] # actions that must wait for human input even in autopilot mode
+notes: ""

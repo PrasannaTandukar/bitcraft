@@ -1,0 +1,61 @@
+# CIL Critical — irreversible, production-affecting, or security-boundary changes.
+level: critical
+description: >
+  Destructive data operations, credential or security-boundary changes,
+  irreversible migrations, broad architecture changes, or production
+  deployment workflow modifications.
+
+agents_required:
+  - primary specialist
+  - lead-dev
+  - sec-ops
+  - dev-ops when infrastructure or deployment is touched
+
+research_required:
+  - repository evidence for all affected layers
+  - official documentation for any new platform/security pattern
+  - prior audits, incidents, and inbox items related to the surface
+  - explicit human approval of approach before implementation
+
+tools_allowed:
+  - read
+  - search
+  - edit (only after human pre-approval)
+  - execute (only for validation, never destructive)
+
+context_sources:
+  - all impacted files plus consumers
+  - all relevant audits and incident records
+  - relevant governance docs
+  - active plan.yaml and plan.md
+  - all related inbox items
+
+development_order:
+  - HALT until human pre-approves the plan
+  - implement in the smallest possible validated slices
+  - run full relevant test suite after each slice
+  - request human review at each natural checkpoint
+
+validation_required:
+  - full build and test on impacted layers
+  - integration test on cross-cutting paths
+  - security audit for security-boundary changes
+  - architecture verification when domain rules are touched
+
+review_required:
+  - lead-dev
+  - sec-ops (mandatory)
+  - dev-ops when infrastructure is touched
+  - human final approval before merge or deployment
+
+human_escalation:
+  required: true
+  conditions:
+    - mandatory before any implementation begins
+    - at each implementation checkpoint
+    - before merge
+    - before any deployment-adjacent action
+
+notes: >
+  Default posture is STOP and ask. Do not infer authority from absent objections.
+  Autopilot mode must NOT execute Critical work without explicit per-step human approval.

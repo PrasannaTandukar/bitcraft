@@ -1,0 +1,6 @@
+﻿extends: existence
+message: "AI-generated reports under docs/ or .github/governance/ should start with a provenance blockquote. See .github/governance/PROVENANCE.md."
+level: suggestion
+scope: raw
+raw:
+  - '\A(?:---\r?\n[\s\S]*?\r?\n---\r?\n)?(?:#[^\n]*\r?\n)?(?!>\s*Origin:)'

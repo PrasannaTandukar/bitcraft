@@ -1,0 +1,78 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build",
+			"command": "dotnet",
+			"type": "process",
+			"args": [
+				"build",
+				"${workspaceFolder}/bitcraft.slnx",
+				"/property:GenerateFullPaths=true",
+				"/consoleloggerparameters:NoSummary;ForceNoAlign"
+			],
+			"problemMatcher": "$msCompile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "run-api",
+			"command": "dotnet",
+			"type": "process",
+			"args": [
+				"run",
+				"--project",
+				"${workspaceFolder}/src/Bitcraft.Api/Bitcraft.Api.csproj"
+			],
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "ef-add-migration",
+			"command": "dotnet",
+			"type": "process",
+			"args": [
+				"ef",
+				"migrations",
+				"add",
+				"${input:migrationName}",
+				"--project",
+				"${workspaceFolder}/src/Bitcraft.Infrastructure",
+				"--startup-project",
+				"${workspaceFolder}/src/Bitcraft.Api"
+			],
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "ef-update-database",
+			"command": "dotnet",
+			"type": "process",
+			"args": [
+				"ef",
+				"database",
+				"update",
+				"--project",
+				"${workspaceFolder}/src/Bitcraft.Infrastructure",
+				"--startup-project",
+				"${workspaceFolder}/src/Bitcraft.Api"
+			],
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "test",
+			"type": "shell",
+			"command": "dotnet test tests/Bitcraft.UnitTests/Bitcraft.UnitTests.csproj",
+			"isBackground": false,
+			"group": "test"
+		}
+	],
+	"inputs": [
+		{
+			"id": "migrationName",
+			"description": "Migration name",
+			"default": "NewMigration",
+			"type": "promptString"
+		}
+	]
+}

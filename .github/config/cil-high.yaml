@@ -1,0 +1,54 @@
+# CIL High — high-blast-radius or security-adjacent changes.
+level: high
+description: >
+  Authentication, authorization, privacy, data migration, cross-module
+  contract changes, deployment workflow, or repository-wide convention shifts.
+
+agents_required:
+  - primary specialist
+  - lead-dev
+  - sec-ops or dev-ops or ai-ops based on domain (mandatory specialist review)
+
+research_required:
+  - repository evidence for all affected layers
+  - relevant official documentation when introducing a new pattern
+  - prior audits and inbox items related to the surface
+
+tools_allowed:
+  - read
+  - search
+  - edit
+  - todo
+  - execute (only for validation; never for destructive operations)
+
+context_sources:
+  - all impacted files plus consumers
+  - relevant audits under .github/audits/
+  - relevant governance docs
+  - active plan.yaml and plan.md
+
+development_order:
+  - human review of plan.yaml before implementation starts
+  - implement in small validated slices
+  - run focused tests after each slice
+  - run broader test suite before review handoff
+
+validation_required:
+  - focused build and test on touched layers
+  - integration test on cross-cutting paths
+  - security or architecture spot check matching the surface
+  - markdown lint and vale on touched markdown
+
+review_required:
+  - lead-dev
+  - mandatory specialist (sec-ops / dev-ops / ai-ops)
+
+human_escalation:
+  required: true
+  conditions:
+    - before merge
+    - when scope expands during implementation
+    - when validation surfaces unexpected risk
+
+notes: >
+  Slow down. Validate often. Stop and ask if anything looks ambiguous.

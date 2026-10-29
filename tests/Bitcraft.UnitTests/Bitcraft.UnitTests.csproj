@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
@@ -21,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bitcraft.Application\Bitcraft.Application.csproj" />
     <ProjectReference Include="..\..\src\Bitcraft.Domain\Bitcraft.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Bitcraft.Infrastructure\Bitcraft.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Bitcraft.Api\Bitcraft.Api.csproj" />
   </ItemGroup>
 
 </Project>
