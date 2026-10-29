@@ -2,8 +2,8 @@
 branch: bugfix-benchmark-fixes
 created_at: 2026-10-29
 updated_at: 2026-10-29
-status: active
-revision: v2.0
+status: complete
+revision: v2.1
 goal: >
   Deliver fully functional benchmarking: fix the runner reliability defects so
   built-in suites and the arduino custom benchmark run end to end, finish the
@@ -36,6 +36,17 @@ human_locks:
   - HD-8 Queue pause shape. Proposed: one global Admin pause toggle on the worker dequeue loop; a running run finishes. Blocks WS3.
   - HD-9 Sidecar control surface. Proposed: engine status endpoint + clear-slot action (Admin); read-only status visible to Auditor+. Blocks WS2.
 notes: >
+  v2.1 (2026-10-29): DEVELOPMENT COMPLETE. All work streams executed and
+  committed on bugfix/benchmark-fixes (human authorized step commits):
+  532f750 (WS1 sidecar), 8fddad6 (WS1 backend + WS2), 39687e0 (WS3 backend),
+  818f9b8 (WS3 frontend), 444a5ae (WS4). Final validation: build 0 errors;
+  586 unit tests green; 97 api-integration green (6 env-gated skips);
+  37 infra-integration green; sidecar 27 passed with 3 failures verified
+  pre-existing on the branch base (deepeval-gated, pass in container);
+  sidecar/tests 23 passed 1 skipped; npm build and lint clean. HD-4/HD-8/HD-9
+  approved by human 2026-10-29 and implemented as proposed. G15 (arduino
+  tuple task_scores) fixed. Working tree left with only the human's staged
+  docker-compose port change and untracked inboxes (ignored files).
   History: plan v1.0-v1.3 lived under feature-benchmark-run-queue (files were
   committed on feature/arduino-benchmark as b211e85; restored untracked
   2026-10-29). The human created bugfix/benchmark-fixes as the delivery branch;

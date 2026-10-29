@@ -261,6 +261,57 @@ validation results recorded.
 
 ## Status
 
+### WS4 — DONE (2026-10-29)
+
+Steps 1-4 complete. Log auto-refresh toggle (3 s, active-run gated),
+progress "updated Ns ago" stamp driven by the poll cycle (react-compiler
+compliant), `docs/benchmark-run-queue.md` created with role/action matrix,
+pause semantics, sidecar surface, archive behavior, G10 note, and the
+interim manual unblock command. Plan docs committed with the slice.
+
+### Final Validation (2026-10-29, HEAD 444a5ae)
+
+- `dotnet build bitcraft.slnx` — Build succeeded, 0 errors.
+- `dotnet test` UnitTests — 586 passed, 0 failed (baseline 571; +15 new).
+- `dotnet test` ApiIntegrationTests — 97 passed, 6 skipped, 0 failed
+  (skips are environment-gated, pre-existing; +4 new policy tests net).
+- `dotnet test` InfrastructureIntegrationTests — 37 passed, 0 failed.
+- `pytest tests/Bitcraft.SidecarIntegration/test_sidecar_api.py` — 27
+  passed, 3 failed: the 3 failures reproduce identically on the pre-branch
+  base (verified: 20 passed / 3 failed on 8cae69f); they require `deepeval`
+  installed and pass in the container. All 7 new tests pass.
+- `pytest sidecar/tests` — 23 passed, 1 skipped (importorskip guard,
+  formerly a collection error).
+- `npm run build` in `tutor-studio/` — exit 0.
+- `npm run lint` in `tutor-studio/` — exit 0, no problems.
+
+### WS3 — DONE (2026-10-29)
+
+Backend steps 1-4: `IsArchived`/`ArchivedUtc` fields with migration
+`StandardBenchmarkRunArchive`, `BenchmarkQueueState` singleton row with
+runtime `GetOrCreateAsync` seeding (no HasData; BaseModel's private Id
+setter blocks fixed-key seed rows), archive/unarchive commands
+(non-Running rows only), `SetBenchmarkQueuePausedCommand`, paused-aware
+worker, `includeArchived` list parameter, controller endpoints
+(archive/unarchive/queue-paused + read), contract records and mapping.
+Frontend steps 5-7: `BenchmarkQueuePanel.jsx` (queue tab with position,
+per-row actions, inline priority, pause button, engine status card with
+clear-slot), run-page archive action, history archived-visibility toggle,
+API client functions. One JSX bug (missing attribute-closing brace) was
+caught by the build and fixed; duplicate `size` prop removed.
+
+### WS2 — DONE (2026-10-29)
+
+Steps 1-5 complete: sidecar `GET/DELETE /internal/benchmarks/slot`
+endpoints with hermetic tests; `IBenchmarkEngine.GetSidecarStatusAsync` +
+`ClearSidecarSlotAsync`; `DeepEvalBenchmarkEngine` implementation with
+`Sidecar.Unreachable` mapping (TutoringMapping extended to 502 for
+`Benchmark.SidecarException`/`Sidecar.Unreachable`); Application
+`GetBenchmarkEngineStatusQuery` (Auditor+) and
+`ClearBenchmarkEngineSlotCommand` (Admin); API `GET engine` (Auditor+) and
+`POST engine/clear-slot` (Admin) with Swagger metadata and contracts;
+fake engine updated; unit + policy integration tests added.
+
 ### WS1 — DONE (2026-10-29)
 
 Executed by Lead Dev under `bitcraft-develop`. Steps 1-9 complete.
