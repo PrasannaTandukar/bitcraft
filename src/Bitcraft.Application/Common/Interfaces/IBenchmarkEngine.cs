@@ -20,4 +20,16 @@ public interface IBenchmarkEngine
 
     /// <summary>Reads the scrubbed, capped runner log for a standardized benchmark run.</summary>
     Task<Result<string?>> GetStandardLlmBenchmarkLogAsync(StandardBenchmarkHandle handle, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads the sidecar health and runner slot state for the Admin status surface (HD-9).
+    /// Never throws: an unreachable sidecar is reported through the result.
+    /// </summary>
+    Task<Result<SidecarEngineStatus>> GetSidecarStatusAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears the sidecar's persisted runner slot marker (HD-9 recovery action).
+    /// Safe when the slot is already free.
+    /// </summary>
+    Task<Result<bool>> ClearSidecarSlotAsync(CancellationToken cancellationToken = default);
 }

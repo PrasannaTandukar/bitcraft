@@ -310,12 +310,52 @@ public static class StandardBenchmarkFeatures
 
             if (string.IsNullOrWhiteSpace(run.EngineRunId))
             {
-                return Result.Success<string?>(null);
+                // G9 fix: a run that failed before the sidecar spawned a runner
+                // has no engine log. Synthesize a diagnostic block from the
+                // stored failure fields so the log panel always shows why the
+                // run died instead of an empty 404.
+                return Result.Success<string?>(SynthesizeStartupLog(run));
             }
 
             return await benchmarkEngine.GetStandardLlmBenchmarkLogAsync(
                 new StandardBenchmarkHandle(run.EngineRunId),
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Builds a diagnostic log block for a run that never reached the runner
+        /// (G9). Mirrors the runner log's plain-text format.
+        /// </summary>
+        private static string? SynthesizeStartupLog(StandardBenchmarkRun run)
+        {
+            if (run.Status is not (BenchmarkRunStatus.Failed or BenchmarkRunStatus.Cancelled))
+            {
+                return null;
+            }
+
+            var lines = new List<string>
+            {
+                "[diagnostics] No runner log exists for this run.",
+                $"[diagnostics] The sidecar never started a runner process (no engine run id).",
+                $"[diagnostics] Queued at: {run.QueuedUtc:yyyy-MM-dd HH:mm:ss} UTC",
+            };
+            if (run.StartedUtc is { } started)
+            {
+                lines.Add($"[diagnostics] Worker pickup at: {started:yyyy-MM-dd HH:mm:ss} UTC");
+            }
+            if (!string.IsNullOrWhiteSpace(run.FailureCode))
+            {
+                lines.Add($"[diagnostics] Failure code: {run.FailureCode}");
+            }
+            if (!string.IsNullOrWhiteSpace(run.FailureDescription))
+            {
+                lines.Add($"[diagnostics] Failure detail: {run.FailureDescription}");
+            }
+            if (run.Status == BenchmarkRunStatus.Cancelled)
+            {
+                lines.Add($"[diagnostics] The run was cancelled before the engine reported a log.");
+            }
+            return string.Join(Environment.NewLine, lines);
         }
     }
 
@@ -388,6 +428,27 @@ public static class StandardBenchmarkFeatures
             var started = await benchmarkEngine.StartStandardLlmBenchmarkAsync(engineRequest, cancellationToken);
             if (started.IsFailure)
             {
+                // G8 fix: a busy sidecar (409 SidecarBusy) must not fail the run.
+                // Leave the run queued and let the worker pick it up again on the
+                // next wake-up. Only a run that waited longer than the standard
+                // timeout budget fails with StandardBenchmark.QueueTimeout.
+                if (string.Equals(started.Error.Code, "StandardBenchmark.SidecarBusy", StringComparison.Ordinal))
+                {
+                    var waited = timeProvider.GetUtcNow().UtcDateTime - run.QueuedUtc;
+                    if (waited <= TimeSpan.FromSeconds(processingOptions.Value.StandardTimeoutSeconds))
+                    {
+                        run.Status = BenchmarkRunStatus.Queued;
+                        run.StartedUtc = null;
+                        run.EngineRunId = null;
+                        run.ProgressStage = "waiting-for-engine";
+                        run.LastProgressUtc = timeProvider.GetUtcNow().UtcDateTime;
+                        await runRepository.UpdateAsync(run, cancellationToken);
+                        return Result.Success(true);
+                    }
+
+                    return await MarkFailedAsync(run, runRepository, "StandardBenchmark.QueueTimeout", $"The run waited longer than {processingOptions.Value.StandardTimeoutSeconds} seconds for the benchmark sidecar to become free.");
+                }
+
                 return await MarkFailedAsync(run, runRepository, started.Error.Code, started.Error.Description);
             }
 
@@ -584,6 +645,42 @@ public static class StandardBenchmarkFeatures
             {
                 return null;
             }
+        }
+    }
+
+    // ----- Engine status and recovery (HD-9) -----
+
+    /// <summary>
+    /// Sidecar health and runner slot state for the Admin control surface.
+    /// Readable by Auditor and above; the recovery action is separate.
+    /// </summary>
+    public sealed record GetBenchmarkEngineStatusQuery : IRequest<Result<SidecarEngineStatus>>;
+
+    public sealed class GetBenchmarkEngineStatusHandler(
+        IBenchmarkEngine benchmarkEngine) : IRequestHandler<GetBenchmarkEngineStatusQuery, Result<SidecarEngineStatus>>
+    {
+        public async Task<Result<SidecarEngineStatus>> Handle(GetBenchmarkEngineStatusQuery request, CancellationToken cancellationToken) =>
+            await benchmarkEngine.GetSidecarStatusAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Clears the sidecar's persisted runner slot marker (HD-9 recovery).
+    /// Admin only: the action unblocks the queue when a dead runner holds the slot.
+    /// </summary>
+    public sealed record ClearBenchmarkEngineSlotCommand : IRequest<Result<bool>>;
+
+    public sealed class ClearBenchmarkEngineSlotHandler(
+        IBenchmarkEngine benchmarkEngine,
+        ICurrentUserContext currentUser) : IRequestHandler<ClearBenchmarkEngineSlotCommand, Result<bool>>
+    {
+        public async Task<Result<bool>> Handle(ClearBenchmarkEngineSlotCommand request, CancellationToken cancellationToken)
+        {
+            if (!currentUser.IsInRole(AppRoles.Admin))
+            {
+                return Result.Failure<bool>(new Error("StandardBenchmark.Forbidden", "Only administrators can clear the benchmark sidecar slot."));
+            }
+
+            return await benchmarkEngine.ClearSidecarSlotAsync(cancellationToken);
         }
     }
 

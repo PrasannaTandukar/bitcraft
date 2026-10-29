@@ -154,6 +154,26 @@ internal sealed class FakeBenchmarkEngine : IBenchmarkEngine
     {
         return Task.FromResult(Result.Success<string?>(LogToReturn));
     }
+
+    public SidecarEngineStatus? StatusToReturn { get; set; }
+
+    public Result<bool>? ClearSlotResultToReturn { get; set; }
+
+    public Task<Result<SidecarEngineStatus>> GetSidecarStatusAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Result.Success(StatusToReturn ?? new SidecarEngineStatus(
+            IsReachable: true,
+            Transport: "uds",
+            SlotHeld: false,
+            CurrentRunId: null,
+            EngineVersion: "deepeval-fake",
+            LastError: null)));
+    }
+
+    public Task<Result<bool>> ClearSidecarSlotAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ClearSlotResultToReturn ?? Result.Success(true));
+    }
 }
 
 internal sealed class FakeTutorBenchmarkOutputGenerator : ITutorBenchmarkOutputGenerator

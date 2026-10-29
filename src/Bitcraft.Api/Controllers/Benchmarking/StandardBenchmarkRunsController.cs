@@ -178,6 +178,36 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
             : TutoringMapping.ToActionResult(result.Error);
     }
 
+    /// <summary>Returns the benchmark sidecar health and runner slot state.</summary>
+    /// <remarks>Readable by Auditor and above. Reports reachability, transport, slot state, and engine version.</remarks>
+    [HttpGet("engine")]
+    [ProducesResponseType(typeof(BenchmarkEngineStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<BenchmarkEngineStatusResponse>> GetEngineStatus(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.GetBenchmarkEngineStatusQuery(), cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Value.ToResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Clears a stuck benchmark sidecar runner slot.</summary>
+    /// <remarks>Requires the Admin role. Recovery action for a slot held by a dead runner. Safe when the slot is free.</remarks>
+    [HttpPost("engine/clear-slot")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    [ProducesResponseType(typeof(BenchmarkEngineSlotClearedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status502BadGateway)]
+    public async Task<ActionResult<BenchmarkEngineSlotClearedResponse>> ClearEngineSlot(CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotCommand(), cancellationToken);
+        return result.IsSuccess
+            ? Ok(new BenchmarkEngineSlotClearedResponse(result.Value))
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
     /// <summary>Returns the scrubbed runner log for a standardized benchmark run.</summary>
     [HttpGet("{runId:guid}/log")]
     [ProducesResponseType(typeof(StandardBenchmarkRunLogResponse), StatusCodes.Status200OK)]
@@ -192,11 +222,9 @@ public class StandardBenchmarkRunsController(ISender sender) : ControllerBase
             return TutoringMapping.ToActionResult(run.Error);
         }
 
-        if (string.IsNullOrWhiteSpace(run.Value.EngineRunId))
-        {
-            return NotFound(new ApiError("StandardBenchmark.LogUnavailable", "This run has no runner log."));
-        }
-
+        // G9: the handler synthesizes a diagnostic block for runs that failed
+        // before a runner existed (no EngineRunId). Only return 404 when the
+        // handler itself reports the run unknown.
         var log = await sender.Send(new StandardBenchmarkFeatures.GetStandardBenchmarkRunLogQuery(runId), cancellationToken);
         return log.IsSuccess
             ? Ok(new StandardBenchmarkRunLogResponse(runId, log.Value ?? string.Empty))

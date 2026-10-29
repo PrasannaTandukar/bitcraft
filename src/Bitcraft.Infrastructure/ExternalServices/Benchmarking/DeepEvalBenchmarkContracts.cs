@@ -95,6 +95,13 @@ internal sealed record SidecarStandardBenchmarkStatusResponse(
     [property: JsonPropertyName("error")] string? Error,
     [property: JsonPropertyName("updated_utc")] string? UpdatedUtc);
 
+// ----- Sidecar slot state (HD-9 Admin surface) -----
+
+internal sealed record SidecarSlotStateResponse(
+    [property: JsonPropertyName("slot_held")] bool SlotHeld,
+    [property: JsonPropertyName("run_id")] string? RunId,
+    [property: JsonPropertyName("engine_version")] string EngineVersion);
+
 [JsonSerializable(typeof(SidecarEnvelope))]
 [JsonSerializable(typeof(SidecarResponse))]
 [JsonSerializable(typeof(SidecarError))]
@@ -102,6 +109,7 @@ internal sealed record SidecarStandardBenchmarkStatusResponse(
 [JsonSerializable(typeof(SidecarStandardBenchmarkStartResponse))]
 [JsonSerializable(typeof(SidecarStandardBenchmarkStatusResponse))]
 [JsonSerializable(typeof(SidecarStandardBenchmarkLogResponse))]
+[JsonSerializable(typeof(SidecarSlotStateResponse))]
 internal partial class DeepEvalBenchmarkJsonContext : JsonSerializerContext
 {
 }
