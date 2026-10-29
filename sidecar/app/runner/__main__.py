@@ -97,19 +97,40 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    write_status(
-        status_path,
-        {
-            **base_status("completed", None),
-            "overall_score": result.overall_score,
-            "task_scores": result.task_scores,
-            "task_count": result.task_count,
-            "completed_tasks": result.completed_tasks,
-            "total_tasks": result.total_tasks,
-            "engine_version": result.engine_version,
-            "notes": result.notes,
-        },
+    # G10 fix: task_scores are pydantic models. Serialize them to plain dicts
+    # so stdlib json.dump cannot fail on the terminal write. The default=
+    # handler in write_status is the second line of defense.
+    task_scores_json = (
+        [score.model_dump() for score in result.task_scores]
+        if result.task_scores
+        else None
     )
+    try:
+        write_status(
+            status_path,
+            {
+                **base_status("completed", None),
+                "overall_score": result.overall_score,
+                "task_scores": task_scores_json,
+                "task_count": result.task_count,
+                "completed_tasks": result.completed_tasks,
+                "total_tasks": result.total_tasks,
+                "engine_version": result.engine_version,
+                "notes": result.notes,
+            },
+        )
+    except Exception as error:  # noqa: BLE001 - the status must always settle.
+        # Last resort: a terminal-write crash must never leave the status in
+        # `running`, because that state holds the single runner slot forever.
+        write_status(
+            status_path,
+            {
+                **base_status("failed", None),
+                "engine_version": result.engine_version,
+                "error": f"Runner failed to write the completed status: {error}",
+            },
+        )
+        return 1
     return 0
 
 

@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import uuid
+from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -500,6 +501,123 @@ def get_benchmark_run_status(run_id: str) -> dict | None:
     return read_status(status_path)
 
 
+# Non-terminal states a status file can be left in when its runner died
+# without a terminal write. The startup sweep rewrites these as failed.
+_NON_TERMINAL_STATES = ("running", "starting")
+
+# A non-terminal status younger than this is left alone on sweep: its runner
+# may still be alive when the sidecar restarts (for example a container
+# restart during a long run keeps the subprocess alive until the socket
+# closes). Older statuses cannot have a live runner on a fresh boot.
+_SWEEP_MIN_AGE_SECONDS = int(os.getenv("BENCHMARK_STALE_AFTER_SECONDS", "300"))
+
+
+def sweep_stale_runs_on_startup() -> list[str]:
+    """Mark stale non-terminal run statuses failed and free the slot (G1 fix).
+
+    Called once on sidecar startup. A status file in a non-terminal state whose
+    `updated_utc` is older than `BENCHMARK_STALE_AFTER_SECONDS` (default 300)
+    is rewritten as `failed` with a `stale-runner` note. When the persisted
+    slot marker points at a swept file, the marker is deleted so the next run
+    can start. Returns the swept run ids. Errors are logged and skipped: the
+    sweep must never block sidecar startup.
+    """
+    swept: list[str] = []
+    global _last_status_path
+    now = time.time()
+    try:
+        status_files = sorted(_RUNS_DIR.glob("*.json"))
+    except OSError:
+        return swept
+
+    for status_file in status_files:
+        status = read_status(status_file)
+        if status is None or status.get("state") not in _NON_TERMINAL_STATES:
+            continue
+        updated = status.get("updated_utc")
+        try:
+            updated_epoch = (
+                datetime.fromisoformat(updated).timestamp() if updated else 0.0
+            )
+        except (TypeError, ValueError):
+            updated_epoch = 0.0
+        if updated_epoch and (now - updated_epoch) < _SWEEP_MIN_AGE_SECONDS:
+            continue
+
+        run_id = status_file.stem
+        try:
+            write_status(
+                status_file,
+                {
+                    **base_status("failed", None),
+                    "notes": "stale-runner: no live runner at sidecar startup.",
+                },
+            )
+        except OSError as error:
+            logger.warning("Startup sweep could not rewrite %s: %s", status_file, error)
+            continue
+        swept.append(run_id)
+
+    if _last_status_path:
+        swept_names = {f"{run_id}.json" for run_id in swept}
+        if Path(_last_status_path).name in swept_names:
+            _clear_slot_marker()
+            _last_status_path = None
+    elif swept:
+        # In-process slot reference not loaded yet; the marker file decides.
+        marker = _load_last_status_path()
+        if marker and Path(marker).name in {f"{r}.json" for r in swept}:
+            _clear_slot_marker()
+    return swept
+
+
+def _clear_slot_marker() -> None:
+    """Delete the persisted slot marker. Safe when absent (G1/HD-9 helper)."""
+    try:
+        _SLOT_FILE.unlink()
+    except OSError:
+        pass
+
+
+def get_benchmark_slot_state() -> dict:
+    """Return the current runner slot state for the Admin status surface (HD-9).
+
+    `slot_held` mirrors `_slot_held()`. `run_id` names the run holding the
+    slot, or null when free. Never raises: a missing or unreadable slot file
+    reports a free slot.
+    """
+    global _last_status_path
+    if _last_status_path is None:
+        _last_status_path = _load_last_status_path()
+    run_id: str | None = None
+    if _last_status_path:
+        run_id = Path(_last_status_path).stem
+        if read_status(Path(_last_status_path)) is None:
+            run_id = None
+    return {
+        "slot_held": _slot_held(),
+        "run_id": run_id if _slot_held() else None,
+        "engine_version": _resolve_engine_version(),
+    }
+
+
+def clear_benchmark_slot_marker() -> dict:
+    """Delete the persisted slot marker and report the post-clear state (HD-9).
+
+    A safe recovery action for a slot poisoned by a dead runner: after the
+    clear, the next start request is accepted. Returns the state document so
+    the caller sees the result without a second call.
+    """
+    _clear_slot_marker()
+    global _last_status_path
+    _last_status_path = None
+    return {
+        "slot_held": False,
+        "run_id": None,
+        "engine_version": _resolve_engine_version(),
+    }
+
+
 def execute_benchmark(
     request: SidecarLlmBenchmarkRequest, stage_writer=None
 ) -> SidecarLlmBenchmarkResponse:
@@ -755,14 +873,24 @@ def _normalize_task_scores(raw) -> list[SidecarTaskScore] | None:
 
     deepeval 4.2.3 exposes `task_scores` as a pandas DataFrame with columns
     `Task` and `Score` on task-based benchmarks; single-dataset benchmarks
-    leave it unset. A dict-like mapping is also accepted for forward
-    compatibility. Returns None when the engine reported nothing usable.
+    leave it unset. A dict-like mapping is accepted for forward compatibility,
+    and a list of (name, score) tuples covers Bitcraft custom benchmarks
+    (G15). Returns None when the engine reported nothing usable.
     """
     if raw is None:
         return None
 
     pairs: list[tuple[object, object]] | None = None
-    if hasattr(raw, "iterrows"):
+    if (
+        isinstance(raw, (list, tuple))
+        and raw
+        and all(isinstance(entry, (list, tuple)) and len(entry) == 2 for entry in raw)
+    ):
+        # G15 fix: BitcraftCustomBenchmark.evaluate stores task_scores as a
+        # list of (name, score) tuples. Accept that shape so custom benchmark
+        # sub-scores reach the status document and the UI.
+        pairs = [tuple(entry) for entry in raw]
+    elif hasattr(raw, "iterrows"):
         # pandas DataFrame: rows of (Task, Score).
         try:
             pairs = [

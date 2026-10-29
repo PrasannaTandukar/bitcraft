@@ -552,6 +552,320 @@ public class StandardBenchmarkFeaturesTests
     }
 
     [Fact]
+    public async Task Process_WithSidecarBusy_LeavesRunQueuedForRetry()
+    {
+        // G8 fix: a 409 SidecarBusy start must not fail the run. The worker
+        // picks it up again on the next wake-up while it stays inside the
+        // standard timeout budget.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine
+        {
+            StartResultToReturn = Bitcraft.Application.Common.Models.Result.Failure<StandardBenchmarkHandle>(
+                new Error("StandardBenchmark.SidecarBusy", "The benchmark sidecar is already running a standardized benchmark."))
+        };
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "gsm8k",
+            NProblems = 5,
+            Status = BenchmarkRunStatus.Queued,
+            QueuedUtc = DateTime.UtcNow
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = ProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BenchmarkRunStatus.Queued, run.Status);
+        Assert.Equal("waiting-for-engine", run.ProgressStage);
+        Assert.Null(run.EngineRunId);
+        Assert.Null(run.FailureCode);
+    }
+
+    [Fact]
+    public async Task Process_WithSidecarBusyPastBudget_MarksQueueTimeout()
+    {
+        // G8 fix: a run that waited longer than StandardTimeoutSeconds for a
+        // free sidecar fails with StandardBenchmark.QueueTimeout.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var models = new FakeModelRepository();
+        var engine = new FakeBenchmarkEngine
+        {
+            StartResultToReturn = Bitcraft.Application.Common.Models.Result.Failure<StandardBenchmarkHandle>(
+                new Error("StandardBenchmark.SidecarBusy", "The benchmark sidecar is already running a standardized benchmark."))
+        };
+        var (model, _) = EnabledModel();
+        models.InteractionModels[model.Id] = model;
+        var run = new StandardBenchmarkRun
+        {
+            InteractionModelId = model.Id,
+            BenchmarkKey = "gsm8k",
+            NProblems = 5,
+            Status = BenchmarkRunStatus.Queued,
+            QueuedUtc = DateTime.UtcNow.AddDays(-2)
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = ProcessHandler(runs, models, engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ProcessQueuedStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(BenchmarkRunStatus.Failed, run.Status);
+        Assert.Equal("StandardBenchmark.QueueTimeout", run.FailureCode);
+    }
+
+    [Fact]
+    public async Task GetLog_ForFailedRunWithoutEngineRunId_ReturnsSynthesizedDiagnostics()
+    {
+        // G9 fix: a run that failed before the sidecar spawned a runner has no
+        // engine log. The handler must synthesize a diagnostic block from the
+        // stored failure fields instead of returning null.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Failed,
+            FailureCode = "StandardBenchmark.SidecarBusy",
+            FailureDescription = "The benchmark sidecar is already running a standardized benchmark.",
+            EngineRunId = null
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.GetStandardBenchmarkRunLogHandler(runs, engine, Auditor());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.GetStandardBenchmarkRunLogQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Contains("StandardBenchmark.SidecarBusy", result.Value);
+        Assert.Contains("No runner log exists", result.Value);
+    }
+
+    [Fact]
+    public async Task GetLog_ForCompletedRunWithoutEngineRunId_ReturnsNull()
+    {
+        // A completed run without an engine id is an oddity, not a failure:
+        // no diagnostic block is synthesized.
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var engine = new FakeBenchmarkEngine();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed,
+            EngineRunId = null
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.GetStandardBenchmarkRunLogHandler(runs, engine, Auditor());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.GetStandardBenchmarkRunLogQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value);
+    }
+
+    // ----- Engine status and recovery (HD-9) -----
+
+    [Fact]
+    public async Task GetEngineStatus_ForAnyAuthenticatedUser_ReturnsSidecarState()
+    {
+        // HD-9: the status surface is readable by Auditor and above. It reports
+        // the engine state without a role check in the handler (the controller
+        // owns the policy).
+        var engine = new FakeBenchmarkEngine
+        {
+            StatusToReturn = new SidecarEngineStatus(
+                IsReachable: true,
+                Transport: "uds",
+                SlotHeld: true,
+                CurrentRunId: "abc123",
+                EngineVersion: "4.2.3",
+                LastError: null)
+        };
+
+        var handler = new StandardBenchmarkFeatures.GetBenchmarkEngineStatusHandler(engine);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.GetBenchmarkEngineStatusQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.SlotHeld);
+        Assert.Equal("abc123", result.Value.CurrentRunId);
+        Assert.Equal("4.2.3", result.Value.EngineVersion);
+    }
+
+    [Fact]
+    public async Task ClearEngineSlot_AsAdmin_ReturnsSlotCleared()
+    {
+        var engine = new FakeBenchmarkEngine { ClearSlotResultToReturn = Bitcraft.Application.Common.Models.Result.Success(true) };
+
+        var handler = new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotHandler(engine, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value);
+    }
+
+    [Fact]
+    public async Task ClearEngineSlot_AsNonAdmin_ReturnsForbidden()
+    {
+        var engine = new FakeBenchmarkEngine();
+
+        var handler = new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotHandler(engine, NonAdmin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotCommand(), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ClearEngineSlot_WhenSidecarUnreachable_ReturnsFailure()
+    {
+        var engine = new FakeBenchmarkEngine
+        {
+            ClearSlotResultToReturn = Bitcraft.Application.Common.Models.Result.Failure<bool>(
+                new Error("Benchmark.SidecarException", "Benchmark sidecar evaluation failed."))
+        };
+
+        var handler = new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotHandler(engine, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ClearBenchmarkEngineSlotCommand(), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Benchmark.SidecarException", result.Error.Code);
+    }
+
+    // ----- Archive (HD-4) -----
+
+    [Fact]
+    public async Task Archive_AsAdmin_HidesRunFromDefaultList()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed,
+            IsArchived = false
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunHandler(runs, Admin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(run.IsArchived);
+        Assert.NotNull(run.ArchivedUtc);
+
+        var visible = await runs.ListRecentAsync(50, includeArchived: false);
+        var all = await runs.ListRecentAsync(50, includeArchived: true);
+        Assert.DoesNotContain(visible, x => x.Id == run.Id);
+        Assert.Contains(all, x => x.Id == run.Id);
+    }
+
+    [Fact]
+    public async Task Archive_RunningRun_ReturnsNotArchivable()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Running
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunHandler(runs, Admin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.NotArchivable", result.Error.Code);
+        Assert.False(run.IsArchived);
+    }
+
+    [Fact]
+    public async Task Archive_AsNonAdmin_ReturnsForbidden()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun { BenchmarkKey = "mmlu", Status = BenchmarkRunStatus.Completed };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunHandler(runs, NonAdmin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.ArchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Unarchive_AsAdmin_RestoresRunToList()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var run = new StandardBenchmarkRun
+        {
+            BenchmarkKey = "mmlu",
+            Status = BenchmarkRunStatus.Completed,
+            IsArchived = true,
+            ArchivedUtc = DateTime.UtcNow
+        };
+        runs.Runs[run.Id] = run;
+
+        var handler = new StandardBenchmarkFeatures.UnarchiveStandardBenchmarkRunHandler(runs, Admin());
+        var result = await handler.Handle(new StandardBenchmarkFeatures.UnarchiveStandardBenchmarkRunCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(run.IsArchived);
+        Assert.Null(run.ArchivedUtc);
+    }
+
+    // ----- Queue pause (HD-8) -----
+
+    [Fact]
+    public async Task SetQueuePaused_AsAdmin_PersistsAndWakesWorkerOnResume()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+
+        var handler = new StandardBenchmarkFeatures.SetBenchmarkQueuePausedHandler(runs, queue, Admin(), TimeProvider.System);
+
+        var paused = await handler.Handle(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(true), CancellationToken.None);
+        Assert.True(paused.IsSuccess);
+        Assert.True(paused.Value);
+        Assert.True(runs.QueueState.IsPaused);
+
+        var resumed = await handler.Handle(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(false), CancellationToken.None);
+        Assert.True(resumed.IsSuccess);
+        Assert.False(runs.QueueState.IsPaused);
+
+        // A resume must wake the worker so queued runs are picked up again.
+        Assert.Contains(queue.QueuedRunIds, id => id == Guid.Empty);
+    }
+
+    [Fact]
+    public async Task SetQueuePaused_AsNonAdmin_ReturnsForbidden()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        var queue = new FakeStandardBenchmarkRunQueue();
+
+        var handler = new StandardBenchmarkFeatures.SetBenchmarkQueuePausedHandler(runs, queue, NonAdmin(), TimeProvider.System);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.SetBenchmarkQueuePausedCommand(true), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("StandardBenchmark.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetQueuePaused_ReturnsCurrentState()
+    {
+        var runs = new FakeStandardBenchmarkRunRepository();
+        runs.QueueState = new BenchmarkQueueState { IsPaused = true };
+
+        var handler = new StandardBenchmarkFeatures.GetBenchmarkQueuePausedHandler(runs);
+        var result = await handler.Handle(new StandardBenchmarkFeatures.GetBenchmarkQueuePausedQuery(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value);
+    }
+
+    [Fact]
     public async Task Process_WithKeylessOllamaEngine_SendsNullKey()
     {
         // Local Ollama engines carry no key. The payload must send null, not a blank string.

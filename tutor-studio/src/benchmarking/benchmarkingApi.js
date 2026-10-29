@@ -31,8 +31,13 @@ export const getBenchmarkProgress = (tutorId, runId, signal) =>
 export const listStandardBenchmarkSuites = (signal) =>
   apiFetch("/api/standard-benchmark-runs/suites", { signal });
 
-export const listStandardBenchmarkRuns = (interactionModelId, signal) =>
-  apiFetch(`/api/standard-benchmark-runs${interactionModelId ? `?interactionModelId=${interactionModelId}` : ""}`, { signal });
+export const listStandardBenchmarkRuns = (interactionModelId, signal, includeArchived = false) => {
+  const params = new URLSearchParams();
+  if (interactionModelId) params.set("interactionModelId", interactionModelId);
+  if (includeArchived) params.set("includeArchived", "true");
+  const query = params.toString();
+  return apiFetch(`/api/standard-benchmark-runs${query ? `?${query}` : ""}`, { signal });
+};
 
 export const getStandardBenchmarkRun = (runId, signal) =>
   apiFetch(`/api/standard-benchmark-runs/${runId}`, { signal });
@@ -59,3 +64,23 @@ export const setStandardBenchmarkRunPriority = (runId, priority) =>
 
 export const getStandardBenchmarkRunLog = (runId, signal) =>
   apiFetch(`/api/standard-benchmark-runs/${runId}/log`, { signal });
+
+// ----- Queue and engine controls (HD-4, HD-8, HD-9) -----
+
+export const archiveStandardBenchmarkRun = (runId) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}/archive`, { method: "POST", parse: "none" });
+
+export const unarchiveStandardBenchmarkRun = (runId) =>
+  apiFetch(`/api/standard-benchmark-runs/${runId}/unarchive`, { method: "POST", parse: "none" });
+
+export const getBenchmarkQueuePaused = (signal) =>
+  apiFetch("/api/standard-benchmark-runs/queue/paused", { signal });
+
+export const setBenchmarkQueuePaused = (isPaused) =>
+  apiFetch("/api/standard-benchmark-runs/queue/paused", { method: "PUT", json: { isPaused } });
+
+export const getBenchmarkEngineStatus = (signal) =>
+  apiFetch("/api/standard-benchmark-runs/engine", { signal });
+
+export const clearBenchmarkEngineSlot = () =>
+  apiFetch("/api/standard-benchmark-runs/engine/clear-slot", { method: "POST" });

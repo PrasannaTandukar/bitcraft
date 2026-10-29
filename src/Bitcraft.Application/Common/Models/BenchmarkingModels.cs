@@ -71,6 +71,15 @@ public sealed record StandardBenchmarkTaskScore(string Task, double Score);
 
 public sealed record StandardBenchmarkHandle(string RunId);
 
+/// <summary>Sidecar engine status for the Admin control surface (HD-9).</summary>
+public sealed record SidecarEngineStatus(
+    bool IsReachable,
+    string Transport,
+    bool SlotHeld,
+    string? CurrentRunId,
+    string? EngineVersion,
+    string? LastError);
+
 /// <summary>Terminal or in-flight status of a standardized benchmark run.</summary>
 public sealed record StandardBenchmarkStatus(
     string State,

@@ -24,8 +24,12 @@ internal sealed class FakeStandardBenchmarkRunRepository : IStandardBenchmarkRun
     public Task<List<StandardBenchmarkRun>> ListByModelAsync(Guid interactionModelId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Runs.Values.Where(x => x.InteractionModelId == interactionModelId).OrderByDescending(x => x.QueuedUtc).ToList());
 
-    public Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult(Runs.Values.OrderByDescending(x => x.QueuedUtc).Take(limit).ToList());
+    public Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, bool includeArchived, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Runs.Values
+            .Where(x => includeArchived || !x.IsArchived)
+            .OrderByDescending(x => x.QueuedUtc)
+            .Take(limit)
+            .ToList());
 
     public Task<List<StandardBenchmarkRun>> ListRunningAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(Runs.Values
@@ -58,6 +62,17 @@ internal sealed class FakeStandardBenchmarkRunRepository : IStandardBenchmarkRun
     {
         Runs[run.Id] = run;
         UpdateCalls++;
+        return Task.CompletedTask;
+    }
+
+    public BenchmarkQueueState QueueState { get; set; } = new();
+
+    public Task<BenchmarkQueueState> GetQueueStateAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(QueueState);
+
+    public Task UpdateQueueStateAsync(BenchmarkQueueState state, CancellationToken cancellationToken = default)
+    {
+        QueueState = state;
         return Task.CompletedTask;
     }
 }

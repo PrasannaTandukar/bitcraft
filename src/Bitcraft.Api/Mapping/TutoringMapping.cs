@@ -38,7 +38,8 @@ internal static class TutoringMapping
             new NotFoundObjectResult(new ApiError(error.Code, error.Description)),
         var c when c.EndsWith(".Forbidden", StringComparison.Ordinal) =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status403Forbidden },
-        "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" =>
+        "Ollama.Unavailable" or "Ollama.RequestFailed" or "Rag.EmbeddingFailed" or "Rag.GenerationFailed" or "Tutor.GenerationFailed" or
+        "Benchmark.SidecarException" =>
             new ObjectResult(new ApiError(error.Code, error.Description)) { StatusCode = StatusCodes.Status502BadGateway },
         "InteractionModel.ImageTestFailed" or "TutorRuntime.ImageRejected" or "Ollama.ModelNotFound" or "Ollama.InvalidResponse" or "TutorRuntime.GenerationFailed" or
         "TutorRuntime.EmbeddingUnavailable" or "TutorRuntime.KnowledgeSearchFailed" or
@@ -519,7 +520,9 @@ internal static class TutoringMapping
         run.FailureCode,
         run.FailureDescription,
         run.Priority,
-        run.CancelledUtc);
+        run.CancelledUtc,
+        run.IsArchived,
+        run.ArchivedUtc);
 
     public static StandardBenchmarkSuiteResponse ToResponse(this StandardBenchmarkSuiteRegistry.SuiteInfo suite) => new(
         suite.Key,
@@ -547,4 +550,12 @@ internal static class TutoringMapping
         run.LastProgressUtc,
         run.FailureCode,
         run.FailureDescription);
+
+    public static BenchmarkEngineStatusResponse ToResponse(this SidecarEngineStatus status) => new(
+        status.IsReachable,
+        status.Transport,
+        status.SlotHeld,
+        status.CurrentRunId,
+        status.EngineVersion,
+        status.LastError);
 }

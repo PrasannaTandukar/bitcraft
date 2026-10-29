@@ -1,8 +1,10 @@
 import { ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Empty, Flex, Segmented, Typography } from "antd";
-import { useMemo, useState } from "react";
+import { Alert, Button, Card, Empty, Flex, Segmented, Switch, Typography } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiErrorDescription } from "../api/client.js";
 import { getStandardBenchmarkRunLog } from "./benchmarkingApi.js";
+
+const AUTO_REFRESH_INTERVAL_MS = 3_000;
 
 // tqdm writes carriage-return progress bars that flood the log with near-duplicate
 // lines. Drop them so the view shows decisions and errors, not redraw frames.
@@ -18,13 +20,14 @@ const isNoise = (line) => {
 const isErrorLine = (line) =>
   /\b(error|exception|traceback|failed|failure)\b/i.test(line);
 
-export default function StandardBenchmarkRunLog({ runId }) {
+export default function StandardBenchmarkRunLog({ runId, isActive = false }) {
   const [log, setLog] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [level, setLevel] = useState("all");
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -35,7 +38,15 @@ export default function StandardBenchmarkRunLog({ runId }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [runId]);
+
+  // Auto-refresh (G4): only while the run is active and the user opted in.
+  // The interval stops on terminal states.
+  useEffect(() => {
+    if (!autoRefresh || !isActive || !runId) return undefined;
+    const timer = setInterval(load, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [autoRefresh, isActive, runId, load]);
 
   const lines = useMemo(() => {
     if (!log) return [];
@@ -49,6 +60,11 @@ export default function StandardBenchmarkRunLog({ runId }) {
       title="Run log"
       extra={
         <Flex gap={8} align="center">
+          {isActive ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Auto <Switch size="small" checked={autoRefresh} onChange={setAutoRefresh} />
+            </Typography.Text>
+          ) : null}
           <Segmented
             size="small"
             value={level}

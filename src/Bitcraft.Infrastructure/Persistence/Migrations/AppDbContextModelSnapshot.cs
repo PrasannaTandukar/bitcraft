@@ -24,6 +24,39 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Bitcraft.Domain.Benchmarking.BenchmarkQueueState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ModifiedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ModifiedById");
+
+                    b.ToTable("BenchmarkQueueStates", (string)null);
+                });
+
             modelBuilder.Entity("Bitcraft.Domain.Benchmarking.BenchmarkRun", b =>
                 {
                     b.Property<Guid>("Id")
@@ -305,6 +338,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ArchivedUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("BenchmarkKey")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -346,6 +382,9 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("InteractionModelId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastProgressUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1763,6 +1802,24 @@ namespace Bitcraft.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(0);
 
                     b.HasDiscriminator().HasValue("Interaction");
+                });
+
+            modelBuilder.Entity("Bitcraft.Domain.Benchmarking.BenchmarkQueueState", b =>
+                {
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Bitcraft.Domain.Identity.AppUser", "ModifiedBy")
+                        .WithMany()
+                        .HasForeignKey("ModifiedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ModifiedBy");
                 });
 
             modelBuilder.Entity("Bitcraft.Domain.Benchmarking.BenchmarkRun", b =>

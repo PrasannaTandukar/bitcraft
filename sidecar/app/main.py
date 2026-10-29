@@ -16,9 +16,12 @@ from app.tools.deepeval_llm_benchmarks import (
     BenchmarkBusyError,
     BenchmarkValidationError,
     cancel_benchmark_run,
+    clear_benchmark_slot_marker,
     get_benchmark_run_status,
+    get_benchmark_slot_state,
     read_run_log,
     start_benchmark_run,
+    sweep_stale_runs_on_startup,
 )
 
 app = FastAPI(default_response_class=ORJSONResponse)
@@ -28,6 +31,18 @@ registry.register(DeepEvalBenchmarkTool())
 # in app/tools/deepeval_metrics.py) is intentionally NOT registered for this iteration.
 # Product direction: deterministic scoring only (deepeval.benchmark + the standardized
 # built-in benchmarks below). Re-register when LLM-as-judge is prioritized again.
+
+
+@app.on_event("startup")
+async def sweep_stale_runs() -> None:
+    """Heal leaked runner slots on start (G1 fix).
+
+    A runner subprocess that died without a terminal status write leaves its
+    status file `running` and holds the single slot forever. On sidecar start,
+    mark every stale non-terminal status as failed and clear the slot marker
+    when it points at a swept file. The UDS transport keeps this endpoint local.
+    """
+    sweep_stale_runs_on_startup()
 
 
 @app.get("/health")
@@ -132,3 +147,24 @@ async def get_llm_benchmark_status(run_id: str):
             },
         )
     return status
+
+
+@app.get("/internal/benchmarks/slot")
+async def get_benchmark_slot() -> dict:
+    """Return the current runner slot state (HD-9, Admin surface).
+
+    `slot_held` mirrors `_slot_held()`. `run_id` is the run whose status file
+    holds the slot, or null when free. `engine_version` reports the installed
+    deepeval version for status display.
+    """
+    return get_benchmark_slot_state()
+
+
+@app.delete("/internal/benchmarks/slot")
+async def clear_benchmark_slot() -> dict:
+    """Clear the persisted runner slot marker (HD-9 recovery action).
+
+    Deletes `last_status_path.txt` so the next start is accepted. Safe no-op
+    when the slot is already free. Returns the post-clear slot state.
+    """
+    return clear_benchmark_slot_marker()

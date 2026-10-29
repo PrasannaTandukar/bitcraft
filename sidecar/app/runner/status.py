@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -37,6 +39,18 @@ def base_status(state: str, stage: str | None) -> dict:
     }
 
 
+def _json_default(value):
+    """Serialize pydantic models inside status payloads (G10 fix).
+
+    `json.dump` raises `TypeError` on a pydantic `BaseModel` value. This
+    handler converts the model to plain JSON types so a terminal status that
+    carries `SidecarTaskScore` records can never crash the write.
+    """
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json")
+    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
+
+
 def write_status(status_path: Path, payload: dict) -> None:
     """Atomically replace the status file with `payload` plus an updated_utc stamp."""
     stamped = {**payload, "updated_utc": utc_now_iso()}
@@ -45,7 +59,7 @@ def write_status(status_path: Path, payload: dict) -> None:
     fd, tmp_name = tempfile.mkstemp(dir=str(status_path.parent), suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(stamped, handle)
+            json.dump(stamped, handle, default=_json_default)
         os.replace(tmp_name, status_path)
     except OSError:
         try:

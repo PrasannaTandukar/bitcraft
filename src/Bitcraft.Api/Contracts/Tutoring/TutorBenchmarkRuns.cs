@@ -133,7 +133,9 @@ public sealed record StandardBenchmarkRunResponse(
     string? FailureCode,
     string? FailureDescription,
     int Priority,
-    DateTime? CancelledUtc);
+    DateTime? CancelledUtc,
+    bool IsArchived,
+    DateTime? ArchivedUtc);
 
 /// <summary>Lightweight standardized benchmark run progress response for polling UI state.</summary>
 public sealed record StandardBenchmarkRunProgressResponse(
@@ -169,3 +171,21 @@ public sealed record SetStandardBenchmarkRunPriorityRequest(int Priority);
 
 /// <summary>Scrubbed, capped runner log for one standardized benchmark run.</summary>
 public sealed record StandardBenchmarkRunLogResponse(Guid RunId, string Log);
+
+/// <summary>Sidecar engine status for the Admin control surface (HD-9).</summary>
+public sealed record BenchmarkEngineStatusResponse(
+    bool IsReachable,
+    string Transport,
+    bool SlotHeld,
+    string? CurrentRunId,
+    string? EngineVersion,
+    string? LastError);
+
+/// <summary>Result of clearing the sidecar runner slot. True when the slot is now free.</summary>
+public sealed record BenchmarkEngineSlotClearedResponse(bool SlotCleared);
+
+/// <summary>Sets the global benchmark queue pause state (HD-8).</summary>
+public sealed record SetBenchmarkQueuePausedRequest(bool IsPaused);
+
+/// <summary>The global benchmark queue pause state.</summary>
+public sealed record BenchmarkQueuePausedResponse(bool IsPaused);

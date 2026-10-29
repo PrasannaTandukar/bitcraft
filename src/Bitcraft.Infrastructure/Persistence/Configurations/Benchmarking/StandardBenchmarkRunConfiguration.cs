@@ -42,6 +42,9 @@ public class StandardBenchmarkRunConfiguration : IEntityTypeConfiguration<Standa
         entity.Property(x => x.Notes)
             .HasMaxLength(1000);
 
+        entity.Property(x => x.ArchivedUtc)
+            .HasColumnType("timestamp with time zone");
+
         entity.Property(x => x.FailureCode)
             .HasMaxLength(200);
 

@@ -288,6 +288,101 @@ public sealed class DeepEvalBenchmarkEngine(
         }
     }
 
+    public async Task<Result<SidecarEngineStatus>> GetSidecarStatusAsync(CancellationToken cancellationToken = default)
+    {
+        // HD-9: never throw for an unreachable sidecar. The status surface must
+        // report reachability so an Admin can distinguish "sidecar down" from
+        // "slot stuck". Socket paths and exception internals never leave the engine.
+        try
+        {
+            using var lease = ResolveClient();
+            var client = lease.Client;
+            using var healthResponse = await client.GetAsync("/health", cancellationToken);
+            if (!healthResponse.IsSuccessStatusCode)
+            {
+                return Result.Success(new SidecarEngineStatus(
+                    IsReachable: false,
+                    Transport: sidecarOptions.Transport,
+                    SlotHeld: false,
+                    CurrentRunId: null,
+                    EngineVersion: null,
+                    LastError: $"Sidecar health probe returned status {(int)healthResponse.StatusCode}."));
+            }
+
+            using var slotResponse = await client.GetAsync("/internal/benchmarks/slot", cancellationToken);
+            if (!slotResponse.IsSuccessStatusCode)
+            {
+                return Result.Success(new SidecarEngineStatus(
+                    IsReachable: true,
+                    Transport: sidecarOptions.Transport,
+                    SlotHeld: false,
+                    CurrentRunId: null,
+                    EngineVersion: null,
+                    LastError: $"Sidecar slot probe returned status {(int)slotResponse.StatusCode}."));
+            }
+
+            var slot = await slotResponse.Content.ReadFromJsonAsync(
+                DeepEvalBenchmarkJsonContext.Default.SidecarSlotStateResponse,
+                cancellationToken);
+            return Result.Success(new SidecarEngineStatus(
+                IsReachable: true,
+                Transport: sidecarOptions.Transport,
+                SlotHeld: slot?.SlotHeld ?? false,
+                CurrentRunId: slot?.RunId,
+                EngineVersion: slot?.EngineVersion,
+                LastError: null));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Sidecar status probe failed.");
+            return Result.Success(new SidecarEngineStatus(
+                IsReachable: false,
+                Transport: sidecarOptions.Transport,
+                SlotHeld: false,
+                CurrentRunId: null,
+                EngineVersion: null,
+                LastError: SafeSidecarFailureDescription));
+        }
+    }
+
+    public async Task<Result<bool>> ClearSidecarSlotAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var lease = ResolveClient();
+            var client = lease.Client;
+            using var response = await client.DeleteAsync("/internal/benchmarks/slot", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync(
+                    DeepEvalBenchmarkJsonContext.Default.SidecarError,
+                    cancellationToken);
+                return Result.Failure<bool>(new Error(
+                    error?.Code ?? "Benchmark.SidecarSlotClearFailed",
+                    error?.Description ?? $"Sidecar slot clear failed with status {(int)response.StatusCode}."));
+            }
+
+            var slot = await response.Content.ReadFromJsonAsync(
+                DeepEvalBenchmarkJsonContext.Default.SidecarSlotStateResponse,
+                cancellationToken);
+            return Result.Success(slot?.SlotHeld is null or false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Clearing the sidecar runner slot failed.");
+            return Result.Failure<bool>(new Error("Benchmark.SidecarException", SafeSidecarFailureDescription));
+        }
+    }
+
     private ClientLease ResolveClient()
     {
         var useUds = string.Equals(sidecarOptions.Transport, "uds", StringComparison.OrdinalIgnoreCase);

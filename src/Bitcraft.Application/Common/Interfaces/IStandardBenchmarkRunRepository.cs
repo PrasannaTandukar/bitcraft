@@ -11,7 +11,9 @@ public interface IStandardBenchmarkRunRepository
     Task<StandardBenchmarkRun?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<List<StandardBenchmarkRun>> ListByModelAsync(Guid interactionModelId, CancellationToken cancellationToken = default);
-    Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>Recent runs, excluding archived rows unless includeArchived is set (HD-4).</summary>
+    Task<List<StandardBenchmarkRun>> ListRecentAsync(int limit, bool includeArchived, CancellationToken cancellationToken = default);
 
     /// <summary>Tracked fetch of runs currently in Running, for stall reclamation.</summary>
     Task<List<StandardBenchmarkRun>> ListRunningAsync(CancellationToken cancellationToken = default);
@@ -25,4 +27,12 @@ public interface IStandardBenchmarkRunRepository
 
     /// <summary>Hard-deletes a run row. Deletion is hard by default in this repository.</summary>
     Task DeleteAsync(StandardBenchmarkRun run, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the singleton queue state row, creating it (unpaused) when absent (HD-8).
+    /// </summary>
+    Task<BenchmarkQueueState> GetQueueStateAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Persists a mutation of the singleton queue state row (HD-8).</summary>
+    Task UpdateQueueStateAsync(BenchmarkQueueState state, CancellationToken cancellationToken = default);
 }

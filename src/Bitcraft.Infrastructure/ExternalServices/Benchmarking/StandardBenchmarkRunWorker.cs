@@ -40,6 +40,15 @@ public sealed class StandardBenchmarkRunWorker(
     {
         using var scope = scopeFactory.CreateScope();
         var runs = scope.ServiceProvider.GetRequiredService<IStandardBenchmarkRunRepository>();
+
+        // HD-8: a paused queue stops picking up new runs. A run already
+        // executing finishes to completion; this check only gates scheduling.
+        var queueState = await runs.GetQueueStateAsync(stoppingToken);
+        if (queueState.IsPaused)
+        {
+            return;
+        }
+
         var queued = await runs.ListQueuedOrderedAsync(stoppingToken);
 
         foreach (var candidate in queued)
