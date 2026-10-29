@@ -7,12 +7,14 @@ import { getApiErrorDescription } from "../api/client.js";
 import PageHeader from "../components/PageHeader.jsx";
 import StandardBenchmarkRunLog from "./StandardBenchmarkRunLog.jsx";
 import {
+  archiveStandardBenchmarkRun,
   cancelStandardBenchmarkRun,
   deleteStandardBenchmarkRun,
   getStandardBenchmarkRun,
   getStandardBenchmarkRunProgress,
   requeueStandardBenchmarkRun,
   setStandardBenchmarkRunPriority,
+  unarchiveStandardBenchmarkRun,
 } from "./benchmarkingApi.js";
 import { formatDateTime, formatPercent } from "./benchmarkingUtils.js";
 import "./Benchmarking.css";
@@ -162,9 +164,15 @@ export default function StandardBenchmarkRunPage() {
                 {(run.status === "Failed" || run.status === "Cancelled") ? (
                   <Button onClick={() => perform("requeue", () => requeueStandardBenchmarkRun(runId), (created) => navigate(`/benchmarking/runs/${created.id}`))} loading={busy === "requeue"}>Requeue</Button>
                 ) : null}
+                {run.isArchived ? (
+                  <Button onClick={() => perform("unarchive", () => unarchiveStandardBenchmarkRun(runId))} loading={busy === "unarchive"}>Unarchive</Button>
+                ) : (
+                  <Button onClick={() => perform("archive", () => archiveStandardBenchmarkRun(runId))} loading={busy === "archive"}>Archive</Button>
+                )}
                 <Button danger icon={<DeleteOutlined />} onClick={() => perform("delete", () => deleteStandardBenchmarkRun(runId), () => navigate("/benchmarking?tab=history"))} loading={busy === "delete"}>Delete</Button>
               </Space>
             ) : null}
+            {run.isArchived ? <Tag color="default" style={{ marginLeft: 8 }}>Archived</Tag> : null}
           </Flex>
 
           {isActive ? (

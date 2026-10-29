@@ -1,5 +1,5 @@
 import { ReloadOutlined } from "@ant-design/icons";
-import { Alert, Button, Empty, Flex, Form, Select, Space, Table, Typography } from "antd";
+import { Alert, Button, Empty, Flex, Form, Select, Space, Switch, Table, Tooltip, Typography } from "antd";
 import InfoTooltip from "../components/InfoTooltip.jsx";
 import BenchmarkingHelp from "./BenchmarkingHelp.jsx";
 import { useEffect, useState } from "react";
@@ -19,11 +19,12 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [includeArchived, setIncludeArchived] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
-    const standardRequest = listStandardBenchmarkRuns(null, controller.signal)
+    const standardRequest = listStandardBenchmarkRuns(null, controller.signal, includeArchived)
       .then((data) => setStandardRuns(data ?? []))
       .catch((requestError) => {
         if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "Could not load standardized benchmark runs."));
@@ -39,7 +40,7 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [refreshNonce, selectedTutorId]);
+  }, [refreshNonce, selectedTutorId, includeArchived]);
 
   const rows = [
     ...runs.map((run) => toHistoryRow(run, "tutor")),
@@ -181,7 +182,12 @@ export default function BenchmarkRunHistory({ tutors, tutorsLoading, tutorsError
         <Form.Item label="Tutor" className="benchmark-tutor-filter">
           <Select showSearch optionFilterProp="label" value={selectedTutorId || undefined} onChange={selectTutor} loading={tutorsLoading} placeholder="Select a tutor" options={tutors.map((tutor) => ({ value: tutor.id, label: tutor.name }))} />
         </Form.Item>
-        <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>Refresh evaluations</Button>
+        <Space size={12}>
+          <Tooltip title="Show archived standardized runs alongside active ones.">
+            <Switch checkedChildren="Archived" unCheckedChildren="Active only" checked={includeArchived} onChange={setIncludeArchived} />
+          </Tooltip>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>Refresh evaluations</Button>
+        </Space>
       </Flex>
       {tutorsError ? <Alert type="error" title={tutorsError} showIcon /> : null}
       {error ? <Alert type="error" title={error} showIcon /> : null}
