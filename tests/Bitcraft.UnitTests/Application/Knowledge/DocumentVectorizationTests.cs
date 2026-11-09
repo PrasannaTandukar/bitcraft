@@ -36,7 +36,7 @@ public class DocumentVectorizationTests
     [Fact]
     public async Task Vectorize_EnforcesConfiguredChunkCountLimit()
     {
-        var setup = CreateSetup(rawText: new string('x', 201), limits: new DocumentIngestionLimits(1000, 1000, 2));
+        var setup = CreateSetup(rawText: new string('x', 201), limits: new DocumentIngestionLimits(1000, 1000, 2, 10));
         var result = await setup.Handler.Handle(new KnowledgeFeatures.VectorizeDocumentCommand(
             setup.Document.Id, "Ollama", "embed", 100, null, 0), default);
 
@@ -101,6 +101,100 @@ public class DocumentVectorizationTests
         Assert.Equal("old", Assert.Single(setup.VectorStore.Chunks).Content);
         Assert.DoesNotContain("internal", result.Error.Description, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public async Task VectorizeBatch_PerDocumentFailureDoesNotStopBatch()
+    {
+        var ownerId = Guid.NewGuid();
+        var documents = new FakeDocumentStore();
+        var good = new Document { Name = "Good", RawText = "Good body." };
+        good.UpdateMetadata(ownerId);
+        var noText = new Document { Name = "NoText", RawText = null };
+        noText.UpdateMetadata(ownerId);
+        var alsoGood = new Document { Name = "AlsoGood", RawText = "Second body." };
+        alsoGood.UpdateMetadata(ownerId);
+        documents.Documents[good.Id] = good;
+        documents.Documents[noText.Id] = noText;
+        documents.Documents[alsoGood.Id] = alsoGood;
+
+        var setup = CreateBatchSetup(documents, ownerId);
+        var result = await setup.Handler.Handle(new KnowledgeFeatures.VectorizeDocumentBatchCommand(
+            FolderId: null,
+            EmbeddingModelId: setup.Model.Id), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value.Results.Count);
+        var failed = result.Value.Results.Single(x => x.ChunkCount is null);
+        Assert.Equal(noText.Id, failed.DocumentId);
+        Assert.Equal("Document.RawTextRequired", failed.ErrorCode);
+        Assert.Equal(2, setup.VectorStore.ReplacedDocumentIds.Count);
+        Assert.Contains(good.Id, setup.VectorStore.ReplacedDocumentIds);
+        Assert.Contains(alsoGood.Id, setup.VectorStore.ReplacedDocumentIds);
+        Assert.Equal(2, result.Value.Results.Count(x => x.ChunkCount is not null && x.ChunkCount > 0));
+    }
+
+    [Fact]
+    public async Task VectorizeBatch_ScopesToFolderAndOwner()
+    {
+        var ownerId = Guid.NewGuid();
+        var folderId = Guid.NewGuid();
+        var documents = new FakeDocumentStore();
+        var inFolder = new Document { Name = "In", RawText = "Body.", FolderId = folderId };
+        inFolder.UpdateMetadata(ownerId);
+        var inRoot = new Document { Name = "Root", RawText = "Body." };
+        inRoot.UpdateMetadata(ownerId);
+        var foreignInFolder = new Document { Name = "Foreign", RawText = "Body.", FolderId = folderId };
+        foreignInFolder.UpdateMetadata(Guid.NewGuid());
+        documents.Documents[inFolder.Id] = inFolder;
+        documents.Documents[inRoot.Id] = inRoot;
+        documents.Documents[foreignInFolder.Id] = foreignInFolder;
+
+        var setup = CreateBatchSetup(documents, ownerId);
+        var result = await setup.Handler.Handle(new KnowledgeFeatures.VectorizeDocumentBatchCommand(
+            FolderId: folderId,
+            EmbeddingModelId: setup.Model.Id), default);
+
+        Assert.True(result.IsSuccess);
+        var documentId = Assert.Single(result.Value.Results).DocumentId;
+        Assert.Equal(inFolder.Id, documentId);
+    }
+
+    private static BatchSetup CreateBatchSetup(FakeDocumentStore documents, Guid ownerId)
+    {
+        var vectorStore = new FakeVectorStore();
+        var runtime = new RuntimeEngine
+        {
+            Name = "Local Ollama",
+            ProviderType = RuntimeEngineProviderType.Ollama,
+            IsEnabled = true
+        };
+        var model = new EmbeddingModel
+        {
+            Name = "Nomic",
+            ProviderModelName = "nomic-embed-text",
+            RuntimeEngine = runtime,
+            RuntimeEngineId = runtime.Id,
+            IsEnabled = true,
+            EmbeddingDimensions = 3
+        };
+        var models = new FakeModelRepository();
+        models.EmbeddingModels[model.Id] = model;
+        var provider = new ConfigurableEmbeddingProvider([0.1f, 0.2f, 0.3f], null);
+        var handler = new KnowledgeFeatures.VectorizeDocumentBatchHandler(
+            documents,
+            vectorStore,
+            provider,
+            models,
+            new FakeCurrentUserContext(ownerId),
+            DocumentIngestionLimits.Default,
+            NullLogger<KnowledgeFeatures.VectorizeDocumentBatchHandler>.Instance);
+        return new BatchSetup(handler, vectorStore, model);
+    }
+
+    private sealed record BatchSetup(
+        KnowledgeFeatures.VectorizeDocumentBatchHandler Handler,
+        FakeVectorStore VectorStore,
+        EmbeddingModel Model);
 
     private static KnowledgeFeatures.VectorizeDocumentCommand Command(Setup setup) => new(
         setup.Document.Id,

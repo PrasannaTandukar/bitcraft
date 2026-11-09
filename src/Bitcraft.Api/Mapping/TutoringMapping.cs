@@ -136,6 +136,20 @@ internal static class TutoringMapping
         result.DocumentId,
         result.ChunkCount);
 
+    public static UploadDocumentBatchResponse ToResponse(this DocumentFeatures.UploadDocumentBatchResult result) => new(
+        result.Results.Select(x => new UploadDocumentBatchFileResponse(
+            x.FileName,
+            x.DocumentId,
+            x.ErrorCode,
+            x.ErrorDescription)).ToList());
+
+    public static VectorizeDocumentBatchResponse ToResponse(this KnowledgeFeatures.VectorizeDocumentBatchResult result) => new(
+        result.Results.Select(x => new VectorizeDocumentBatchItemResponse(
+            x.DocumentId,
+            x.ChunkCount,
+            x.ErrorCode,
+            x.ErrorDescription)).ToList());
+
     public static DocumentVectorizationStatusResponse ToResponse(this DocumentVectorizationStatus status) => new(
         status.DocumentId,
         status.HasRawText,

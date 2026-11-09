@@ -4,6 +4,7 @@ const DOCUMENTS_PATH = "/api/documents";
 
 export const acceptedDocumentExtensions = ".txt,.md,.csv,.json,.pdf,.docx";
 export const defaultMaximumUploadLabel = "10 MB";
+export const MAX_BATCH_FILES = 200;
 
 export function listDocuments(signal) {
   return apiFetch(DOCUMENTS_PATH, { signal });
@@ -25,6 +26,29 @@ export function uploadDocument(file, folderId, signal) {
   if (folderId) formData.append("folderId", folderId);
 
   return apiFetch(`${DOCUMENTS_PATH}/upload`, {
+    method: "POST",
+    body: formData,
+    signal,
+  });
+}
+
+export function uploadDocumentsBatch(files, folderId, signal) {
+  const formData = new FormData();
+  for (const file of files) {
+    // Folder uploads carry webkitRelativePath; flatten it into the filename so
+    // same-basename files from different subfolders keep distinct document names.
+    const relativePath = typeof file.webkitRelativePath === "string" ? file.webkitRelativePath : "";
+    if (!relativePath) {
+      formData.append("files", file);
+      continue;
+    }
+    const directory = relativePath.slice(0, relativePath.lastIndexOf("/")) || "";
+    const name = directory ? `${directory.replaceAll("/", "_")}_${file.name}` : file.name;
+    formData.append("files", new File([file], name, { type: file.type }), name);
+  }
+  if (folderId) formData.append("folderId", folderId);
+
+  return apiFetch(`${DOCUMENTS_PATH}/upload-batch`, {
     method: "POST",
     body: formData,
     signal,
@@ -72,6 +96,14 @@ export function vectorizeDocument(documentId, payload, signal) {
       signal,
     },
   );
+}
+
+export function vectorizeDocumentsBatch(payload, signal) {
+  return apiFetch(`${DOCUMENTS_PATH}/vectorize-batch`, {
+    method: "POST",
+    json: payload,
+    signal,
+  });
 }
 
 export function moveDocument(documentId, folderId) {

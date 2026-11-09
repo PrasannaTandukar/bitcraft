@@ -52,7 +52,7 @@ public class DocumentIngestionFeaturesTests
     [Fact]
     public async Task Upload_RejectsOversizedPayload()
     {
-        var setup = CreateSetup(new DocumentIngestionLimits(3, 100, 10));
+        var setup = CreateSetup(new DocumentIngestionLimits(3, 100, 10, 10));
         var result = await setup.Handler.Handle(Command("notes.txt", [1, 2, 3, 4]), default);
 
         Assert.True(result.IsFailure);
@@ -118,7 +118,7 @@ public class DocumentIngestionFeaturesTests
     [InlineData("four", "Document.ExtractedTextTooLarge")]
     public async Task Upload_RejectsInvalidExtractedText(string extractedText, string errorCode)
     {
-        var setup = CreateSetup(new DocumentIngestionLimits(100, 3, 10));
+        var setup = CreateSetup(new DocumentIngestionLimits(100, 3, 10, 10));
         setup.Extractor.Result = Result.Success(new DocumentTextExtractionResult(
             extractedText,
             "text/plain",
@@ -179,6 +179,69 @@ public class DocumentIngestionFeaturesTests
         Assert.Equal(owned.FolderId, setup.Documents.Documents[owned.Id].FolderId);
         Assert.Equal(0, setup.Documents.ContentReplacementCalls);
     }
+
+    [Fact]
+    public async Task UploadBatch_RejectsEmptyFileList()
+    {
+        var setup = CreateSetup();
+        var handler = CreateBatchHandler(setup);
+        var result = await handler.Handle(new DocumentFeatures.UploadDocumentBatchCommand([], null), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Document.FilesRequired", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task UploadBatch_RejectsListAboveBatchLimit()
+    {
+        var setup = CreateSetup(new DocumentIngestionLimits(100, 100, 10, 2));
+        var handler = CreateBatchHandler(setup);
+        var files = new List<DocumentFeatures.UploadDocumentBatchFile>
+        {
+            BatchFile("one.txt", [1]),
+            BatchFile("two.txt", [2]),
+            BatchFile("three.txt", [3]),
+        };
+
+        var result = await handler.Handle(new DocumentFeatures.UploadDocumentBatchCommand(files, null), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Document.BatchTooLarge", result.Error.Code);
+        Assert.Empty(setup.Documents.Documents);
+    }
+
+    [Fact]
+    public async Task UploadBatch_PerFileFailureDoesNotStopBatch()
+    {
+        var setup = CreateSetup();
+        var handler = CreateBatchHandler(setup);
+        var files = new List<DocumentFeatures.UploadDocumentBatchFile>
+        {
+            BatchFile("good.txt", [1]),
+            BatchFile("photo.png", [2]),
+            BatchFile("also-good.txt", [3]),
+        };
+
+        var result = await handler.Handle(new DocumentFeatures.UploadDocumentBatchCommand(files, null), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value.Results.Count);
+        var failed = result.Value.Results.Single(x => x.DocumentId is null);
+        Assert.Equal("photo.png", failed.FileName);
+        Assert.Equal("Document.UnsupportedFileType", failed.ErrorCode);
+        Assert.Equal(2, setup.Documents.Documents.Count);
+        Assert.Equal(2, setup.Extractor.Calls);
+    }
+
+    private DocumentFeatures.UploadDocumentBatchHandler CreateBatchHandler(Setup setup) => new(
+        setup.Documents,
+        new StubFolderStore([]),
+        setup.Extractor,
+        setup.Limits,
+        new FakeCurrentUserContext(ownerId));
+
+    private static DocumentFeatures.UploadDocumentBatchFile BatchFile(string name, byte[] content) =>
+        new(name, "application/octet-stream", content.LongLength, content);
 
     private Setup CreateSetup(
         DocumentIngestionLimits? limits = null,

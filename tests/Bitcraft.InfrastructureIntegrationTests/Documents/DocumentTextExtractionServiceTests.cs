@@ -120,7 +120,7 @@ public class DocumentTextExtractionServiceTests
     public async Task ExtractAsync_EnforcesExtractedCharacterLimit()
     {
         var limitedService = new DocumentTextExtractionService(
-            new DocumentIngestionLimits(100, 3, 10),
+            new DocumentIngestionLimits(100, 3, 10, 10),
             NullLogger<DocumentTextExtractionService>.Instance);
 
         var result = await limitedService.ExtractAsync(new DocumentTextExtractionRequest(
