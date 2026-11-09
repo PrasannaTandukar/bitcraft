@@ -123,6 +123,53 @@ public class DocumentsController(ISender sender, DocumentIngestionLimits limits)
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
+    /// <summary>Uploads multiple supported files and extracts their text on the server. A per-file failure does not stop the batch.</summary>
+    [HttpPost("upload-batch")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(UploadDocumentBatchResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<UploadDocumentBatchResponse>> UploadBatch(
+        [FromForm] UploadDocumentBatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Files is null || request.Files.Count == 0)
+        {
+            return TutoringMapping.ToActionResult(new Error("Document.FilesRequired", "At least one file is required."));
+        }
+
+        if (request.Files.Count > limits.MaxBatchFiles)
+        {
+            return TutoringMapping.ToActionResult(new Error(
+                "Document.BatchTooLarge",
+                $"A batch upload accepts at most {limits.MaxBatchFiles} files."));
+        }
+
+        var files = new List<DocumentFeatures.UploadDocumentBatchFile>(request.Files.Count);
+        foreach (var file in request.Files)
+        {
+            var content = await ReadBoundedFileAsync(file, cancellationToken);
+            if (content.IsFailure)
+            {
+                return TutoringMapping.ToActionResult(content.Error);
+            }
+
+            files.Add(new DocumentFeatures.UploadDocumentBatchFile(
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                content.Value));
+        }
+
+        var result = await sender.Send(
+            new DocumentFeatures.UploadDocumentBatchCommand(files, request.FolderId),
+            cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Value.ToResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
     /// <summary>Replaces a document's source file and clears stale chunks after extraction succeeds.</summary>
     [HttpPut("{id:guid}/content")]
     [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
@@ -215,6 +262,30 @@ public class DocumentsController(ISender sender, DocumentIngestionLimits limits)
     {
         var command = new KnowledgeFeatures.VectorizeDocumentCommand(
             id,
+            request.EmbeddingProvider,
+            request.EmbeddingModel,
+            request.MaxChunkLength,
+            request.EmbeddingModelId,
+            request.ChunkOverlap);
+        var result = await sender.Send(command, cancellationToken);
+        return result.IsSuccess
+            ? Ok(result.Value.ToResponse())
+            : TutoringMapping.ToActionResult(result.Error);
+    }
+
+    /// <summary>Rebuilds knowledge chunks for every document in a folder (or the user root). A per-document failure does not stop the batch.</summary>
+    [HttpPost("vectorize-batch")]
+    [Authorize(Policy = AuthorizationPolicies.EditorOrAdmin)]
+    [ProducesResponseType(typeof(VectorizeDocumentBatchResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<VectorizeDocumentBatchResponse>> VectorizeBatch(
+        [FromBody] VectorizeDocumentBatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new KnowledgeFeatures.VectorizeDocumentBatchCommand(
+            request.FolderId,
             request.EmbeddingProvider,
             request.EmbeddingModel,
             request.MaxChunkLength,

@@ -70,6 +70,111 @@ public static class DocumentFeatures
         }
     }
 
+    public sealed record UploadDocumentBatchFile(
+        string FileName,
+        string? MimeType,
+        long FileSizeBytes,
+        ReadOnlyMemory<byte> Content);
+
+    public sealed record UploadDocumentBatchFileResult(
+        string FileName,
+        Guid? DocumentId,
+        string? ErrorCode,
+        string? ErrorDescription);
+
+    public sealed record UploadDocumentBatchResult(IReadOnlyList<UploadDocumentBatchFileResult> Results);
+
+    public sealed record UploadDocumentBatchCommand(
+        IReadOnlyList<UploadDocumentBatchFile> Files,
+        Guid? FolderId) : IRequest<Result<UploadDocumentBatchResult>>;
+
+    public sealed class UploadDocumentBatchHandler(
+        IDocumentStore documentStore,
+        IDocumentFolderStore folderStore,
+        IDocumentTextExtractionService extractionService,
+        DocumentIngestionLimits limits,
+        ICurrentUserContext currentUser)
+        : IRequestHandler<UploadDocumentBatchCommand, Result<UploadDocumentBatchResult>>
+    {
+        public async Task<Result<UploadDocumentBatchResult>> Handle(
+            UploadDocumentBatchCommand request,
+            CancellationToken cancellationToken)
+        {
+            if (request.Files.Count == 0)
+            {
+                return Result.Failure<UploadDocumentBatchResult>(new Error(
+                    "Document.FilesRequired", "At least one file is required."));
+            }
+
+            if (request.Files.Count > limits.MaxBatchFiles)
+            {
+                return Result.Failure<UploadDocumentBatchResult>(new Error(
+                    "Document.BatchTooLarge",
+                    $"A batch upload accepts at most {limits.MaxBatchFiles} files."));
+            }
+
+            var userId = currentUser.UserId;
+            var folderValidation = await ValidateFolderAsync(request.FolderId, userId, folderStore, cancellationToken);
+            if (folderValidation.IsFailure)
+            {
+                return Result.Failure<UploadDocumentBatchResult>(folderValidation.Error);
+            }
+
+            var results = new List<UploadDocumentBatchFileResult>(request.Files.Count);
+            foreach (var file in request.Files)
+            {
+                var document = await UploadSingleAsync(file, request.FolderId, userId, documentStore, extractionService, limits, cancellationToken);
+                results.Add(document.IsSuccess
+                    ? new UploadDocumentBatchFileResult(file.FileName, document.Value.Id, null, null)
+                    : new UploadDocumentBatchFileResult(file.FileName, null, document.Error.Code, document.Error.Description));
+            }
+
+            return Result.Success(new UploadDocumentBatchResult(results));
+        }
+
+        private static async Task<Result<Document>> UploadSingleAsync(
+            UploadDocumentBatchFile file,
+            Guid? folderId,
+            Guid userId,
+            IDocumentStore documentStore,
+            IDocumentTextExtractionService extractionService,
+            DocumentIngestionLimits limits,
+            CancellationToken cancellationToken)
+        {
+            var validation = ValidateUploadedFile(file.FileName, file.FileSizeBytes, file.Content.Length, limits);
+            if (validation.IsFailure)
+            {
+                return Result.Failure<Document>(validation.Error);
+            }
+
+            var safeFileName = Path.GetFileName(file.FileName.Trim());
+            var extraction = await extractionService.ExtractAsync(
+                new DocumentTextExtractionRequest(safeFileName, file.MimeType, file.Content),
+                cancellationToken);
+            if (extraction.IsFailure)
+            {
+                return Result.Failure<Document>(extraction.Error);
+            }
+
+            var textValidation = ValidateExtractedText(extraction.Value.Text, limits);
+            if (textValidation.IsFailure)
+            {
+                return Result.Failure<Document>(textValidation.Error);
+            }
+
+            var document = new Document
+            {
+                Name = safeFileName,
+                SourcePath = null,
+                MimeType = extraction.Value.DetectedContentType,
+                RawText = extraction.Value.Text,
+                FolderId = folderId
+            };
+            document.UpdateMetadata(userId);
+            return Result.Success(await documentStore.AddAsync(document, cancellationToken));
+        }
+    }
+
     public sealed record ReplaceDocumentContentCommand(
         Guid DocumentId,
         string FileName,

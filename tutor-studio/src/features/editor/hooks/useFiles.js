@@ -94,6 +94,7 @@ export default function useFilesWorkspace(initialUploadOpen = false) {
   }, [loadWorkspace]);
 
   const handleSaved = useCallback((savedDocument, wasReplacement) => {
+    if (!savedDocument || !savedDocument.id) return;
     const normalized = normalizeDocument(savedDocument);
     setDocuments((current) =>
       wasReplacement

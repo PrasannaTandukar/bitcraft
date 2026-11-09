@@ -36,7 +36,7 @@ public sealed class RuntimeChatClientFactory(
         var key = apiKeys.Resolve(model);
         if (key.IsFailure) return Result.Failure<IChatClient>(key.Error);
         var timeoutSeconds = configuration.GetValue<int?>($"ModelProviders:{model.ProviderType}:GenerateTimeoutSeconds")
-            ?? configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
+            ?? configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 300;
         if (timeoutSeconds <= 0)
             return Failure("TimeoutInvalid", "The generation timeout must be positive.");
 
@@ -125,7 +125,7 @@ public sealed class RuntimeChatClientFactory(
             }
 
             var timeoutSeconds = configuration.GetValue<int?>($"ModelProviders:{model.ProviderType}:GenerateTimeoutSeconds")
-                ?? configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 120;
+                ?? configuration.GetValue<int?>("ModelProviders:Ollama:GenerateTimeoutSeconds") ?? 300;
 
             async Task<Result<IReadOnlyList<string>>> QueryOpenAiModelsAsync(Uri baseUri)
             {

@@ -32,6 +32,12 @@ public class DocumentStore(AppDbContext db) : IDocumentStore, IDocumentContentSt
             .OrderByDescending(x => x.ModifiedUtc ?? x.CreatedUtc)
             .ToListAsync(cancellationToken);
 
+    public Task<List<Document>> ListByFolderAsync(Guid? folderId, Guid creatorId, CancellationToken cancellationToken = default) =>
+        db.Documents
+            .Where(x => x.CreatedById == creatorId && x.FolderId == folderId)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
     public async Task UpdateAsync(Document document, CancellationToken cancellationToken = default)
     {
         db.Documents.Update(document);

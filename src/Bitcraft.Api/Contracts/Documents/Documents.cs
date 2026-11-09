@@ -13,6 +13,13 @@ public sealed class ReplaceDocumentContentRequest
     public IFormFile? File { get; init; }
 }
 
+/// <summary>Multipart form used to upload and extract multiple source documents in one request.</summary>
+public sealed class UploadDocumentBatchRequest
+{
+    public IFormFileCollection Files { get; init; } = default!;
+    public Guid? FolderId { get; init; }
+}
+
 /// <summary>Request to create a source document used by the knowledge pipeline.</summary>
 public sealed record CreateDocumentRequest(
     string Name,
@@ -94,6 +101,35 @@ public sealed record VectorizeDocumentRequest(
 
 /// <summary>Result of a document vectorization run.</summary>
 public sealed record VectorizeDocumentResponse(Guid DocumentId, int ChunkCount);
+
+/// <summary>Request to re-create knowledge chunks for every document in a folder (or the user root when <paramref name="FolderId"/> is null).</summary>
+public sealed record VectorizeDocumentBatchRequest(
+    Guid? FolderId = null,
+    string? EmbeddingProvider = null,
+    string? EmbeddingModel = null,
+    int MaxChunkLength = 1000,
+    Guid? EmbeddingModelId = null,
+    int ChunkOverlap = 100);
+
+/// <summary>Per-document outcome of a batch vectorization run. Exactly one of chunk count or error is set.</summary>
+public sealed record VectorizeDocumentBatchItemResponse(
+    Guid DocumentId,
+    int? ChunkCount,
+    string? ErrorCode,
+    string? ErrorDescription);
+
+/// <summary>Result of a batch vectorization run. A per-document failure does not stop the batch.</summary>
+public sealed record VectorizeDocumentBatchResponse(IReadOnlyList<VectorizeDocumentBatchItemResponse> Results);
+
+/// <summary>Per-file outcome of a batch upload. Exactly one of document id or error is set.</summary>
+public sealed record UploadDocumentBatchFileResponse(
+    string FileName,
+    Guid? DocumentId,
+    string? ErrorCode,
+    string? ErrorDescription);
+
+/// <summary>Result of a batch upload. A per-file failure does not stop the batch.</summary>
+public sealed record UploadDocumentBatchResponse(IReadOnlyList<UploadDocumentBatchFileResponse> Results);
 
 /// <summary>Lightweight vectorization metadata for an owned document.</summary>
 public sealed record DocumentVectorizationStatusResponse(

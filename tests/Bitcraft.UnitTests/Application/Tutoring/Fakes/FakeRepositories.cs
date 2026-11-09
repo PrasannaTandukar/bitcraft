@@ -526,6 +526,11 @@ internal sealed class FakeDocumentStore : IDocumentStore, IDocumentContentStore
     public Task<List<Document>> ListByCreatorAsync(Guid creatorId, CancellationToken ct = default) =>
         Task.FromResult(Documents.Values.Where(document => document.CreatedById == creatorId).ToList());
 
+    public Task<List<Document>> ListByFolderAsync(Guid? folderId, Guid creatorId, CancellationToken ct = default) =>
+        Task.FromResult(Documents.Values
+            .Where(document => document.CreatedById == creatorId && document.FolderId == folderId)
+            .ToList());
+
     public Task UpdateAsync(Document document, CancellationToken ct = default)
     {
         Documents[document.Id] = document;

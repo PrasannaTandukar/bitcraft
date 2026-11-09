@@ -108,6 +108,11 @@ public sealed class BitcraftApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<TestEmbeddingProvider>();
             services.AddSingleton<IEmbeddingProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<TestEmbeddingProvider>());
+            // The real PgvectorVectorStore opens a transaction, which the InMemory provider rejects.
+            services.RemoveAll<IVectorStore>();
+            services.AddSingleton<TestVectorStore>();
+            services.AddSingleton<IVectorStore>(serviceProvider =>
+                serviceProvider.GetRequiredService<TestVectorStore>());
             services.AddSingleton<TestKnowledgeRetriever>();
             services.AddSingleton<IKnowledgeRetriever>(serviceProvider =>
                 serviceProvider.GetRequiredService<TestKnowledgeRetriever>());
@@ -240,6 +245,31 @@ internal sealed class TestEmbeddingProvider : IEmbeddingProvider
     {
         Requests.Enqueue(request);
         return Task.FromResult(new[] { 1f, 0f, 0f });
+    }
+}
+
+internal sealed class TestVectorStore : IVectorStore
+{
+    public ConcurrentDictionary<Guid, IReadOnlyList<KnowledgeChunk>> DocumentChunks { get; } = new();
+
+    public Task<IReadOnlyList<KnowledgeChunk>> ReplaceDocumentChunksAsync(
+        Guid documentId,
+        IReadOnlyList<KnowledgeChunkWriteModel> chunks,
+        CancellationToken cancellationToken = default)
+    {
+        var replacements = chunks.Select(chunk => new KnowledgeChunk
+        {
+            DocumentId = documentId,
+            ChunkIndex = chunk.ChunkIndex,
+            Content = chunk.Content,
+            Embedding = chunk.Embedding,
+            EmbeddingModel = chunk.EmbeddingModel,
+            EmbeddingProvider = chunk.EmbeddingProvider,
+            EmbeddingModelId = chunk.EmbeddingModelId,
+            EmbeddingDimensions = chunk.EmbeddingDimensions
+        }).ToList();
+        DocumentChunks[documentId] = replacements;
+        return Task.FromResult<IReadOnlyList<KnowledgeChunk>>(replacements);
     }
 }
 
