@@ -104,6 +104,8 @@ Skill: `bitcraft-test-hardening`
 3. Add an integration test in `tests/Bitcraft.ApiIntegrationTests` for `POST /api/documents/upload-batch` covering: authorization (editor or admin), the file-count cap, and a successful two-file batch.
 4. Add an integration test for `POST /api/documents/vectorize-batch` covering authorization and a successful folder batch.
 
+> Decision (2026-11-09, lead-dev): keep `vectorizeDocumentsBatch` in `tutor-studio/src/features/editor/utils/documentApi.js` as the binding for the live `POST /api/documents/vectorize-batch` endpoint. The Vectorize folder dialog uses the sequential per-document loop instead; the helper stays for future UI or direct API use. Do not delete the helper or the endpoint.
+
 Validation: `dotnet test tests/Bitcraft.UnitTests/Bitcraft.UnitTests.csproj`. Expected result: all tests pass.
 
 ## Acceptance Criteria
