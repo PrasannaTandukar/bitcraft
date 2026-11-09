@@ -55,9 +55,9 @@ export default function FilesPage({ initialUploadOpen = false }) {
     const unavailableStatusCount = Object.values(statuses).filter((status) => status?.unavailable).length;
     const vectorizeFolderId = selectedFolderId === "root" ? null : (selectedFolderId !== "all" ? selectedFolderId : undefined);
     const vectorizeFolderName = selectedFolderId === "root" ? null : folderNames[selectedFolderId];
-    const vectorizeFolderCount = selectedFolderId === "root"
-        ? documents.filter((document) => !document.folderId).length
-        : (vectorizeFolderId ? (documentCounts[vectorizeFolderId] ?? 0) : 0);
+    const vectorizeFolderDocuments = selectedFolderId === "root"
+        ? documents.filter((document) => !document.folderId)
+        : (vectorizeFolderId ? documents.filter((document) => document.folderId === vectorizeFolderId) : []);
 
     return (
         <main className="workspace-page files-page">
@@ -69,7 +69,7 @@ export default function FilesPage({ initialUploadOpen = false }) {
                         <Button key="refresh" icon={<ReloadOutlined />} onClick={() => loadWorkspace(true)} loading={refreshing}>Refresh</Button>,
                         canManage ? <Button key="upload" type="primary" icon={<PlusOutlined />} onClick={() => setUploadDocumentTarget(null)}>Upload</Button> : null,
                         canManage ? <Button key="create" onClick={() => setCreateDialogOpen(true)}>Create document</Button> : null,
-                        canManage && vectorizeFolderId !== undefined && vectorizeFolderCount > 0 ? (
+                        canManage && vectorizeFolderId !== undefined && vectorizeFolderDocuments.length > 0 ? (
                             <Button key="vectorize-folder" icon={<ThunderboltOutlined />} onClick={() => setVectorizeFolderOpen(true)}>Vectorize folder</Button>
                         ) : null,
                     ].filter(Boolean)}
@@ -126,7 +126,7 @@ export default function FilesPage({ initialUploadOpen = false }) {
             {createDialogOpen ? <DocumentCreateDialog folders={folders} onClose={() => setCreateDialogOpen(false)} onCreated={handleCreateDocument} /> : null}
             {previewDocument ? <DocumentPreviewDialog key={previewDocument.id} document={previewDocument} canManage={canManage} onClose={() => setPreviewDocument(null)} onReplace={(document) => { setPreviewDocument(null); setUploadDocumentTarget(document); }} /> : null}
             {vectorizeDocumentTarget ? <VectorizeDocumentDialog key={vectorizeDocumentTarget.id} document={vectorizeDocumentTarget} onClose={() => setVectorizeDocumentTarget(null)} onVectorized={(documentId, status) => { setStatuses((current) => ({ ...current, [documentId]: status })); setNotice(`Vectorized successfully. Created ${status?.chunkCount ?? 0} knowledge chunks.`); }} /> : null}
-            {vectorizeFolderOpen ? <VectorizeFolderDialog folderId={vectorizeFolderId} folderName={vectorizeFolderName} documentCount={vectorizeFolderCount} onClose={() => setVectorizeFolderOpen(false)} onVectorized={() => { loadWorkspace(true); setNotice("Folder vectorization finished."); }} /> : null}
+            {vectorizeFolderOpen ? <VectorizeFolderDialog folderName={vectorizeFolderName} documents={vectorizeFolderDocuments} onClose={() => setVectorizeFolderOpen(false)} onVectorized={() => { loadWorkspace(true); setNotice("Folder vectorization finished."); }} /> : null}
             <Modal title="Delete document" open={Boolean(deleteTarget)} onCancel={() => setDeleteTarget(null)} onOk={handleDelete} okText="Delete document" okButtonProps={{ danger: true }} confirmLoading={deleting} closable={!deleting} mask={{ closable: !deleting }}>
                 <p>Delete <strong>{deleteTarget?.name}</strong>? Its extracted text and knowledge chunks will be permanently removed.</p>
             </Modal>

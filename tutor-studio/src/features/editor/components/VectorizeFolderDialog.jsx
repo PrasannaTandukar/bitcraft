@@ -1,14 +1,14 @@
-import { Alert, Form, InputNumber, List, Modal, Select, Spin, Typography } from "antd";
+import { Alert, Form, InputNumber, List, Modal, Progress, Select, Spin, Typography } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorDescription } from "../../../api/client.js";
-import { listEmbeddingModels, vectorizeDocumentsBatch } from "../utils/documentApi.js";
+import { listEmbeddingModels, vectorizeDocument } from "../utils/documentApi.js";
 
 function modelLabel(model) {
   const dimensions = Number.isFinite(Number(model.embeddingDimensions)) ? `${Number(model.embeddingDimensions).toLocaleString()} dimensions` : "Dimensions unavailable";
   return `${model.name} · ${model.providerModelName} · ${dimensions} · ${model.runtimeEngineName || "Runtime"}`;
 }
 
-export default function VectorizeFolderDialog({ folderId, folderName, documentCount, onClose, onVectorized }) {
+export default function VectorizeFolderDialog({ folderName, documents, onClose, onVectorized }) {
   const [models, setModels] = useState([]);
   const [modelId, setModelId] = useState();
   const [chunkSize, setChunkSize] = useState(1000);
@@ -17,6 +17,7 @@ export default function VectorizeFolderDialog({ folderId, folderName, documentCo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState(null);
+  const [progress, setProgress] = useState(null);
   const requestRef = useRef(null);
 
   useEffect(() => {
@@ -47,30 +48,42 @@ export default function VectorizeFolderDialog({ folderId, folderName, documentCo
   }, [chunkSize, overlap]);
 
   const handleSubmit = async () => {
-    if (saving || validation || !modelId) return;
+    if (saving || validation || !modelId || !documents.length) return;
     setSaving(true);
     setError("");
     setResults(null);
+    setProgress({ done: 0, total: documents.length });
     const controller = new AbortController();
     requestRef.current = controller;
+    const failures = [];
+    let succeeded = 0;
     try {
-      const response = await vectorizeDocumentsBatch(
-        { folderId, embeddingModelId: modelId, maxChunkLength: chunkSize, chunkOverlap: overlap },
-        controller.signal,
-      );
-      setResults(Array.isArray(response?.results) ? response.results : []);
-      onVectorized?.();
+      for (const document of documents) {
+        try {
+          await vectorizeDocument(document.id, { embeddingModelId: modelId, maxChunkLength: chunkSize, chunkOverlap: overlap }, controller.signal);
+          succeeded += 1;
+        } catch (requestError) {
+          if (requestError.name === "AbortError") throw requestError;
+          failures.push({ name: document.name, errorDescription: getApiErrorDescription(requestError, "Vectorization failed.") });
+        }
+        setProgress((current) => ({ done: (current?.done ?? 0) + 1, total: documents.length }));
+      }
+      setResults({ succeeded, failed: failures });
+      if (succeeded > 0) onVectorized?.();
     } catch (requestError) {
       if (requestError.name !== "AbortError") setError(getApiErrorDescription(requestError, "The embedding service could not process this batch. Confirm the model is installed and the runtime is available."));
     } finally {
       if (!controller.signal.aborted) {
         requestRef.current = null;
         setSaving(false);
+        setProgress(null);
       }
     }
   };
 
-  const succeeded = results ? results.filter((entry) => Number.isInteger(entry?.chunkCount)).length : 0;
+  const documentCount = documents.length;
+  const succeeded = results?.succeeded ?? 0;
+  const failedDocuments = results?.failed ?? [];
 
   return (
     <Modal
@@ -92,8 +105,8 @@ export default function VectorizeFolderDialog({ folderId, folderName, documentCo
       {error ? <Alert type="error" title={error} showIcon style={{ marginBottom: 16 }} /> : null}
       {results ? (
         <Alert
-          type={succeeded === results.length ? "success" : "warning"}
-          title={`Vectorized ${succeeded} of ${results.length} documents.`}
+          type={failedDocuments.length === 0 ? "success" : "warning"}
+          title={`Vectorized ${succeeded} of ${documentCount} documents.`}
           showIcon
           style={{ marginBottom: 16 }}
         />
@@ -114,15 +127,26 @@ export default function VectorizeFolderDialog({ folderId, folderName, documentCo
           {validation ? <Alert type="error" title={validation} showIcon style={{ marginBottom: 16 }} /> : null}
         </Form>
       ) : null}
-      {saving ? <Typography.Paragraph type="secondary"><Spin size="small" /> Vectorizing documents. This can take a long time with a local model.</Typography.Paragraph> : null}
-      {results && results.some((entry) => !Number.isInteger(entry?.chunkCount)) ? (
+      {saving && progress ? (
+        <div style={{ marginBottom: 16 }}>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
+            <Spin size="small" /> Vectorizing document {Math.min(progress.done + 1, progress.total)} of {progress.total}. This can take a long time with a local model.
+          </Typography.Paragraph>
+          <Progress percent={Math.round((progress.done / progress.total) * 100)} size="small" />
+        </div>
+      ) : null}
+      {saving && !progress ? <Typography.Paragraph type="secondary"><Spin size="small" /> Vectorizing documents. This can take a long time with a local model.</Typography.Paragraph> : null}
+      {failedDocuments.length ? (
         <List
           size="small"
           style={{ maxHeight: 240, overflowY: "auto" }}
-          dataSource={results.filter((entry) => !Number.isInteger(entry?.chunkCount))}
+          dataSource={failedDocuments}
           renderItem={(entry) => (
             <List.Item>
-              <Typography.Text type="danger">{entry?.errorDescription || "Vectorization failed"}</Typography.Text>
+              <Typography.Text type="danger">{entry?.name || "Unknown document"}</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {entry?.errorDescription || "Vectorization failed"}
+              </Typography.Text>
             </List.Item>
           )}
         />

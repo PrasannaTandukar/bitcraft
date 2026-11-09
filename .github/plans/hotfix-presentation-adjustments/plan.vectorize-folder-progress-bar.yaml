@@ -1,0 +1,14 @@
+branch: hotfix-presentation-adjustments
+created_at: 2026-11-09
+updated_at: 2026-11-09
+status: complete
+goal: Show a real per-document progress bar in the Vectorize Folder dialog via sequential per-document vectorize calls.
+cil: low
+css: 3
+dis: 3
+agents:
+  lead: lead-dev
+  supporting: []
+model_family: claude
+human_locks: []
+notes: Route A chosen by human. Frontend-only. Reuses POST /api/documents/{id}/vectorize. No backend change.

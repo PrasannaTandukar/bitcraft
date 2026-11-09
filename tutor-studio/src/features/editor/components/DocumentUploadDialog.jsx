@@ -1,4 +1,4 @@
-﻿import { FolderOpenOutlined, InboxOutlined } from "@ant-design/icons";
+import { FolderOpenOutlined, InboxOutlined } from "@ant-design/icons";
 import { Alert, Form, List, Modal, Progress, Segmented, Select, Spin, Typography, Upload } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getApiErrorDescription } from "../../../api/client.js";
