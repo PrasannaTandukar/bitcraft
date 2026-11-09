@@ -122,7 +122,10 @@ public static class DependencyInjection
                 DocumentIngestionLimits.DefaultMaxExtractedCharacters),
             PositiveIntOrDefault(
                 configuration.GetValue<int?>("Documents:MaxVectorizationChunks"),
-                DocumentIngestionLimits.DefaultMaxVectorizationChunks));
+                DocumentIngestionLimits.DefaultMaxVectorizationChunks),
+            PositiveIntOrDefault(
+                configuration.GetValue<int?>("Documents:MaxBatchFiles"),
+                DocumentIngestionLimits.DefaultMaxBatchFiles));
         services.AddSingleton(documentLimits);
         services.AddScoped<DocumentStore>();
         services.AddScoped<IDocumentStore>(provider => provider.GetRequiredService<DocumentStore>());
@@ -178,7 +181,7 @@ public static class DependencyInjection
         services.AddHostedService<StandardBenchmarkRunWorker>();
 
         // External model providers
-        var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 30;
+        var ollamaEmbeddingTimeoutSeconds = configuration.GetValue<int?>("ModelProviders:Ollama:EmbeddingTimeoutSeconds") ?? 300;
         services.AddHttpClient(nameof(OllamaEmbeddingProvider), c =>
         {
             c.Timeout = TimeSpan.FromSeconds(ollamaEmbeddingTimeoutSeconds);

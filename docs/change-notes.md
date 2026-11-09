@@ -1,8 +1,8 @@
 ---
 created_at: 2026-05-20
-edited_at: 2026-09-10
+edited_at: 2026-11-09
 creator: planner
-editor: codex
+editor: lead-dev
 ai_gen: true
 ---
 # Bitcraft Change Notes
@@ -30,6 +30,19 @@ Each batch entry follows this template:
 ```
 
 ## Entries
+
+### 2026-11-09 — Batch upload, folder vectorization, and local-model timeouts
+
+- **Plan**: [hotfix-presentation-adjustments/plan.md](../.github/plans/hotfix-presentation-adjustments/plan.md). Progress-bar sub-plan: [plan.vectorize-folder-progress-bar.md](../.github/plans/hotfix-presentation-adjustments/plan.vectorize-folder-progress-bar.md).
+- **What changed (developer-facing)**:
+  - Added `POST /api/documents/upload-batch` (up to 200 files, per-file results, per-file failure isolation) and `POST /api/documents/vectorize-batch` (whole-folder vectorization in one request). Both require the EditorOrAdmin policy.
+  - Raised the Ollama generation timeout from 120 to 300 seconds and the embedding timeout from 30 to 300 seconds for slow local models.
+  - The Add files dialog accepts multiple files or one whole folder. Folder selection flattens subfolder paths into document names. Batches of more than 200 files are sent in groups.
+  - The Vectorize folder dialog runs a sequential per-document loop with a live progress bar instead of calling the batch endpoint. A per-document failure does not stop the loop.
+  - Fixed the batch upload dialog closing with a phantom document entry and hiding per-file results.
+- **Why it changed**: an editor needed to import about 1,200 files as a folder and vectorize a folder in one operation. Short timeouts failed against slow local embedding models.
+- **What you must do differently**: none. Existing single-file upload, single-document vectorize, and replace-content flows keep their behavior.
+- **Where to read more**: [Document ingestion and vectorization](document-ingestion.md).
 
 ### 2026-09-10 — ImageSharp v3 Release-build compatibility
 

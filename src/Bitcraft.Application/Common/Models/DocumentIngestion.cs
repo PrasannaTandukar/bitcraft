@@ -3,16 +3,19 @@ namespace Bitcraft.Application.Common.Models;
 public sealed record DocumentIngestionLimits(
     long MaxUploadBytes,
     int MaxExtractedCharacters,
-    int MaxVectorizationChunks)
+    int MaxVectorizationChunks,
+    int MaxBatchFiles)
 {
     public const long DefaultMaxUploadBytes = 10 * 1024 * 1024;
     public const int DefaultMaxExtractedCharacters = 2_000_000;
     public const int DefaultMaxVectorizationChunks = 500;
+    public const int DefaultMaxBatchFiles = 200;
 
     public static DocumentIngestionLimits Default { get; } = new(
         DefaultMaxUploadBytes,
         DefaultMaxExtractedCharacters,
-        DefaultMaxVectorizationChunks);
+        DefaultMaxVectorizationChunks,
+        DefaultMaxBatchFiles);
 }
 
 public sealed record DocumentTextExtractionRequest(

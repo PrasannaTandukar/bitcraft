@@ -202,6 +202,153 @@ public class DocumentUploadWorkflowTests(BitcraftApiFactory factory) : IClassFix
         Assert.Equal(768, status.EmbeddingDimensions);
     }
 
+    [Fact]
+    public async Task UploadBatch_RequiresAuthenticationAndEditorRole()
+    {
+        var anonymous = factory.CreateClient();
+        using var anonymousForm = CreateBatchForm("notes.txt", "content");
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.PostAsync("/api/documents/upload-batch", anonymousForm)).StatusCode);
+
+        var auditor = factory.CreateClient();
+        await AuthorizeAsRoleAsync(auditor, AppRoles.Auditor);
+        using var auditorForm = CreateBatchForm("notes.txt", "content");
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await auditor.PostAsync("/api/documents/upload-batch", auditorForm)).StatusCode);
+    }
+
+    [Fact]
+    public async Task UploadBatch_ReturnsPerFileResults()
+    {
+        var client = factory.CreateClient();
+        await AuthorizeAsRoleAsync(client, AppRoles.Editor);
+
+        using var form = new MultipartFormDataContent();
+        form.Add(CreateBatchFileContent("one.txt", "first body"), "files", "one.txt");
+        form.Add(CreateBatchFileContent("two.md", "# second body", "text/markdown"), "files", "two.md");
+        form.Add(CreateBatchFileContent("bad.png", "not text", "image/png"), "files", "bad.png");
+
+        var response = await client.PostAsync("/api/documents/upload-batch", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var batch = await response.Content.ReadFromJsonAsync<UploadDocumentBatchResponse>();
+        Assert.NotNull(batch);
+        Assert.Equal(3, batch.Results.Count);
+        Assert.Equal(2, batch.Results.Count(x => x.DocumentId is not null));
+        var failed = Assert.Single(batch.Results, x => x.DocumentId is null);
+        Assert.Equal("bad.png", failed.FileName);
+        Assert.Equal("Document.UnsupportedFileType", failed.ErrorCode);
+
+        var summaries = await client.GetFromJsonAsync<List<DocumentSummaryResponse>>("/api/documents");
+        Assert.NotNull(summaries);
+        foreach (var entry in batch.Results.Where(x => x.DocumentId is not null))
+        {
+            Assert.Contains(summaries, summary => summary.Id == entry.DocumentId);
+        }
+    }
+
+    [Fact]
+    public async Task UploadBatch_RejectsEmptyBatch()
+    {
+        var client = factory.CreateClient();
+        await AuthorizeAsRoleAsync(client, AppRoles.Editor);
+
+        using var form = new MultipartFormDataContent();
+        var response = await client.PostAsync("/api/documents/upload-batch", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task VectorizeBatch_RequiresAuthenticationAndEditorRole()
+    {
+        var anonymous = factory.CreateClient();
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await anonymous.PostAsJsonAsync("/api/documents/vectorize-batch",
+                new VectorizeDocumentBatchRequest())).StatusCode);
+
+        var auditor = factory.CreateClient();
+        await AuthorizeAsRoleAsync(auditor, AppRoles.Auditor);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await auditor.PostAsJsonAsync("/api/documents/vectorize-batch",
+                new VectorizeDocumentBatchRequest())).StatusCode);
+    }
+
+    [Fact]
+    public async Task VectorizeBatch_VectorizesAllDocumentsInFolderAndScopesToRequestedFolder()
+    {
+        var client = factory.CreateClient();
+        await AuthorizeAsRoleAsync(client, AppRoles.Editor);
+
+        var folderResponse = await client.PostAsJsonAsync("/api/document-folders", new CreateDocumentFolderRequest("Batch vectorization", null));
+        Assert.Equal(HttpStatusCode.Created, folderResponse.StatusCode);
+        var folder = await folderResponse.Content.ReadFromJsonAsync<DocumentFolderResponse>();
+        Assert.NotNull(folder);
+
+        using (var uploadForm = new MultipartFormDataContent())
+        {
+            uploadForm.Add(CreateBatchFileContent("one.txt", "first body"), "files", "one.txt");
+            uploadForm.Add(CreateBatchFileContent("two.md", "# second body", "text/markdown"), "files", "two.md");
+            uploadForm.Add(new StringContent(folder.Id.ToString()), "folderId");
+            var uploadResponse = await client.PostAsync("/api/documents/upload-batch", uploadForm);
+            Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+            var uploaded = await uploadResponse.Content.ReadFromJsonAsync<UploadDocumentBatchResponse>();
+            Assert.NotNull(uploaded);
+            Assert.Equal(2, uploaded.Results.Count(x => x.DocumentId is not null));
+        }
+
+        // A second editor uploads a document into their own root; it must not be vectorized by the first user's folder batch.
+        var otherClient = factory.CreateClient();
+        await AuthorizeAsRoleAsync(otherClient, AppRoles.Editor);
+        using (var otherForm = CreateBatchForm("other.txt", "other body"))
+        {
+            var otherResponse = await otherClient.PostAsync("/api/documents/upload-batch", otherForm);
+            Assert.Equal(HttpStatusCode.OK, otherResponse.StatusCode);
+        }
+
+        var response = await client.PostAsJsonAsync("/api/documents/vectorize-batch", new VectorizeDocumentBatchRequest(
+            FolderId: folder.Id,
+            EmbeddingProvider: "Ollama",
+            EmbeddingModel: "nomic-embed-text"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var batch = await response.Content.ReadFromJsonAsync<VectorizeDocumentBatchResponse>();
+        Assert.NotNull(batch);
+        // Exactly the two documents in the requested folder; the other user's root document is excluded.
+        Assert.Equal(2, batch.Results.Count);
+        foreach (var item in batch.Results)
+        {
+            Assert.NotNull(item.ChunkCount);
+            Assert.True(item.ChunkCount > 0);
+            Assert.Null(item.ErrorCode);
+            Assert.Null(item.ErrorDescription);
+        }
+
+        var vectorStore = factory.Services.GetRequiredService<TestVectorStore>();
+        foreach (var item in batch.Results)
+        {
+            Assert.True(vectorStore.DocumentChunks.ContainsKey(item.DocumentId));
+            Assert.Equal(item.ChunkCount, vectorStore.DocumentChunks[item.DocumentId].Count);
+        }
+    }
+
+    private static ByteArrayContent CreateBatchFileContent(string fileName, string text, string contentType = "text/plain")
+    {
+        var content = new ByteArrayContent(Encoding.UTF8.GetBytes(text));
+        content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        return content;
+    }
+
+    private static MultipartFormDataContent CreateBatchForm(
+        string fileName,
+        string text,
+        string contentType = "text/plain")
+    {
+        var form = new MultipartFormDataContent();
+        form.Add(CreateBatchFileContent(fileName, text, contentType), "files", fileName);
+        return form;
+    }
+
     private static MultipartFormDataContent CreateFileForm(
         string fileName,
         string text,
